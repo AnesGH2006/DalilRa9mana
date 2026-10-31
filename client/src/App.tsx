@@ -1034,12 +1034,22 @@ function LoginScreen() {
 
 // ── Auth gate ─────────────────────────────────────────────────────────────────
 function AuthGate() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, loadError, retry } = useAuth();
   const [loc] = useLocation();
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <motion.div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full"
         animate={{ rotate: 360 }} transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }} />
+    </div>
+  );
+  if (loadError) return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center" role="alert">
+      <AlertCircle className="h-10 w-10 text-destructive" />
+      <h1 className="text-xl font-bold">تعذر التحقق من تسجيل الدخول</h1>
+      <p className="max-w-md text-sm text-muted-foreground">
+        تعذّر الاتصال بخدمة المصادقة. تحقق من اتصالك ثم أعد المحاولة.
+      </p>
+      <Button onClick={retry}>إعادة المحاولة</Button>
     </div>
   );
 

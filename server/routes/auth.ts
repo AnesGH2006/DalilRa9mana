@@ -146,6 +146,7 @@ router.get("/dev-login", async (req: Request, res: Response) => {
 });
 
 router.get("/auth/user", (req: Request, res: Response) => {
+  res.set("Cache-Control", "private, no-store");
   if (!req.isAuthenticated() || !req.user) {
     res.json(GetCurrentAuthUserResponse.parse({ user: null }));
     return;
