@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { and, desc, eq } from "drizzle-orm";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import {
   absencesTable,
   db,
@@ -10,11 +10,12 @@ import {
   studentsTable,
 } from "../../shared/db.js";
 import { logger } from "../lib/logger.js";
+import { getUserGroqKey } from "../lib/groq-key.js";
 
 const router = Router();
 const MAX_MESSAGES = 11;
 const MAX_MESSAGE_LENGTH = 2000;
-const MODEL = "gemini-3.8-flash";
+const MODEL = "openai/gpt-oss-120b";
 
 const SYSTEM_PROMPT = `أنت رفيق، مساعد أولياء التلاميذ في تطبيق رفيق الرقمنة بالجزائر.
 تحدث بعربية سليمة بسيطة، باحترام وطمأنينة، وأجب باختصار.
@@ -72,9 +73,16 @@ router.post("/parent/assistant", async (req, res): Promise<void> => {
     .limit(1);
   const supportPhone = school?.supportPhone?.replace(/[^0-9]/g, "") || null;
 
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  let apiKey: string | null;
+  try {
+    apiKey = await getUserGroqKey(schoolUserId);
+  } catch (error) {
+    logger.error({ err: error, schoolUserId }, "Unable to read the school's parent assistant API key");
+    res.status(503).json({ error: "تعذر تهيئة المساعد حالياً. تواصل مع إدارة المؤسسة.", supportPhone });
+    return;
+  }
   if (!apiKey) {
-    res.status(503).json({ error: "المساعد غير متاح مؤقتاً. تواصل مع إدارة المؤسسة للمساعدة.", supportPhone });
+    res.status(503).json({ error: "مساعد الولي غير مفعّل لدى المؤسسة حالياً. تواصل مع إدارة المؤسسة.", supportPhone });
     return;
   }
 
@@ -134,19 +142,21 @@ router.post("/parent/assistant", async (req, res): Promise<void> => {
   }
 
   try {
-    const model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
-      model: MODEL,
-      systemInstruction: `${SYSTEM_PROMPT}\n\nبيانات هذا الحساب المسموح استخدامها فقط:\n${studentContext}`,
-      generationConfig: { temperature: 0.25, maxOutputTokens: 800 },
+    const client = new OpenAI({
+      apiKey,
+      baseURL: "https://api.groq.com/openai/v1",
     });
-    const history = messages.slice(0, -1).map(message => ({
-      role: message.role === "assistant" ? "model" as const : "user" as const,
-      parts: [{ text: message.content }],
-    }));
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(messages.at(-1)!.content);
-    const answer = result.response.text().trim();
-    if (!answer) throw new Error("Gemini returned an empty response");
+    const completion = await client.chat.completions.create({
+      model: MODEL,
+      temperature: 0.25,
+      max_tokens: 800,
+      messages: [
+        { role: "system", content: `${SYSTEM_PROMPT}\n\nبيانات هذا الحساب المسموح استخدامها فقط:\n${studentContext}` },
+        ...messages.map(message => ({ role: message.role, content: message.content })),
+      ],
+    });
+    const answer = completion.choices[0]?.message.content?.trim() || "";
+    if (!answer) throw new Error("Groq returned an empty response");
     res.json({ answer, supportPhone });
   } catch (error) {
     logger.error({ err: error, userId: req.user.id }, "Parent assistant request failed");
