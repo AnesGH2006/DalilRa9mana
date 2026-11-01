@@ -1,6 +1,6 @@
 import { type Request, type Response, type NextFunction } from "express";
 import { eq } from "drizzle-orm";
-import { getSession, getSessionId } from "../lib/auth.js";
+import { getSession, getSessionId, type SessionData } from "../lib/auth.js";
 import { db, schoolMembersTable, usersTable } from "../../shared/db.js";
 import type { AuthUser, MemberContext } from "../../shared/types.js";
 import { DEFAULT_STAFF_PERMISSIONS, normalizeStaffPermissions } from "../../shared/member-permissions.js";
@@ -24,7 +24,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return;
   }
 
-  const session = await getSession(sid);
+  let session: SessionData | null;
+  try {
+    session = await getSession(sid);
+  } catch (error) {
+    req.log.error({ error }, "Unable to verify the current sign-in session");
+    res.set("Cache-Control", "private, no-store").status(503).json({ error: "Unable to verify sign-in session" });
+    return;
+  }
 
   if (!session) {
     req.isAuthenticated = () => false;
@@ -33,11 +40,18 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   // Keep authorization state current after asynchronous payment webhooks.
-  const [currentUser] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.id, session.user.id))
-    .limit(1);
+  let currentUser: typeof usersTable.$inferSelect | undefined;
+  try {
+    [currentUser] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, session.user.id))
+      .limit(1);
+  } catch (error) {
+    req.log.error({ error, userId: session.user.id }, "Unable to refresh the authenticated user");
+    res.set("Cache-Control", "private, no-store").status(503).json({ error: "Unable to verify user account" });
+    return;
+  }
   req.user = currentUser
     ? {
         ...session.user,
@@ -90,11 +104,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       }
     }
   } catch (error) {
-  console.error("Unable to load school-member permissions:", error);
-  req.log?.error({ error, userId: session.user.id }, "Unable to load school-member permissions");
-  res.status(503).json({ error: "Unable to verify account permissions" });
-  return;
-}
+    req.log.error({ error, userId: session.user.id }, "Unable to load school-member permissions");
+    res.set("Cache-Control", "private, no-store").status(503).json({ error: "Unable to verify account permissions" });
+    return;
+  }
 
   next();
 }

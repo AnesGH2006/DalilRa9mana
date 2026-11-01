@@ -23,25 +23,37 @@ export function useAuth(): AuthState {
     let cancelled = false;
     setIsLoading(true);
     setLoadError(false);
-    fetch("/api/auth/user", { credentials: "include", cache: "no-store" })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<{ user: AuthUser | null }>;
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setUser(data.user ?? null);
-          setIsLoading(false);
+    const loadUser = async () => {
+      const retryDelays = [500, 1500];
+      let lastError: unknown;
+
+      for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+        if (cancelled) return;
+        try {
+          const res = await fetch("/api/auth/user", { credentials: "include", cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json() as { user: AuthUser | null };
+          if (!cancelled) {
+            setUser(data.user ?? null);
+            setIsLoading(false);
+          }
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt === retryDelays.length) break;
+          await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
         }
-      })
-      .catch((error: unknown) => {
-        console.error("Unable to check the current sign-in session:", error);
-        if (!cancelled) {
-          setUser(null);
-          setLoadError(true);
-          setIsLoading(false);
-        }
-      });
+      }
+
+      console.error("Unable to check the current sign-in session:", lastError);
+      if (!cancelled) {
+        setUser(null);
+        setLoadError(true);
+        setIsLoading(false);
+      }
+    };
+
+    void loadUser();
     return () => { cancelled = true; };
   }, [retryCount]);
 
