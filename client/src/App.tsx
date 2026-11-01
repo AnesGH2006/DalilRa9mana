@@ -66,6 +66,7 @@ import ClassBalancerPage from "@/pages/class-balancer";
 import TimetablePage from "@/pages/timetable";
 import ExcelInjectionPage from "@/pages/excel-injection";
 import {
+  DEFAULT_STAFF_PERMISSIONS,
   appPathForPermission,
   permissionForAppPath,
 } from "@shared/member-permissions";
@@ -205,6 +206,23 @@ const PARENT_SECTIONS: SectionDef[] = [
 function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): SectionDef[] {
   const role = user?.memberContext?.role;
   if (role === "parent")  return PARENT_SECTIONS;
+  const isStandaloneStaffPlan = user?.subscriptionPlan === "staff"
+    && user.subscriptionStatus === "active"
+    && !user.memberContext
+    && user.role !== "admin";
+  if (isStandaloneStaffPlan) {
+    const permissions = new Set(DEFAULT_STAFF_PERMISSIONS.teacher.filter(permission => permission !== "dashboard"));
+    const allowedNonPermissionPaths = new Set(["/settings", "/account", "/subscription"]);
+    return SECTIONS.map(section => ({
+      ...section,
+      items: section.items.filter(item => {
+        const permission = permissionForAppPath(item.href);
+        return permission
+          ? permissions.has(permission)
+          : allowedNonPermissionPaths.has(item.href);
+      }),
+    })).filter(section => section.items.length > 0);
+  }
   if (role === "teacher" || role === "supervisor" || role === "counselor") {
     const permissions = user?.memberContext?.permissions ?? [];
     const allowedNonPermissionPaths = new Set(["/settings", "/account", "/subscription"]);
@@ -577,6 +595,10 @@ function TopNav() {
   const [aiOpen, setAiOpen] = useState(false);
 
   const isParent = user?.memberContext?.role === "parent";
+  const isStandaloneStaffPlan = user?.subscriptionPlan === "staff"
+    && user.subscriptionStatus === "active"
+    && !user.memberContext
+    && user.role !== "admin";
   const sections = getNavSections(user);
 
   // Auto-open section containing active route
@@ -596,7 +618,7 @@ function TopNav() {
         initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
       >
         {/* Logo */}
-        <Link href={isParent ? "/my-child" : "/"}>
+        <Link href={isParent ? "/my-child" : isStandaloneStaffPlan ? "/upload-grades-ocr" : "/"}>
           <motion.div
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer shrink-0 me-2"
             whileTap={{ scale: 0.97 }}
@@ -769,7 +791,7 @@ function TopNav() {
         <AiChatWidget
           open={aiOpen}
           onClose={() => setAiOpen(false)}
-          role={user?.memberContext?.role ?? "admin"}
+          role={user?.memberContext?.role ?? (isStandaloneStaffPlan ? "teacher" : "admin")}
         />
       )}
     </>
@@ -796,6 +818,10 @@ function AppLayout() {
   const [loc, navigate] = useLocation();
   const { user } = useAuth();
   const isParent = user?.memberContext?.role === "parent";
+  const isStandaloneStaffPlan = user?.subscriptionPlan === "staff"
+    && user.subscriptionStatus === "active"
+    && !user.memberContext
+    && user.role !== "admin";
   const isFreeAccount = user?.role !== "admin" && (
     (user?.subscriptionPlan === "free" && user.subscriptionStatus === "active" && !user.memberContext)
     ||     (user?.memberContext && user.memberContext.role !== "parent" && user.memberContext.schoolSubscriptionPlan === "free")
@@ -806,6 +832,19 @@ function AppLayout() {
       navigate("/subscription", { replace: true });
     }
   }, [isFreeAccount, loc, navigate]);
+  useEffect(() => {
+    if (!isStandaloneStaffPlan) return;
+    if (loc === "/") {
+      navigate("/upload-grades-ocr", { replace: true });
+      return;
+    }
+
+    const requiredPermission = permissionForAppPath(loc);
+    const allowed = requiredPermission
+      ? DEFAULT_STAFF_PERMISSIONS.teacher.includes(requiredPermission)
+      : ["/settings", "/account", "/subscription"].includes(loc);
+    if (!allowed) navigate("/upload-grades-ocr", { replace: true });
+  }, [isStandaloneStaffPlan, loc, navigate]);
   useEffect(() => {
     const member = user?.memberContext;
     if (!member || member.role === "parent") return;
