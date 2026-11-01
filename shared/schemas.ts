@@ -25,7 +25,7 @@ export const GetCurrentAuthUserResponse = zod.object({
       profileImageUrl: zod.string().nullable(),
       role: zod.enum(["user", "admin"]),
       subscriptionStatus: zod.enum(["pending", "active", "suspended"]),
-      subscriptionPlan: zod.enum(["free", "basic", "pro"]).optional(),
+      subscriptionPlan: zod.enum(["free", "basic", "pro", "staff", "parent"]).optional(),
       subscriptionExpiresAt: zod.string().nullable().optional(),
       memberContext: MemberContextSchema.nullable().optional(),
     }),

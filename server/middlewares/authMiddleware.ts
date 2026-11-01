@@ -2,7 +2,7 @@ import { type Request, type Response, type NextFunction } from "express";
 import { eq } from "drizzle-orm";
 import { getSession, getSessionId, type SessionData } from "../lib/auth.js";
 import { db, schoolMembersTable, usersTable } from "../../shared/db.js";
-import type { AuthUser, MemberContext } from "../../shared/types.js";
+import type { AuthUser, MemberContext, SchoolSubscriptionPlan } from "../../shared/types.js";
 import { DEFAULT_STAFF_PERMISSIONS, normalizeStaffPermissions } from "../../shared/member-permissions.js";
 
 declare global {
@@ -98,7 +98,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
           .where(eq(usersTable.id, member.schoolUserId))
           .limit(1);
         if (schoolOwner) {
-          req.memberContext.schoolSubscriptionPlan = schoolOwner.subscriptionPlan as AuthUser["subscriptionPlan"];
+          req.memberContext.schoolSubscriptionPlan = schoolOwner.subscriptionPlan as SchoolSubscriptionPlan;
           req.memberContext.schoolSubscriptionStatus = schoolOwner.subscriptionStatus;
         }
       }

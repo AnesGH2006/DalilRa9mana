@@ -8,6 +8,7 @@ import {
 } from "../../shared/schemas.js";
 import { db, usersTable, schoolMembersTable } from "../../shared/db.js";
 import { and, eq, isNull } from "drizzle-orm";
+import type { AuthUser } from "../../shared/types.js";
 import {
   clearSession,
   getOidcConfig,
@@ -237,7 +238,7 @@ router.get("/callback", async (req: Request, res: Response) => {
       profileImageUrl: dbUser.profileImageUrl,
       role: dbUser.role as "user" | "admin",
       subscriptionStatus: dbUser.subscriptionStatus as "pending" | "active" | "suspended",
-      subscriptionPlan: dbUser.subscriptionPlan as "free" | "basic" | "pro",
+      subscriptionPlan: dbUser.subscriptionPlan as AuthUser["subscriptionPlan"],
       subscriptionExpiresAt: dbUser.subscriptionExpiresAt?.toISOString() ?? null,
     },
     access_token: tokens.access_token,
@@ -299,7 +300,7 @@ router.post("/mobile-auth/token-exchange", async (req: Request, res: Response) =
         profileImageUrl: dbUser.profileImageUrl,
         role: dbUser.role as "user" | "admin",
         subscriptionStatus: dbUser.subscriptionStatus as "pending" | "active" | "suspended",
-        subscriptionPlan: dbUser.subscriptionPlan as "free" | "basic" | "pro",
+        subscriptionPlan: dbUser.subscriptionPlan as AuthUser["subscriptionPlan"],
         subscriptionExpiresAt: dbUser.subscriptionExpiresAt?.toISOString() ?? null,
       },
       access_token: tokens.access_token,

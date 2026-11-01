@@ -3,7 +3,8 @@ import type { StaffPermission } from "./member-permissions.js";
 export type { SchoolLevel, SchoolStage } from "./school-stage.js";
 
 export type SubscriptionStatus = "pending" | "active" | "suspended";
-export type SubscriptionPlan = "free" | "basic" | "pro";
+export type SchoolSubscriptionPlan = "free" | "basic" | "pro";
+export type SubscriptionPlan = SchoolSubscriptionPlan | "staff" | "parent";
 export type UserRole = "user" | "admin";
 export type MemberRole = "teacher" | "parent" | "supervisor" | "counselor";
 
@@ -17,7 +18,7 @@ export interface MemberContext {
   /** Parents: the student they can view. Teachers: null. */
   linkedStudentId: string | null;
   name: string;
-  schoolSubscriptionPlan?: SubscriptionPlan;
+  schoolSubscriptionPlan?: SchoolSubscriptionPlan;
   schoolSubscriptionStatus?: SubscriptionStatus;
 }
 
