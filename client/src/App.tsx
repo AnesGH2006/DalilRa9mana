@@ -69,6 +69,7 @@ import {
   DEFAULT_STAFF_PERMISSIONS,
   appPathForPermission,
   permissionForAppPath,
+  type StaffPermission,
 } from "@shared/member-permissions";
 import PaymentReturnPage from "@/pages/Payment-return";
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -211,7 +212,7 @@ function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): Secti
     && !user.memberContext
     && user.role !== "admin";
   if (isStandaloneStaffPlan) {
-    const permissions = new Set(DEFAULT_STAFF_PERMISSIONS.teacher.filter(permission => permission !== "dashboard"));
+    const permissions = new Set<StaffPermission>(DEFAULT_STAFF_PERMISSIONS.teacher.filter(permission => permission !== "dashboard"));
     const allowedNonPermissionPaths = new Set(["/settings", "/account", "/subscription"]);
     return SECTIONS.map(section => ({
       ...section,

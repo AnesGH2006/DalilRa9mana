@@ -20,6 +20,7 @@ interface AdminUser {
   schoolName?: string | null;
   role: string;
   subscriptionStatus: string;
+  subscriptionPlan?: string | null;
   subscriptionExpiresAt: string | null;
   createdAt: string;
 }
@@ -306,6 +307,12 @@ export default function AdminPage() {
                           {{ teacher: "أستاذ", supervisor: "مشرف", counselor: "مستشار" }[u.memberRole]}
                           {u.schoolName ? ` · ${u.schoolName}` : ""}
                         </p>
+                      )}
+                      {!u.memberRole && u.subscriptionPlan === "staff" && (
+                        <p className="text-[10px] text-sky-700 dark:text-sky-400 truncate">اشتراك طاقم تربوي مستقل</p>
+                      )}
+                      {!u.memberRole && u.subscriptionPlan === "parent" && (
+                        <p className="text-[10px] text-emerald-700 dark:text-emerald-400 truncate">اشتراك ولي أمر مستقل</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5">
