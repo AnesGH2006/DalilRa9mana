@@ -4,7 +4,7 @@ import { logAudit } from "../lib/audit.js";
 import { eq, and, ilike, inArray } from "drizzle-orm";
 import multer from "multer";
 import * as XLSX from "xlsx";
-import { db, studentsTable, usersTable } from "../../shared/db.js";
+import { db, studentsTable, gradesTable, absencesTable, usersTable } from "../../shared/db.js";
 import {
   ListStudentsResponse, ImportStudentsResponse, DashboardStatsResponse,
   NiveauEnum, SexeEnum, StatutEnum,
@@ -432,6 +432,24 @@ router.get("/stats", async (req, res): Promise<void> => {
     const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)];
     if (annee) conds.push(eq(studentsTable.annee, annee));
     const all = await db.select().from(studentsTable).where(and(...conds));
+    const studentIds = all.map(student => student.id);
+    const gradeRows = studentIds.length
+      ? await db.select().from(gradesTable).where(and(
+        eq(gradesTable.userId, userId),
+        inArray(gradesTable.studentId, studentIds),
+        ...(annee ? [eq(gradesTable.annee, annee)] : []),
+      ))
+      : [];
+    const absenceRows = studentIds.length
+      ? await db.select().from(absencesTable).where(and(
+        eq(absencesTable.userId, userId),
+        inArray(absencesTable.studentId, studentIds),
+        ...(annee ? [eq(absencesTable.annee, annee)] : []),
+      ))
+      : [];
+    const average = (scores: number[]) => scores.length
+      ? Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 100) / 100
+      : null;
     const currentYear = new Date().getFullYear();
     const calcAge = (dob: string | null): number | null => {
       if (!dob) return null;
@@ -447,6 +465,9 @@ router.get("/stats", async (req, res): Promise<void> => {
 
     const byLevel = SCHOOL_LEVELS.map(niveau => {
       const g = all.filter(s => s.niveau === niveau);
+      const levelStudentIds = new Set(g.map(student => student.id));
+      const levelGrades = gradeRows.filter(grade => levelStudentIds.has(grade.studentId));
+      const levelAbsences = absenceRows.filter(absence => levelStudentIds.has(absence.studentId));
       const ages = g.map(s => calcAge(s.dateNaissance)).filter((a): a is number => a !== null);
       const avgAge = ages.length ? Math.round((ages.reduce((s, a) => s + a, 0) / ages.length) * 10) / 10 : null;
       const minAge = ages.length ? Math.min(...ages) : null;
@@ -467,9 +488,22 @@ router.get("/stats", async (req, res): Promise<void> => {
         mustarrak: g.filter(s => s.resultat === "mustarrak").length,
         nouveau: g.filter(s => s.statut === "nouveau").length,
         redoublant: g.filter(s => s.statut === "redoublant").length,
+        averageGrade: average(levelGrades.map(grade => Number(grade.score)).filter(Number.isFinite)),
+        justifiedHours: levelAbsences.reduce((sum, absence) => sum + absence.justifiedHours, 0),
+        unjustifiedHours: levelAbsences.reduce((sum, absence) => sum + absence.unjustifiedHours, 0),
         avgAge, minAge, maxAge, ageDist,
       };
     }).filter(l => l.total > 0);
+    const gradesBySubject = [...new Set(gradeRows.map(grade => grade.subject))].map(subject => {
+      const subjectGrades = gradeRows.filter(grade => grade.subject === subject)
+        .map(grade => Number(grade.score)).filter(Number.isFinite);
+      return {
+        subject,
+        average: average(subjectGrades) ?? 0,
+        count: subjectGrades.length,
+        passed: subjectGrades.filter(score => score >= 10).length,
+      };
+    });
     res.json(DashboardStatsResponse.parse({
       total: all.length,
       boys: all.filter(s => s.sexe === "M").length,
@@ -479,6 +513,11 @@ router.get("/stats", async (req, res): Promise<void> => {
       mustarrak: all.filter(s => s.resultat === "mustarrak").length,
       nouveau: all.filter(s => s.statut === "nouveau").length,
       redoublant: all.filter(s => s.statut === "redoublant").length,
+      gradeCount: gradeRows.length,
+      averageGrade: average(gradeRows.map(grade => Number(grade.score)).filter(Number.isFinite)),
+      gradesBySubject,
+      justifiedHours: absenceRows.reduce((sum, absence) => sum + absence.justifiedHours, 0),
+      unjustifiedHours: absenceRows.reduce((sum, absence) => sum + absence.unjustifiedHours, 0),
       byLevel,
     }));
   } catch (err) {

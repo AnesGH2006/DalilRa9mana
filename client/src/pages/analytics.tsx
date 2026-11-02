@@ -351,6 +351,14 @@ export default function AnalyticsPage() {
   const schoolAverage = stageStats.length > 0
     ? (stageStats.reduce((sum, l) => sum + (l.avgAge ?? 0), 0) / stageStats.length).toFixed(1)
     : "0.0";
+  const absenceData = stageStats.map(level => ({
+    name: LEVEL_LABELS[level.niveau] || level.niveau,
+    [t("analytics.justifiedAbsences")]: level.justifiedHours,
+    [t("analytics.unjustifiedAbsences")]: level.unjustifiedHours,
+  }));
+  const hasAbsenceData = absenceData.some(level =>
+    level[t("analytics.justifiedAbsences")] > 0 || level[t("analytics.unjustifiedAbsences")] > 0,
+  );
 
   const radialData = successRate !== null
     ? [{ name: t("analytics.passed"), value: successRate, fill: "#10b981" }]
@@ -499,6 +507,14 @@ export default function AnalyticsPage() {
                 label: t("analytics.successRate"), value: successRate, icon: Award,
                 bg: "from-emerald-500 to-green-700", shadow: "shadow-emerald-500/30", suffix: "%",
               }] : []),
+              ...(stats.averageGrade !== null ? [{
+                label: t("analytics.averageGrade"), value: stats.averageGrade, icon: TrendingUp,
+                bg: "from-amber-500 to-orange-600", shadow: "shadow-amber-500/30", suffix: "/20",
+              }] : []),
+              ...(stats.justifiedHours + stats.unjustifiedHours > 0 ? [{
+                label: t("analytics.absenceHours"), value: stats.justifiedHours + stats.unjustifiedHours, icon: UserX,
+                bg: "from-rose-500 to-red-600", shadow: "shadow-rose-500/30", suffix: "",
+              }] : []),
             ].map((item, i) => (
               <motion.div key={i} variants={cardVariants} whileHover={{ y: -4, scale: 1.03 }} transition={{ type: "spring", stiffness: 300 }}>
                 <Card className={`border-0 shadow-lg ${item.shadow} overflow-hidden`}>
@@ -630,6 +646,58 @@ export default function AnalyticsPage() {
                         <Legend iconType="circle" iconSize={8} />
                         <Bar dataKey={t("analytics.passed")} fill={SUCCESS_COLORS.pass} radius={[6, 6, 0, 0]} />
                         <Bar dataKey={t("analytics.failed")} fill={SUCCESS_COLORS.fail} radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {stats.gradesBySubject.length > 0 && (
+              <motion.div variants={cardVariants} initial="initial" animate="animate" whileHover={{ y: -3 }}
+                transition={{ type: "spring", stiffness: 200 }} className="md:col-span-2 xl:col-span-3">
+                <Card className="shadow-md border-0 bg-gradient-to-br from-card to-muted/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      {t("analytics.averageGradeBySubject")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={stats.gradesBySubject}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                        <XAxis dataKey="subject" tick={{ fontSize: 12 }} />
+                        <YAxis domain={[0, 20]} tick={{ fontSize: 12 }} width={36} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="average" name={t("analytics.averageGrade")} fill="#f59e0b" radius={[5, 5, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {hasAbsenceData && (
+              <motion.div variants={cardVariants} initial="initial" animate="animate" whileHover={{ y: -3 }}
+                transition={{ type: "spring", stiffness: 200 }} className="md:col-span-2 xl:col-span-3">
+                <Card className="shadow-md border-0 bg-gradient-to-br from-card to-muted/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-rose-500" />
+                      {t("analytics.absencesByLevel")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={absenceData}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} width={36} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend iconType="circle" iconSize={8} />
+                        <Bar dataKey={t("analytics.justifiedAbsences")} fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey={t("analytics.unjustifiedAbsences")} fill="#f43f5e" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>

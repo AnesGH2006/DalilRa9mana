@@ -178,8 +178,16 @@ router.post("/documents", async (req, res): Promise<void> => {
 });
 
 router.get("/documents/by-student/:studentId", async (req, res): Promise<void> => {
+  const requestedType = req.query.type;
+  if (requestedType !== undefined && !isDocumentType(requestedType)) {
+    res.status(400).json({ error: "نوع الوثيقة غير معروف" });
+    return;
+  }
   const allowed = allowedTypeIds(req);
-  if (allowed.length === 0) { res.status(403).json({ error: "غير مسموح" }); return; }
+  const visibleTypes = typeof requestedType === "string" && isDocumentType(requestedType)
+    ? allowed.filter(type => type === requestedType)
+    : allowed;
+  if (visibleTypes.length === 0) { res.status(403).json({ error: "غير مسموح" }); return; }
   const schoolId = schoolIdOf(req);
   const studentId = String(req.params.studentId ?? "");
 
@@ -194,7 +202,7 @@ router.get("/documents/by-student/:studentId", async (req, res): Promise<void> =
     .where(and(
       eq(studentDocumentsTable.userId, schoolId),
       eq(studentDocumentsTable.studentId, studentId),
-      inArray(studentDocumentsTable.docType, allowed),
+      inArray(studentDocumentsTable.docType, visibleTypes),
     ))
     .orderBy(desc(studentDocumentsTable.createdAt))
     .limit(200);

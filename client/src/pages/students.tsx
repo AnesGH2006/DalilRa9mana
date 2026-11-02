@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Trash2, Search, Users, FileSpreadsheet, X, CheckCircle2, AlertCircle, BarChart2, Printer } from "lucide-react";
 import { CountUp } from "@/components/count-up";
+import { StudentHealthDialog } from "@/components/student-health-dialog";
 import type { Student, Niveau, Sexe, Statut } from "@shared/types";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
@@ -25,6 +26,30 @@ const LEVEL_COLORS = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef"];
 const GENDER_COLORS = ["#3b82f6", "#ec4899"];
 const ACADEMIC_YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024", "2022-2023"];
 const DEFAULT_YEAR  = "2025-2026";
+
+function previousAcademicYear(year: string): string | null {
+  const match = /^(\d{4})-(\d{4})$/.exec(year);
+  if (!match) return null;
+  return `${Number(match[1]) - 1}-${Number(match[2]) - 1}`;
+}
+
+function getStudentAge(dateNaissance: string | null): number | null {
+  if (!dateNaissance) return null;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateNaissance);
+  const local = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateNaissance);
+  const year = iso ? Number(iso[1]) : local ? Number(local[3]) : NaN;
+  const month = iso ? Number(iso[2]) : local ? Number(local[2]) : NaN;
+  const day = iso ? Number(iso[3]) : local ? Number(local[1]) : NaN;
+  const birth = new Date(year, month - 1, day);
+  if (!Number.isFinite(year) || birth.getFullYear() !== year || birth.getMonth() !== month - 1 || birth.getDate() !== day) return null;
+  const today = new Date();
+  return today.getFullYear() - year - (today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day) ? 1 : 0);
+}
+
+function studentIdentity(student: Pick<Student, "nomPrenom" | "dateNaissance">): string {
+  const name = student.nomPrenom.normalize("NFD").replace(/[\u064B-\u065F\u0670\u0640]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  return `${name}|${student.dateNaissance ?? ""}`;
+}
 
 const pageVariants = {
   initial: { opacity: 0, y: 16 },
@@ -350,6 +375,7 @@ export default function Students() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [students, setStudents] = useState<Student[]>([]);
+  const [previousAverages, setPreviousAverages] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -372,7 +398,41 @@ export default function Students() {
       if (filters.statut) params.set("statut", filters.statut);
       if (filters.annee) params.set("annee", filters.annee);
       const res = await fetch(`${BASE}api/students?${params}`, { credentials: "include" });
-      if (res.ok) { const d = await res.json(); setStudents(d.students); setListKey(k => k + 1); }
+      if (res.ok) {
+        const d = await res.json() as { students: Student[] };
+        setStudents(d.students);
+        setListKey(k => k + 1);
+
+        const year = previousAcademicYear(filters.annee || d.students[0]?.annee || "");
+        if (!year || d.students.length === 0) {
+          setPreviousAverages({});
+          return;
+        }
+        try {
+          const previousRes = await fetch(`${BASE}api/results?annee=${encodeURIComponent(year)}`, { credentials: "include" });
+          if (!previousRes.ok) {
+            setPreviousAverages({});
+            return;
+          }
+          const previousResults = await previousRes.json() as Array<{
+            student: Student;
+            annualAvg: number | null;
+          }>;
+          const byId = new Map(previousResults.map(result => [result.student.id, result.annualAvg]));
+          const byIdentity = new Map<string, number[]>();
+          for (const result of previousResults) {
+            const key = studentIdentity(result.student);
+            byIdentity.set(key, [...(byIdentity.get(key) ?? []), result.annualAvg ?? NaN]);
+          }
+          setPreviousAverages(Object.fromEntries(d.students.map(student => {
+            const identityMatches = byIdentity.get(studentIdentity(student)) ?? [];
+            const match = byId.get(student.id) ?? (identityMatches.length === 1 ? identityMatches[0] : null);
+            return [student.id, typeof match === "number" && Number.isFinite(match) ? match : null];
+          })));
+        } catch {
+          setPreviousAverages({});
+        }
+      }
     } finally { setLoading(false); }
   }, [filters]);
 
@@ -609,7 +669,7 @@ export default function Students() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/60 sticky top-0 z-10">
                   <tr>
-                    {[t("col.name"), t("col.birth"), t("col.level"), t("col.class"), t("col.gender"), t("col.status"), t("col.result")].map(h => (
+                    {[t("col.name"), t("col.birth"), "العمر", "هاتف الولي", `معدل ${previousAcademicYear(filters.annee || DEFAULT_YEAR) ?? "السنة السابقة"}`, t("col.level"), t("col.class"), t("col.gender"), t("col.status"), t("col.result"), "الملف الصحي"].map(h => (
                       <th key={h} className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -624,6 +684,13 @@ export default function Students() {
                     >
                       <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{s.nomPrenom}</td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{s.dateNaissance || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-center">{getStudentAge(s.dateNaissance) ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap" dir="ltr">
+                        {s.parentPhone ? <a href={`tel:${s.parentPhone}`} className="hover:text-primary">{s.parentPhone}</a> : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-center font-semibold text-foreground">
+                        {previousAverages[s.id] != null ? previousAverages[s.id]!.toFixed(2) : "—"}
+                      </td>
                       <td className="px-4 py-3">
                         <Badge variant="secondary" className="font-semibold text-xs">{LEVEL_LABELS[s.niveau as Niveau]}</Badge>
                       </td>
@@ -654,6 +721,9 @@ export default function Students() {
                         ) : s.resultat === "non_admis" ? (
                           <span className="text-xs font-semibold text-red-500">{t("val.non_admis")}</span>
                         ) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <StudentHealthDialog studentId={s.id} studentName={s.nomPrenom} />
                       </td>
                     </motion.tr>
                   ))}

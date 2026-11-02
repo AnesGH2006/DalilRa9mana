@@ -59,6 +59,7 @@ export interface Student {
   userId: string;
   nomPrenom: string;
   dateNaissance: string | null;
+  parentPhone: string | null;
   niveau: Niveau;
   classe: string;
   sexe: Sexe;
@@ -77,6 +78,9 @@ export interface LevelStats {
   mustarrak: number;
   nouveau: number;
   redoublant: number;
+  averageGrade: number | null;
+  justifiedHours: number;
+  unjustifiedHours: number;
   avgAge: number | null;
   minAge: number | null;
   maxAge: number | null;
@@ -92,6 +96,11 @@ export interface DashboardStats {
   mustarrak: number;
   nouveau: number;
   redoublant: number;
+  gradeCount: number;
+  averageGrade: number | null;
+  gradesBySubject: { subject: string; average: number; count: number; passed: number }[];
+  justifiedHours: number;
+  unjustifiedHours: number;
   byLevel: LevelStats[];
 }
 
