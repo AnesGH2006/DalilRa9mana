@@ -20,6 +20,16 @@ const MEDICAL_FIELDS = [
   { key: "notes", label: "ملاحظات" },
 ] as const;
 
+const ABSENCE_FIELDS = [
+  { key: "studentName", label: "اسم التلميذ" },
+  { key: "absenceFrom", label: "بداية الغياب" },
+  { key: "absenceTo", label: "نهاية الغياب" },
+  { key: "reason", label: "سبب الغياب" },
+  { key: "guardianName", label: "اسم الولي" },
+  { key: "guardianPhone", label: "هاتف الولي" },
+  { key: "notes", label: "ملاحظات" },
+] as const;
+
 interface MedicalDocument {
   id: string;
   docType: string;
@@ -28,8 +38,37 @@ interface MedicalDocument {
   createdByName: string | null;
 }
 
-export function StudentHealthDialog({ studentId, studentName }: { studentId: string; studentName: string }) {
+interface ApiResponse {
+  error?: string;
+  documents?: MedicalDocument[];
+  fields?: Record<string, string>;
+}
+
+async function readApiResponse(response: Response): Promise<ApiResponse> {
+  if (!response.headers.get("content-type")?.includes("application/json")) {
+    throw new Error(`تعذر الاتصال بخدمة الملف الصحي (HTTP ${response.status}). تحقق من نشر مسارات API.`);
+  }
+
+  try {
+    return await response.json() as ApiResponse;
+  } catch {
+    throw new Error("تعذر قراءة استجابة خدمة الملف الصحي. أعد تحميل الصفحة وحاول مجدداً.");
+  }
+}
+
+export function StudentHealthDialog({
+  studentId,
+  studentName,
+  docType = "medical_report",
+}: {
+  studentId: string;
+  studentName: string;
+  docType?: "medical_report" | "absence_justification";
+}) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const isMedical = docType === "medical_report";
+  const documentFields = isMedical ? MEDICAL_FIELDS : ABSENCE_FIELDS;
+  const documentLabel = isMedical ? "الشهادة الطبية" : "تبرير الغياب";
   const [open, setOpen] = useState(false);
   const [documents, setDocuments] = useState<MedicalDocument[]>([]);
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -42,8 +81,8 @@ export function StudentHealthDialog({ studentId, studentName }: { studentId: str
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${BASE}api/documents/by-student/${encodeURIComponent(studentId)}?type=medical_report`, { credentials: "include" });
-      const data = await response.json();
+      const response = await fetch(`${BASE}api/documents/by-student/${encodeURIComponent(studentId)}?type=${docType}`, { credentials: "include" });
+      const data = await readApiResponse(response);
       if (!response.ok) throw new Error(data.error || "تعذر تحميل الملف الصحي");
       setDocuments(data.documents ?? []);
     } catch (cause) {
@@ -55,7 +94,7 @@ export function StudentHealthDialog({ studentId, studentName }: { studentId: str
 
   useEffect(() => {
     if (open) void loadDocuments();
-  }, [open, studentId]);
+  }, [open, studentId, docType]);
 
   const scanCertificate = async (file: File) => {
     setScanning(true);
@@ -63,12 +102,12 @@ export function StudentHealthDialog({ studentId, studentName }: { studentId: str
     const form = new FormData();
     form.append("image", file);
     try {
-      const response = await fetch(`${BASE}api/documents/ocr?type=medical_report&engine=auto`, {
+      const response = await fetch(`${BASE}api/documents/ocr?type=${docType}&engine=auto`, {
         method: "POST",
         body: form,
         credentials: "include",
       });
-      const data = await response.json();
+      const data = await readApiResponse(response);
       if (!response.ok) throw new Error(data.error || "تعذرت قراءة الشهادة الطبية");
       setFields(data.fields ?? {});
     } catch (cause) {
@@ -87,9 +126,9 @@ export function StudentHealthDialog({ studentId, studentName }: { studentId: str
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ studentId, docType: "medical_report", fields }),
+        body: JSON.stringify({ studentId, docType, fields }),
       });
-      const data = await response.json();
+      const data = await readApiResponse(response);
       if (!response.ok) throw new Error(data.error || "تعذر حفظ الشهادة الطبية");
       setFields({});
       await loadDocuments();
@@ -104,22 +143,22 @@ export function StudentHealthDialog({ studentId, studentName }: { studentId: str
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" className="gap-1.5 whitespace-nowrap">
-          <HeartPulse className="h-3.5 w-3.5" />
-          الملف الصحي
+          {isMedical ? <HeartPulse className="h-3.5 w-3.5" /> : <ScanLine className="h-3.5 w-3.5" />}
+          {isMedical ? "الملف الصحي" : "تبرير الغياب"}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <HeartPulse className="h-5 w-5 text-rose-600" />
-            الملف الصحي للتلميذ
+            {isMedical && <HeartPulse className="h-5 w-5 text-rose-600" />}
+            {isMedical ? "الملف الصحي للتلميذ" : "تبرير غياب التلميذ"}
           </DialogTitle>
           <DialogDescription>{studentName}</DialogDescription>
         </DialogHeader>
 
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold">الشهادات الطبية</h3>
+            <h3 className="text-sm font-semibold">{isMedical ? "الشهادات الطبية" : "وثائق تبرير الغياب"}</h3>
             <input
               ref={fileRef}
               type="file"
@@ -133,28 +172,28 @@ export function StudentHealthDialog({ studentId, studentName }: { studentId: str
             />
             <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={scanning}>
               {scanning ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}
-              تصوير شهادة واستخراجها
+              {isMedical ? "تصوير شهادة واستخراجها" : "تصوير وثيقة التبرير واستخراجها"}
             </Button>
           </div>
 
           <p className="text-xs text-muted-foreground">
-            راجع المعلومات المستخرجة قبل الحفظ. لا تُحفظ صورة الشهادة؛ تُحفظ الحقول التي تؤكدها فقط.
+            راجع المعلومات المستخرجة قبل الحفظ. لا تُحفظ الصورة؛ تُحفظ الحقول التي تؤكدها فقط.
           </p>
 
           {error && <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
           {loading ? (
             <p className="py-4 text-center text-sm text-muted-foreground">جارٍ تحميل الملف الصحي...</p>
           ) : documents.length === 0 ? (
-            <p className="py-3 text-sm text-muted-foreground">لا توجد شهادات طبية مسجلة.</p>
+            <p className="py-3 text-sm text-muted-foreground">{isMedical ? "لا توجد شهادات طبية مسجلة." : "لا توجد تبريرات غياب مسجلة."}</p>
           ) : (
             <div className="space-y-2">
               {documents.map(document => (
                 <details key={document.id} className="rounded-md border px-3 py-2">
                   <summary className="cursor-pointer text-sm font-medium">
-                    شهادة طبية · {document.fields.reportDate || new Date(document.createdAt).toLocaleDateString("ar-DZ")}
+                    {documentLabel} · {document.fields.reportDate || document.fields.absenceFrom || new Date(document.createdAt).toLocaleDateString("ar-DZ")}
                   </summary>
                   <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {MEDICAL_FIELDS.map(field => document.fields[field.key] ? (
+                    {documentFields.map(field => document.fields[field.key] ? (
                       <div key={field.key} className="min-w-0">
                         <dt className="text-xs text-muted-foreground">{field.label}</dt>
                         <dd className="break-words text-sm">{document.fields[field.key]}</dd>
@@ -170,11 +209,11 @@ export function StudentHealthDialog({ studentId, studentName }: { studentId: str
         {Object.keys(fields).length > 0 && (
           <section className="space-y-3 border-t pt-4">
             <div>
-              <h3 className="text-sm font-semibold">مراجعة بيانات الشهادة</h3>
+              <h3 className="text-sm font-semibold">مراجعة بيانات {documentLabel}</h3>
               <p className="text-xs text-muted-foreground">يمكنك تعديل أي حقل قبل الحفظ.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {MEDICAL_FIELDS.map(field => (
+              {documentFields.map(field => (
                 <div key={field.key} className="space-y-1.5">
                   <Label htmlFor={`${studentId}-${field.key}`}>{field.label}</Label>
                   <Input
@@ -188,7 +227,7 @@ export function StudentHealthDialog({ studentId, studentName }: { studentId: str
             <DialogFooter>
               <Button type="button" onClick={saveDocument} disabled={saving || scanning}>
                 {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                حفظ بيانات الشهادة
+                حفظ بيانات {documentLabel}
               </Button>
             </DialogFooter>
           </section>

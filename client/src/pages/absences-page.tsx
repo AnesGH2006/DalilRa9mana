@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { connectAttendanceUpdates } from "@/lib/attendance-socket";
+import { StudentHealthDialog } from "@/components/student-health-dialog";
 import {
   CalendarOff, AlertTriangle, CheckCircle, Printer, Upload, FileSpreadsheet,
   Users, BookOpen, Briefcase, Hammer, UtensilsCrossed, Trash2, TrendingUp, ChevronDown, ChevronUp,
@@ -402,7 +403,14 @@ export default function AbsencesPage() {
                   {record.parentAbsenceReason || "لم يرسل ولي الأمر سبب الغياب بعد"}
                 </p>
               </div>
-              {record.parentAbsenceReasonAt && <span className="text-[10px] text-muted-foreground">{new Date(record.parentAbsenceReasonAt).toLocaleString("ar-DZ")}</span>}
+              <div className="flex flex-wrap items-center gap-2">
+                {record.parentAbsenceReasonAt && <span className="text-[10px] text-muted-foreground">{new Date(record.parentAbsenceReasonAt).toLocaleString("ar-DZ")}</span>}
+                <StudentHealthDialog
+                  studentId={record.studentId}
+                  studentName={record.studentName}
+                  docType="absence_justification"
+                />
+              </div>
             </div>
           ))}
         </CardContent>
