@@ -143,6 +143,23 @@ async function probeDb(attempt = 1): Promise<void> {
     await db.execute(sql`ALTER TABLE student_daily_attendance ADD COLUMN IF NOT EXISTS annee varchar(20) NOT NULL DEFAULT '2025-2026'`);
     await db.execute(sql`ALTER TABLE student_daily_attendance ADD COLUMN IF NOT EXISTS parent_absence_reason varchar(500)`);
     await db.execute(sql`ALTER TABLE student_daily_attendance ADD COLUMN IF NOT EXISTS parent_absence_reason_at timestamptz`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS student_documents (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        student_id varchar(64) NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        doc_type varchar(40) NOT NULL,
+        fields jsonb NOT NULL,
+        created_by varchar,
+        created_by_name varchar(255),
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS "IDX_student_documents_student"
+      ON student_documents(student_id, created_at)
+    `);
     
     // Repair names imported from combined Excel name columns before the parser fix.
     await db.execute(sql`UPDATE students SET nom_prenom = regexp_replace(nom_prenom, '^(.+)\\s+\\1$', '\\1') WHERE nom_prenom ~ '^(.+)\\s+\\1$'`);

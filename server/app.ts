@@ -41,6 +41,12 @@ app.use("/api", router);
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "مسار API غير موجود. حدّث التطبيق أو تحقق من عنوان الخدمة." });
 });
+app.use("/api", (error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error({ err: error, method: req.method, url: req.originalUrl }, "API request failed");
+  if (!res.headersSent) {
+    res.status(500).json({ error: "حدث خطأ داخلي أثناء معالجة الطلب. حاول مجدداً لاحقاً." });
+  }
+});
 
 if (existsSync(path.join(clientDistDir, "index.html"))) {
   app.use(express.static(clientDistDir));
