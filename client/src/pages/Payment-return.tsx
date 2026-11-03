@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, GraduationCap, School } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { setSchoolStage } from "@/lib/deployment";
+import type { SchoolStage } from "@shared/school-stage";
 
 type Me = { role: string; plan: string; registered: boolean };
 
@@ -14,6 +16,7 @@ function targetFor(me: Me): string {
 export default function PaymentReturn() {
   const [status, setStatus] = useState<"loading" | "success" | "failed">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
     const checkoutId = new URLSearchParams(window.location.search).get("checkout_id");
@@ -32,15 +35,25 @@ export default function PaymentReturn() {
           setErrorMessage(data.error || "فشل التحقق من حالة الدفع.");
           return;
         }
-        setStatus("success");
         const me: Me = await fetch("/api/payments/me", { credentials: "include" }).then(r => r.json());
-        setTimeout(() => window.location.assign(targetFor(me)), 1500);
+        setMe(me);
+        setStatus("success");
       } catch {
         setStatus("failed");
         setErrorMessage("حدث خطأ في الاتصال بالخادم أثناء التحقق.");
       }
     })();
   }, []);
+
+  const chooseStage = (stage: SchoolStage) => {
+    try {
+      setSchoolStage(stage);
+      if (me) window.location.assign(targetFor(me));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "تعذر حفظ اختيار المرحلة.");
+      setStatus("failed");
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
@@ -52,6 +65,17 @@ export default function PaymentReturn() {
         {status === "success" && (<>
           <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" />
           <h2 className="text-xl font-bold text-emerald-600">تم الدفع وتفعيل الباقة بنجاح!</h2>
+          <p className="text-sm text-muted-foreground">اختر مرحلة مؤسستك للمتابعة:</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button onClick={() => chooseStage("moyen")} className="h-auto min-h-20 flex-col gap-2 whitespace-normal">
+              <School className="h-6 w-6" />
+              <span>المتوسطة · CEM</span>
+            </Button>
+            <Button onClick={() => chooseStage("lycee")} variant="outline" className="h-auto min-h-20 flex-col gap-2 whitespace-normal">
+              <GraduationCap className="h-6 w-6" />
+              <span>الثانوي · Lycée</span>
+            </Button>
+          </div>
         </>)}
         {status === "failed" && (<>
           <XCircle className="w-16 h-16 text-red-500 mx-auto" />

@@ -14,9 +14,10 @@ import {
   LineChart, Line, Legend, PieChart, Pie,
 } from "recharts";
 import { getFinalAvg } from "@/lib/year-end-result";
+import { SCHOOL_LEVELS } from "@/lib/deployment";
 
 const BASE = import.meta.env.BASE_URL;
-const LEVELS: Niveau[] = ["1AM", "2AM", "3AM", "4AM", "1AS", "2AS", "3AS"];
+const LEVELS: Niveau[] = [...SCHOOL_LEVELS];
 const LEVEL_LABELS: Record<Niveau, string> = {
   "1AM": "1ère AM", "2AM": "2ème AM", "3AM": "3ème AM", "4AM": "4ème AM",
   "1AS": "1ère AS", "2AS": "2ème AS", "3AS": "3ème AS",

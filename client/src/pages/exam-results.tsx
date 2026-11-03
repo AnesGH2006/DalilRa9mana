@@ -6,9 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BarChart2, TrendingUp, TrendingDown, Star, Award } from "lucide-react";
 import type { SubjectAverage } from "@shared/types";
 import type { Niveau } from "@shared/types";
+import { SCHOOL_LEVELS } from "@/lib/deployment";
 
 const BASE = import.meta.env.BASE_URL;
-const LEVELS: Niveau[] = ["1AM", "2AM", "3AM", "4AM"];
+const LEVELS: Niveau[] = [...SCHOOL_LEVELS];
 const ACADEMIC_YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024", "2022-2023"];
 const DEFAULT_YEAR  = "2025-2026";
 

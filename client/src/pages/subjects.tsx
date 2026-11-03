@@ -6,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3, TrendingUp, TrendingDown, Award, Printer, Users, AlertTriangle } from "lucide-react";
 import type { SubjectAverage } from "@shared/types";
 import type { Niveau } from "@shared/types";
+import { SCHOOL_LEVELS } from "@/lib/deployment";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 
 const BASE = import.meta.env.BASE_URL;
-const LEVELS: Niveau[] = ["1AM", "2AM", "3AM", "4AM", "1AS", "2AS", "3AS"];
+const LEVELS: Niveau[] = [...SCHOOL_LEVELS];
 const LEVEL_LABELS: Record<Niveau, string> = {
   "1AM": "1ère AM", "2AM": "2ème AM", "3AM": "3ème AM", "4AM": "4ème AM",
   "1AS": "1ère AS", "2AS": "2ème AS", "3AS": "3ème AS",

@@ -6,6 +6,7 @@ import { eq, and, desc, inArray } from "drizzle-orm";
 import { db, dailyAbsenceReportsTable, studentDailyAttendanceTable, studentsTable } from "../../shared/db.js";
 import { notifyParentOfAbsence } from "../services/absenceAlerts.js";
 import { logger } from "../lib/logger.js";
+import { getSchoolLevelsForRequest } from "../config/school-stage.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -27,7 +28,10 @@ router.get("/absences/daily-students", async (req, res): Promise<void> => {
   const date = req.query.date;
   if (date !== undefined && !isIsoDate(date)) { res.status(400).json({ error: "Invalid date" }); return; }
 
-  const conditions = [eq(studentDailyAttendanceTable.userId, userId)];
+  const conditions = [
+    eq(studentDailyAttendanceTable.userId, userId),
+    inArray(studentsTable.niveau, getSchoolLevelsForRequest(req)),
+  ];
   if (typeof date === "string") conditions.push(eq(studentDailyAttendanceTable.attendanceDate, date));
   const rows = await db.select({
     id: studentDailyAttendanceTable.id,
@@ -82,7 +86,11 @@ router.post("/absences/daily-students", async (req, res): Promise<void> => {
   const studentIds = [...normalized.keys()];
   try {
     const ownedStudents = await db.select({ id: studentsTable.id }).from(studentsTable)
-      .where(and(eq(studentsTable.userId, userId), inArray(studentsTable.id, studentIds)));
+      .where(and(
+        eq(studentsTable.userId, userId),
+        inArray(studentsTable.id, studentIds),
+        inArray(studentsTable.niveau, getSchoolLevelsForRequest(req)),
+      ));
     if (ownedStudents.length !== studentIds.length) {
       res.status(400).json({ error: "One or more students do not belong to this account" });
       return;
@@ -134,9 +142,14 @@ router.post("/absences/daily-students", async (req, res): Promise<void> => {
 
 router.delete("/absences/daily-students/:id", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const stageStudents = await db.select({ id: studentsTable.id }).from(studentsTable)
+    .where(and(eq(studentsTable.userId, req.user!.id), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))));
+  const studentIds = stageStudents.map(student => student.id);
+  if (studentIds.length === 0) { res.status(404).json({ error: "Attendance record not found" }); return; }
   const [deleted] = await db.delete(studentDailyAttendanceTable).where(and(
     eq(studentDailyAttendanceTable.id, req.params.id!),
     eq(studentDailyAttendanceTable.userId, req.user!.id),
+    inArray(studentDailyAttendanceTable.studentId, studentIds),
   )).returning({ id: studentDailyAttendanceTable.id });
   if (!deleted) { res.status(404).json({ error: "Attendance record not found" }); return; }
   res.json({ success: true });

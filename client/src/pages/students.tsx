@@ -12,12 +12,13 @@ import { Upload, Trash2, Search, Users, FileSpreadsheet, X, CheckCircle2, AlertC
 import { CountUp } from "@/components/count-up";
 import { StudentHealthDialog } from "@/components/student-health-dialog";
 import type { Student, Niveau, Sexe, Statut } from "@shared/types";
+import { SCHOOL_LEVELS } from "@/lib/deployment";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
 } from "recharts";
 
 const BASE = import.meta.env.BASE_URL;
-const LEVELS: Niveau[] = ["1AM", "2AM", "3AM", "4AM", "1AS", "2AS", "3AS"];
+const LEVELS: Niveau[] = [...SCHOOL_LEVELS];
 const LEVEL_LABELS: Record<Niveau, string> = {
   "1AM": "1ère AM", "2AM": "2ème AM", "3AM": "3ème AM", "4AM": "4ème AM",
   "1AS": "1ère AS", "2AS": "2ème AS", "3AS": "3ème AS",
@@ -400,11 +401,12 @@ export default function Students() {
       const res = await fetch(`${BASE}api/students?${params}`, { credentials: "include" });
       if (res.ok) {
         const d = await res.json() as { students: Student[] };
-        setStudents(d.students);
+        const stageStudents = d.students.filter(student => LEVELS.includes(student.niveau));
+        setStudents(stageStudents);
         setListKey(k => k + 1);
 
-        const year = previousAcademicYear(filters.annee || d.students[0]?.annee || "");
-        if (!year || d.students.length === 0) {
+        const year = previousAcademicYear(filters.annee || stageStudents[0]?.annee || "");
+        if (!year || stageStudents.length === 0) {
           setPreviousAverages({});
           return;
         }
@@ -424,7 +426,7 @@ export default function Students() {
             const key = studentIdentity(result.student);
             byIdentity.set(key, [...(byIdentity.get(key) ?? []), result.annualAvg ?? NaN]);
           }
-          setPreviousAverages(Object.fromEntries(d.students.map(student => {
+          setPreviousAverages(Object.fromEntries(stageStudents.map(student => {
             const identityMatches = byIdentity.get(studentIdentity(student)) ?? [];
             const match = byId.get(student.id) ?? (identityMatches.length === 1 ? identityMatches[0] : null);
             return [student.id, typeof match === "number" && Number.isFinite(match) ? match : null];

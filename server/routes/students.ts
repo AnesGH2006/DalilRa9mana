@@ -11,7 +11,8 @@ import {
 } from "../../shared/schemas.js";
 import type { SchoolLevel } from "../../shared/school-stage.js";
 import { FREE_STUDENT_LIMIT } from "../../shared/subscription.js";
-import { SCHOOL_LEVELS, SCHOOL_STAGE } from "../config/school-stage.js";
+import { getSchoolLevelsForRequest, getSchoolStageForRequest } from "../config/school-stage.js";
+import { SCHOOL_STAGE_LEVELS, type SchoolStage } from "../../shared/school-stage.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -199,7 +200,7 @@ function normalizeGender(val: string): "M" | "F" | null {
 }
 
 // ✅ FIX 3: "أولى" after norm() = "اولي", "ثانية" = "ثانيه" — regex updated
-function normalizeLevel(val: string): SchoolLevel | null {
+function normalizeLevel(val: string, stage: SchoolStage): SchoolLevel | null {
   if (!val) return null;
   const v = String(val)
     .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
@@ -217,7 +218,7 @@ function normalizeLevel(val: string): SchoolLevel | null {
     : /(ثالث|ثالثه|troisieme|3eme|3ème|third)/.test(v) ? "3"
     : /(رابع|رابعه|quatrieme|4eme|4ème|fourth)/.test(v) ? "4"
     : null;
-  if (levelNumber) return `${levelNumber}A${SCHOOL_STAGE === "lycee" ? "S" : "M"}` as SchoolLevel;
+  if (levelNumber) return `${levelNumber}A${stage === "lycee" ? "S" : "M"}` as SchoolLevel;
 
   const digits = v
     .replace(/١/g,"1").replace(/٢/g,"2").replace(/٣/g,"3").replace(/٤/g,"4")
@@ -226,7 +227,7 @@ function normalizeLevel(val: string): SchoolLevel | null {
   if (!first) return null;
   const digitLevel = first[0];
   if (!digitLevel || !["1", "2", "3", "4"].includes(digitLevel)) return null;
-  const stageSuffix = SCHOOL_STAGE === "lycee" ? "S" : "M";
+  const stageSuffix = stage === "lycee" ? "S" : "M";
   return `${digitLevel}A${stageSuffix}` as SchoolLevel;
 }
 
@@ -257,6 +258,7 @@ function processRows(
   annee: string,
   niveau: SchoolLevel|null,
   classe: string|null,
+  stage: SchoolStage,
   logger: { info: (...a: any[]) => void }
 ): { toInsert: typeof studentsTable.$inferInsert[]; skipped: number; errors: string[] } {
   const errors: string[] = [];
@@ -276,11 +278,11 @@ function processRows(
   if (!detectedNiveau) {
     for (let i = 0; i < headerRowIdx; i++) {
       const titleText = (raw[i] as unknown[]).join(" ");
-      detectedNiveau = normalizeLevel(titleText);
+      detectedNiveau = normalizeLevel(titleText, stage);
       if (detectedNiveau) break;
     }
   }
-  if (!detectedNiveau) detectedNiveau = normalizeLevel(headerCells.join(" "));
+  if (!detectedNiveau) detectedNiveau = normalizeLevel(headerCells.join(" "), stage);
 
   let colNom      = findCol(headerCells, NOM_N);
   let colPrenom   = findCol(headerCells, PRENOM_N);
@@ -343,12 +345,12 @@ function processRows(
     if (!nomPrenom) { skipped++; continue; }
 
     // ── المستوى ───────────────────────────────────────────────────────────────
-    const niveauFinal = detectedNiveau ?? normalizeLevel(cellStr(row, colLevel));
+    const niveauFinal = detectedNiveau ?? normalizeLevel(cellStr(row, colLevel), stage);
     if (!niveauFinal) {
       if (errors.length < 30) errors.push(`صف ${i + headerRowIdx + 2}: مستوى غير محدد ← "${nomPrenom}"`);
       skipped++; continue;
     }
-    if (!SCHOOL_LEVELS.some(level => level === niveauFinal)) {
+    if (!SCHOOL_STAGE_LEVELS[stage].some(level => level === niveauFinal)) {
       if (errors.length < 30) errors.push(`صف ${i + headerRowIdx + 2}: المستوى ${niveauFinal} لا يطابق نوع المؤسسة`);
       skipped++; continue;
     }
@@ -395,7 +397,7 @@ router.get("/students/:id", async (req, res): Promise<void> => {
   const userId = req.user!.id;
   try {
     const rows = await db.select().from(studentsTable)
-      .where(and(eq(studentsTable.id, req.params.id), eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)))
+      .where(and(eq(studentsTable.id, req.params.id), eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))))
       .limit(1);
     if (!rows.length) {
       res.status(404).json({ error: "التلميذ غير موجود" });
@@ -411,7 +413,7 @@ router.get("/students", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const userId = req.user!.id;
   const { annee, niveau, classe, sexe, statut, q } = req.query as Record<string, string>;
-  const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)];
+  const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))];
   if (annee) conds.push(eq(studentsTable.annee, annee));
   if (niveau && NiveauEnum.safeParse(niveau).success) conds.push(eq(studentsTable.niveau, niveau as any));
   if (classe) conds.push(eq(studentsTable.classe, classe));
@@ -429,7 +431,7 @@ router.get("/stats", async (req, res): Promise<void> => {
   try {
     const userId = req.user!.id;
     const { annee } = req.query as Record<string, string>;
-    const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)];
+    const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))];
     if (annee) conds.push(eq(studentsTable.annee, annee));
     const all = await db.select().from(studentsTable).where(and(...conds));
     const studentIds = all.map(student => student.id);
@@ -463,7 +465,7 @@ router.get("/stats", async (req, res): Promise<void> => {
       return currentYear - year;
     };
 
-    const byLevel = SCHOOL_LEVELS.map(niveau => {
+    const byLevel = getSchoolLevelsForRequest(req).map(niveau => {
       const g = all.filter(s => s.niveau === niveau);
       const levelStudentIds = new Set(g.map(student => student.id));
       const levelGrades = gradeRows.filter(grade => levelStudentIds.has(grade.studentId));
@@ -532,6 +534,7 @@ router.post("/students/import", upload.single("file"), async (req, res): Promise
 
   const userId = req.user!.id;
   const annee  = (req.query.annee as string) || "2025-2026";
+  const stage = getSchoolStageForRequest(req);
 
   let raw: unknown[][] = [];
   const fileText = req.file.buffer.toString("utf-8").trimStart();
@@ -567,12 +570,12 @@ router.post("/students/import", upload.single("file"), async (req, res): Promise
       if (classMatch) titleClasse = classMatch[1]!.replace(/^0+/, "") || "1";
       const secondaryClassMatch = text.match(/(?:ثانوي|lycee|secondaire)\s*(\d+)/i);
       if (!titleClasse && secondaryClassMatch) titleClasse = secondaryClassMatch[1]!.replace(/^0+/, "") || "1";
-      titleNiveau = normalizeLevel(text);
+      titleNiveau = normalizeLevel(text, stage);
       break;
     }
   }
 
-  const { toInsert, skipped, errors } = processRows(raw, userId, annee, titleNiveau, titleClasse, req.log);
+  const { toInsert, skipped, errors } = processRows(raw, userId, annee, titleNiveau, titleClasse, stage, req.log);
 
   if (!(await ensureFreeStudentLimit(userId, toInsert.length))) {
     res.status(403).json({ error: `الخطة المجانية محدودة بـ ${FREE_STUDENT_LIMIT} تلميذاً`, requiredPlan: "basic" });
@@ -636,7 +639,7 @@ router.delete("/students/:id", async (req, res): Promise<void> => {
   const userId = req.user!.id;
   const { id } = req.params;
   const [deleted] = await db.delete(studentsTable)
-    .where(and(eq(studentsTable.id, id), eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)))
+    .where(and(eq(studentsTable.id, id), eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))))
     .returning({ id: studentsTable.id });
 
   if (!deleted) { res.status(404).json({ error: "Student not found" }); return; }
@@ -647,7 +650,7 @@ router.delete("/students", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const userId = req.user!.id;
   const { annee } = req.query as Record<string, string>;
-  const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)];
+  const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))];
   if (annee) conds.push(eq(studentsTable.annee, annee));
   await db.delete(studentsTable).where(and(...conds));
   res.json({ success: true });
@@ -689,8 +692,8 @@ router.post("/students/auto-detect-repeaters", async (req, res): Promise<void> =
 
   try {
     const [currentStudents, prevStudents] = await Promise.all([
-      db.select().from(studentsTable).where(and(eq(studentsTable.userId, userId), eq(studentsTable.annee, annee), inArray(studentsTable.niveau, SCHOOL_LEVELS))),
-      db.select().from(studentsTable).where(and(eq(studentsTable.userId, userId), eq(studentsTable.annee, prevAnnee), inArray(studentsTable.niveau, SCHOOL_LEVELS))),
+      db.select().from(studentsTable).where(and(eq(studentsTable.userId, userId), eq(studentsTable.annee, annee), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req)))),
+      db.select().from(studentsTable).where(and(eq(studentsTable.userId, userId), eq(studentsTable.annee, prevAnnee), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req)))),
     ]);
 
     if (prevStudents.length === 0) {

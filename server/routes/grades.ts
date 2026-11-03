@@ -10,7 +10,7 @@ import type { Niveau } from "../../shared/types.js";
 import { FREE_STUDENT_LIMIT } from "../../shared/subscription.js";
 import { notifyParentOfAbsence } from "../services/absenceAlerts.js";
 import { enqueueAbsenceAlert } from "../services/notificationQueue.js";
-import { SCHOOL_LEVELS } from "../config/school-stage.js";
+import { getSchoolLevelsForRequest } from "../config/school-stage.js";
 
 const router: IRouter = Router();
 
@@ -33,6 +33,11 @@ router.get("/grades", async (req, res): Promise<void> => {
   const userId = req.user!.id;
   const { studentId, annee, trimestre } = req.query as Record<string, string>;
   const conds = [eq(gradesTable.userId, userId)];
+  const stageStudents = await db.select({ id: studentsTable.id }).from(studentsTable)
+    .where(and(eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))));
+  const stageStudentIds = stageStudents.map(student => student.id);
+  if (stageStudentIds.length === 0) { res.json([]); return; }
+  conds.push(inArray(gradesTable.studentId, stageStudentIds));
   if (studentId) conds.push(eq(gradesTable.studentId, studentId));
   if (annee) conds.push(eq(gradesTable.annee, annee));
   if (trimestre) conds.push(eq(gradesTable.trimestre, parseInt(trimestre)));
@@ -66,7 +71,7 @@ router.post("/grades", async (req, res): Promise<void> => {
   }
 
   const [student] = await db.select().from(studentsTable)
-    .where(and(eq(studentsTable.id, studentId), eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)));
+    .where(and(eq(studentsTable.id, studentId), eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))));
   if (!student) {
     res.status(404).json({ error: "الطالب غير موجود" });
     return;
@@ -137,19 +142,19 @@ router.post("/grades/bulk", async (req, res): Promise<void> => {
   if (studentId) {
     // Manual entry: look up by ID (original behaviour)
     const rows = await db.select().from(studentsTable)
-      .where(and(eq(studentsTable.id, studentId), eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)));
+      .where(and(eq(studentsTable.id, studentId), eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))));
     student = rows[0];
   } else {
     // Excel import: look up by name (normalize whitespace for safety)
     const name = (studentName ?? "").trim();
     const rows = await db.select().from(studentsTable)
-      .where(and(eq(studentsTable.userId, userId), eq(studentsTable.nomPrenom, name), inArray(studentsTable.niveau, SCHOOL_LEVELS)));
+      .where(and(eq(studentsTable.userId, userId), eq(studentsTable.nomPrenom, name), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))));
     student = rows[0];
 
     // Fallback: try removing double spaces / different spacing
     if (!student) {
       const allStudents = await db.select().from(studentsTable)
-        .where(and(eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)));
+        .where(and(eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))));
       student = allStudents.find(s =>
         s.nomPrenom.replace(/\s+/g, " ").trim() === name.replace(/\s+/g, " ").trim()
       );
@@ -250,7 +255,7 @@ router.post("/grades/batch-import", async (req, res): Promise<void> => {
 
   // ── 1. Load all students for this user at once ────────────────────────────
   const allStudents = await db.select().from(studentsTable)
-    .where(and(eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)));
+    .where(and(eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))));
 
   const normalize = (n: string) => n.replace(/\s+/g, " ").trim();
   const studentLookup = new Map<string, typeof allStudents[number]>();
@@ -403,7 +408,7 @@ router.get("/results", async (req, res): Promise<void> => {
   const userId = req.user!.id;
   const { annee, niveau, classe, sexe } = req.query as Record<string, string>;
 
-  const studentConds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)];
+  const studentConds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))];
   if (annee) studentConds.push(eq(studentsTable.annee, annee));
   if (niveau) studentConds.push(eq(studentsTable.niveau, niveau as Niveau));
   if (classe) studentConds.push(eq(studentsTable.classe, classe));
@@ -511,7 +516,7 @@ router.get("/results/subjects", async (req, res): Promise<void> => {
   const userId = req.user!.id;
   const { annee, niveau, classe, trimestre, sexe } = req.query as Record<string, string>;
 
-  const studentConds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, SCHOOL_LEVELS)];
+  const studentConds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))];
   if (annee) studentConds.push(eq(studentsTable.annee, annee));
   if (niveau) studentConds.push(eq(studentsTable.niveau, niveau as Niveau));
   if (classe) studentConds.push(eq(studentsTable.classe, classe));
@@ -603,6 +608,11 @@ router.get("/absences", async (req, res): Promise<void> => {
   const userId = req.user!.id;
   const { annee, studentId } = req.query as Record<string, string>;
   const conds = [eq(absencesTable.userId, userId)];
+  const stageStudents = await db.select({ id: studentsTable.id }).from(studentsTable)
+    .where(and(eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))));
+  const stageStudentIds = stageStudents.map(student => student.id);
+  if (stageStudentIds.length === 0) { res.json([]); return; }
+  conds.push(inArray(absencesTable.studentId, stageStudentIds));
   if (annee) conds.push(eq(absencesTable.annee, annee));
   if (studentId) conds.push(eq(absencesTable.studentId, studentId));
   const rows = await db.select().from(absencesTable).where(and(...conds));
@@ -615,6 +625,14 @@ router.post("/absences", async (req, res): Promise<void> => {
   const body = UpsertAbsenceBody.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "Invalid data" }); return; }
   const { studentId, annee, trimestre, justifiedHours, unjustifiedHours } = body.data;
+  const [student] = await db.select({ id: studentsTable.id }).from(studentsTable)
+    .where(and(
+      eq(studentsTable.id, studentId),
+      eq(studentsTable.userId, userId),
+      inArray(studentsTable.niveau, getSchoolLevelsForRequest(req)),
+    ))
+    .limit(1);
+  if (!student) { res.status(404).json({ error: "الطالب غير موجود في المرحلة المختارة" }); return; }
 
   await db.delete(absencesTable).where(and(
     eq(absencesTable.userId, userId),
