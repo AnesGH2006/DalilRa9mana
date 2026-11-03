@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { CheckCircle2, Download, LockKeyhole, Plus, Save, Send, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, LockKeyhole, Plus, RefreshCw, Save, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useOrientationWishes } from "@/hooks/use-orientation-wishes";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 import {
   rankFourAMArtsApplicants,
   rankFourAMScienceApplicants,
@@ -22,8 +23,16 @@ const STREAMS = {
 
 interface Destination {
   name: string;
+  schoolUserId: string;
   scienceSeats: number;
   artsSeats: number;
+}
+
+interface SecondarySchool {
+  userId: string;
+  name: string;
+  wilaya: string;
+  commune: string;
 }
 
 interface OrientationAssignment {
@@ -33,6 +42,7 @@ interface OrientationAssignment {
   annualAvg: number | null;
   stream: "science" | "arts";
   destinationName: string;
+  destinationUserId: string;
 }
 
 interface OrientationPlan {
@@ -51,9 +61,10 @@ const emptyPlan = (annee: string): OrientationPlan => ({
   publishedAt: null,
 });
 
-export default function OrientationWorkflowPage() {
+function MiddleOrientationWorkflowPage() {
   const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
   const [results, setResults] = useState<StudentResult[]>([]);
+  const [secondarySchools, setSecondarySchools] = useState<SecondarySchool[]>([]);
   const [plan, setPlan] = useState<OrientationPlan>(() => emptyPlan(year));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -63,17 +74,20 @@ export default function OrientationWorkflowPage() {
   const loadData = useCallback(async (selectedYear: string) => {
     setLoading(true);
     try {
-      const [resultsResponse, planResponse] = await Promise.all([
+      const [resultsResponse, planResponse, schoolsResponse] = await Promise.all([
         fetch(`${BASE}api/results?annee=${encodeURIComponent(selectedYear)}&niveau=4AM`, { credentials: "include" }),
         fetch(`${BASE}api/orientation/plans/${encodeURIComponent(selectedYear)}`, { credentials: "include" }),
+        fetch(`${BASE}api/orientation/secondary-schools`, { credentials: "include" }),
       ]);
-      if (!resultsResponse.ok || !planResponse.ok) throw new Error("تعذر تحميل بيانات التوجيه");
-      const [resultsData, planData] = await Promise.all([
+      if (!resultsResponse.ok || !planResponse.ok || !schoolsResponse.ok) throw new Error("تعذر تحميل بيانات التوجيه والثانويات المستقبلة");
+      const [resultsData, planData, schoolsData] = await Promise.all([
         resultsResponse.json() as Promise<StudentResult[]>,
         planResponse.json() as Promise<OrientationPlan>,
+        schoolsResponse.json() as Promise<SecondarySchool[]>,
       ]);
       setResults(resultsData);
       setPlan(planData);
+      setSecondarySchools(schoolsData);
     } catch (error) {
       toast({
         title: "تعذر تحميل دورة التوجيه",
@@ -82,6 +96,7 @@ export default function OrientationWorkflowPage() {
       });
       setResults([]);
       setPlan(emptyPlan(selectedYear));
+      setSecondarySchools([]);
     } finally {
       setLoading(false);
     }
@@ -117,6 +132,7 @@ export default function OrientationWorkflowPage() {
           annualAvg: result.annualAvg,
           stream,
           destinationName: destination.name,
+          destinationUserId: destination.schoolUserId,
         }));
       });
     };
@@ -159,11 +175,11 @@ export default function OrientationWorkflowPage() {
   };
 
   const publishPlan = async () => {
-    if (!plan.destinations.length) {
-      toast({ title: "أضف ثانوية واحدة على الأقل قبل الاعتماد", variant: "destructive" });
+    if (!plan.destinations.length || plan.destinations.some(destination => !destination.schoolUserId)) {
+      toast({ title: "اختر الثانوية المستقبلة لكل سعة قبل الاعتماد", variant: "destructive" });
       return;
     }
-    if (!window.confirm(`سيتم تثبيت توجيه ${proposedAssignments.length} تلميذاً للسنة ${year} ومنع تعديل الخريطة. هل تريد المتابعة؟`)) return;
+    if (!window.confirm(`سيتم اعتماد القرار النهائي ونقل بيانات ${proposedAssignments.length} تلميذاً تلقائياً إلى حسابات الثانويات المحددة للسنة ${year}. هل تريد المتابعة؟`)) return;
 
     setSaving(true);
     try {
@@ -234,7 +250,7 @@ export default function OrientationWorkflowPage() {
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div>
             <CardTitle>الخريطة التربوية — {year}</CardTitle>
-            <p className="mt-2 text-xs text-muted-foreground">حدد المقاعد المتاحة لكل جذع في الثانويات المستقبلة.</p>
+            <p className="mt-2 text-xs text-muted-foreground">اختر الحساب المسجل للثانوية وحدد مقاعد كل جذع. عند اعتماد القرار النهائي تُنشأ ملفات التلاميذ في حساب الثانوية تلقائياً كـ1AS غير موزعين.</p>
           </div>
           {plan.status === "published" && <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700"><LockKeyhole className="h-3.5 w-3.5" /> معتمد ونهائي</span>}
         </CardHeader>
@@ -242,8 +258,17 @@ export default function OrientationWorkflowPage() {
           {plan.destinations.map((destination, index) => (
             <div key={`${index}-${destination.name}`} className="grid gap-3 rounded-xl border p-3 md:grid-cols-[minmax(180px,1fr)_140px_140px_auto] md:items-end">
               <label className="space-y-1 text-xs font-semibold">
-                اسم الثانوية
-                <Input disabled={plan.status === "published"} value={destination.name} maxLength={160} onChange={event => updateDestination(index, { name: event.target.value })} placeholder="مثال: ثانوية الشهيد..." />
+                الثانوية المستقبلة
+                <Select disabled={plan.status === "published"} value={destination.schoolUserId || "__unselected__"} onValueChange={value => {
+                  const school = secondarySchools.find(item => item.userId === value);
+                  updateDestination(index, { schoolUserId: value === "__unselected__" ? "" : value, name: school?.name ?? "" });
+                }}>
+                  <SelectTrigger><SelectValue placeholder="اختر الثانوية" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unselected__">اختر الثانوية</SelectItem>
+                    {secondarySchools.map(school => <SelectItem key={school.userId} value={school.userId}>{school.name} — {school.wilaya} / {school.commune}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </label>
               <label className="space-y-1 text-xs font-semibold">
                 مقاعد العلوم
@@ -260,9 +285,14 @@ export default function OrientationWorkflowPage() {
               )}
             </div>
           ))}
+          {plan.status === "draft" && secondarySchools.length === 0 && (
+            <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+              لا توجد ثانويات مسجلة كجهة استقبال. على مدير الثانوية اختيار مرحلة «الثانوي» وحفظ بيانات المؤسسة من صفحة الإعدادات أولاً.
+            </p>
+          )}
           {plan.status === "draft" && (
             <div className="flex flex-wrap gap-2 pt-2">
-              <Button variant="outline" onClick={() => setPlan(current => ({ ...current, destinations: [...current.destinations, { name: "", scienceSeats: 0, artsSeats: 0 }] }))}>
+              <Button variant="outline" onClick={() => setPlan(current => ({ ...current, destinations: [...current.destinations, { name: "", schoolUserId: "", scienceSeats: 0, artsSeats: 0 }] }))}>
                 <Plus /> إضافة ثانوية
               </Button>
               <Button variant="secondary" disabled={saving || loading} onClick={() => void saveMap()}>
@@ -287,7 +317,7 @@ export default function OrientationWorkflowPage() {
                 <span>غير موزعين بسبب السعة/الشروط: <strong>{Math.max(0, results.filter(result => result.passed && result.annualAvg !== null).length - assignedScience - assignedArts)}</strong></span>
               </div>
               {plan.status === "draft" ? (
-                <Button disabled={saving || loading || plan.destinations.length === 0} onClick={() => void publishPlan()}>
+                <Button disabled={saving || loading || plan.destinations.length === 0 || plan.destinations.some(destination => !destination.schoolUserId)} onClick={() => void publishPlan()}>
                   <Send /> اعتماد النتائج النهائية
                 </Button>
               ) : (
@@ -297,7 +327,7 @@ export default function OrientationWorkflowPage() {
                 </div>
               )}
               <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-                بعد الاعتماد، نزّل ملف Excel وأرسله للثانويات المستقبلة أو استورده في حساباتها. النقل الآلي بين حسابات المؤسسات غير مفعّل في النظام حالياً.
+                تنتقل الملفات عند الاعتماد إلى حساب الثانوية كمسجلين في 1AS ضمن فوج «غير موزع». يحدد مدير الثانوية الأفواج بعد الاستقبال وفق تنظيم الوزارة.
               </p>
               {plan.status === "published" && plan.assignments.length > 0 && (
                 <div className="overflow-x-auto rounded-lg border">
@@ -314,7 +344,7 @@ export default function OrientationWorkflowPage() {
                         <td className="p-3">{assignment.destinationName}</td>
                       </tr>
                     ))}</tbody>
-                  </table>
+                            </table>
                 </div>
               )}
             </>
@@ -325,4 +355,188 @@ export default function OrientationWorkflowPage() {
       {plan.status === "published" && <p className="flex items-center gap-2 text-xs text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5" /> تم قفل الخريطة وقائمة التلاميذ بعد الاعتماد.</p>}
     </div>
   );
+}
+
+interface IncomingStudent {
+  id: string;
+  studentId: string;
+  studentName: string;
+  dateNaissance: string | null;
+  sexe: "M" | "F";
+  parentPhone: string | null;
+  annualAvg: number | null;
+  stream: string;
+  destinationName: string;
+  sourceUserId: string;
+  sourceSchoolName: string | null;
+  classe: string;
+}
+
+function IncomingOrientationPage() {
+  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
+  const [students, setStudents] = useState<IncomingStudent[]>([]);
+  const [classDrafts, setClassDrafts] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const loadIncoming = useCallback(async (selectedYear: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${BASE}api/orientation/incoming?annee=${encodeURIComponent(selectedYear)}`, { credentials: "include" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "تعذر تحميل قائمة التلاميذ الوافدين");
+      setStudents(data as IncomingStudent[]);
+      setClassDrafts(Object.fromEntries((data as IncomingStudent[]).map(student => [student.id, student.classe])));
+    } catch (error) {
+      toast({
+        title: "تعذر تحميل قوائم الاستقبال",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء تحميل البيانات",
+        variant: "destructive",
+      });
+      setStudents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    localStorage.setItem("cem-selected-year", year);
+    void loadIncoming(year);
+  }, [year, loadIncoming]);
+
+  const saveClass = async (student: IncomingStudent) => {
+    const classe = classDrafts[student.id]?.trim();
+    if (!classe) {
+      toast({ title: "اكتب اسم الفوج", variant: "destructive" });
+      return;
+    }
+    setSavingId(student.id);
+    try {
+      const response = await fetch(`${BASE}api/orientation/incoming/${encodeURIComponent(student.id)}/class`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classe }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "تعذر تحديث الفوج");
+      setStudents(current => current.map(item => item.id === student.id ? { ...item, classe: data.classe } : item));
+      toast({ title: "تم تحديث فوج التلميذ" });
+    } catch (error) {
+      toast({
+        title: "فشل تحديث الفوج",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const downloadRoster = () => {
+    const rows = students.map((student, index) => ({
+      "الرقم": index + 1,
+      "اسم ولقب التلميذ": student.studentName,
+      "تاريخ الميلاد": student.dateNaissance ?? "",
+      "الجنس": student.sexe === "M" ? "ذكر" : "أنثى",
+      "رقم هاتف الولي": student.parentPhone ?? "",
+      "المعدل السنوي": student.annualAvg ?? "",
+      "الجذع المشترك": student.stream === "science" ? STREAMS.science : STREAMS.arts,
+      "الفوج": student.classe,
+    }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), "التلاميذ الوافدون");
+    XLSX.writeFile(workbook, `التلاميذ-الوافدون-${year}.xlsx`);
+  };
+  const feederSchools = Object.values(students.reduce<Record<string, { id: string; name: string; science: number; arts: number; total: number }>>((groups, student) => {
+    const id = student.sourceUserId;
+    groups[id] ??= { id, name: student.sourceSchoolName || "متوسطة غير محددة", science: 0, arts: 0, total: 0 };
+    groups[id]!.total++;
+    if (student.stream === "science") groups[id]!.science++;
+    else groups[id]!.arts++;
+    return groups;
+  }, {})).sort((a, b) => a.name.localeCompare(b.name, "ar"));
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 p-6" dir="rtl">
+      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-black">استقبال تلاميذ التوجيه</h1>
+          <p className="mt-1 text-sm text-muted-foreground">تصل الملفات تلقائياً بعد اعتماد قرار المتوسطة، ثم وزّع التلاميذ على الأفواج.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={year} onValueChange={setYear}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>{YEARS.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+          </Select>
+          <Button variant="outline" disabled={loading} onClick={() => void loadIncoming(year)}><RefreshCw /> تحديث</Button>
+          <Button variant="outline" disabled={!students.length} onClick={downloadRoster}><Download /> تنزيل القائمة</Button>
+        </div>
+      </header>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">التلاميذ المستقبَلون</p><p className="mt-1 text-2xl font-black">{students.length}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">موزعون على أفواج</p><p className="mt-1 text-2xl font-black">{students.filter(student => student.classe !== "غير موزع").length}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">بانتظار توزيع الفوج</p><p className="mt-1 text-2xl font-black">{students.filter(student => student.classe === "غير موزع").length}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">المتوسطات المورّدة</p><p className="mt-1 text-2xl font-black">{feederSchools.length}</p></CardContent></Card>
+      </div>
+
+      {feederSchools.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>ملخص المتوسطات المورّدة</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-right text-xs text-muted-foreground">
+                  <tr><th className="p-3">المتوسطة</th><th className="p-3">علوم وتكنولوجيا</th><th className="p-3">آداب</th><th className="p-3">المجموع</th></tr>
+                </thead>
+                <tbody>{feederSchools.map(school => (
+                  <tr key={school.id} className="border-t">
+                    <td className="p-3 font-semibold">{school.name}</td>
+                    <td className="p-3">{school.science}</td>
+                    <td className="p-3">{school.arts}</td>
+                    <td className="p-3 font-bold">{school.total}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader><CardTitle>ملفات التلاميذ الوافدين — {year}</CardTitle></CardHeader>
+        <CardContent>
+          {loading ? <p className="py-8 text-center text-sm text-muted-foreground">جارٍ تحميل القائمة...</p> : students.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">لا توجد قوائم توجيه واردة لهذه السنة حتى الآن.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full min-w-[820px] text-sm">
+                <thead className="bg-muted/50 text-right text-xs text-muted-foreground">
+                  <tr><th className="p-3">التلميذ</th><th className="p-3">المتوسطة</th><th className="p-3">تاريخ الميلاد</th><th className="p-3">الجنس</th><th className="p-3">الجذع</th><th className="p-3">المعدل</th><th className="p-3">الفوج</th><th className="p-3">إجراء</th></tr>
+                </thead>
+                <tbody>{students.map(student => (
+                  <tr key={student.id} className="border-t">
+                    <td className="p-3 font-semibold">{student.studentName}</td>
+                    <td className="p-3">{student.sourceSchoolName ?? "—"}</td>
+                    <td className="p-3">{student.dateNaissance ?? "—"}</td>
+                    <td className="p-3">{student.sexe === "M" ? "ذكر" : "أنثى"}</td>
+                    <td className="p-3">{student.stream === "science" ? STREAMS.science : STREAMS.arts}</td>
+                    <td className="p-3">{student.annualAvg?.toFixed(2) ?? "—"}</td>
+                    <td className="p-3"><Input className="w-32" value={classDrafts[student.id] ?? student.classe} onChange={event => setClassDrafts(current => ({ ...current, [student.id]: event.target.value }))} placeholder="مثال: 1ع1" /></td>
+                    <td className="p-3"><Button size="sm" variant="outline" disabled={savingId === student.id} onClick={() => void saveClass(student)}>{savingId === student.id ? "جارٍ الحفظ..." : "حفظ الفوج"}</Button></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function OrientationWorkflowPage() {
+  return SCHOOL_STAGE === "lycee" ? <IncomingOrientationPage /> : <MiddleOrientationWorkflowPage />;
 }

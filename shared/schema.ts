@@ -39,6 +39,7 @@ export const schoolInfoTable = pgTable("school_info", {
   nom: varchar("nom", { length: 255 }).notNull().default(""),
   wilaya: varchar("wilaya", { length: 100 }).notNull().default(""),
   commune: varchar("commune", { length: 100 }).notNull().default(""),
+  stage: varchar("stage", { length: 10 }).notNull().default("moyen"),
   annee: varchar("annee", { length: 20 }).notNull().default("2025-2026"),
   directeur: varchar("directeur", { length: 255 }).default(""),
   phone: varchar("phone", { length: 30 }).default(""),
@@ -216,6 +217,7 @@ export const orientationPlansTable = pgTable("orientation_plans", {
   annee: varchar("annee", { length: 20 }).notNull(),
   destinations: jsonb("destinations").notNull().$type<Array<{
     name: string;
+    schoolUserId: string;
     scienceSeats: number;
     artsSeats: number;
   }>>(),
@@ -227,6 +229,7 @@ export const orientationPlansTable = pgTable("orientation_plans", {
     annualAvg: number | null;
     stream: "science" | "arts";
     destinationName: string;
+    destinationUserId: string;
   }>>().default([]),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -236,6 +239,24 @@ export const orientationPlansTable = pgTable("orientation_plans", {
 ]);
 
 export type OrientationPlan = typeof orientationPlansTable.$inferSelect;
+
+export const orientationTransfersTable = pgTable("orientation_transfers", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  planId: varchar("plan_id", { length: 64 }).notNull().references(() => orientationPlansTable.id, { onDelete: "cascade" }),
+  sourceUserId: varchar("source_user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  destinationUserId: varchar("destination_user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  sourceStudentId: varchar("source_student_id", { length: 64 }).notNull(),
+  destinationStudentId: varchar("destination_student_id", { length: 64 }).notNull().references(() => studentsTable.id, { onDelete: "cascade" }),
+  annee: varchar("annee", { length: 20 }).notNull(),
+  studentName: varchar("student_name", { length: 255 }).notNull(),
+  annualAvg: numeric("annual_avg", { precision: 5, scale: 2 }),
+  stream: varchar("stream", { length: 20 }).notNull(),
+  destinationName: varchar("destination_name", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("orientation_transfers_plan_student_unique").on(table.planId, table.sourceStudentId),
+  index("orientation_transfers_destination_year_idx").on(table.destinationUserId, table.annee),
+]);
 
 // ─── Desktop Agent ─────────────────────────────────────────────────────────────
 export const agentActionEnum = pgEnum("agent_action", [

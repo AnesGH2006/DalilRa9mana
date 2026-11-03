@@ -2,19 +2,93 @@ import crypto from "crypto";
 import { Router, type IRouter } from "express";
 import multer from "multer";
 import * as XLSX from "xlsx";
-import { eq, and, inArray } from "drizzle-orm";
-import { db, studentsTable, gradesTable, orientationWishesTable, orientationPlansTable } from "../../shared/db.js";
-import { ImportOrientationWishesResponse, UpsertOrientationPlanBody, PublishOrientationPlanBody } from "../../shared/schemas.js";
+import { eq, and, inArray, ne } from "drizzle-orm";
+import { db, studentsTable, gradesTable, orientationWishesTable, orientationPlansTable, orientationTransfersTable, schoolInfoTable } from "../../shared/db.js";
+import { ImportOrientationWishesResponse, UpsertOrientationPlanBody, PublishOrientationPlanBody, UpdateIncomingClassBody } from "../../shared/schemas.js";
 import { getSubjectsForLevel, calcWeightedAvg } from "../../shared/subjects.js";
 import type { Niveau } from "../../shared/types.js";
+import { getSchoolStageForRequest } from "../config/school-stage.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
+router.get("/orientation/secondary-schools", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (getSchoolStageForRequest(req) !== "moyen") {
+    res.status(403).json({ error: "قائمة الثانويات متاحة لحسابات المتوسط فقط" });
+    return;
+  }
+  const schools = await db.select({
+    userId: schoolInfoTable.userId,
+    name: schoolInfoTable.nom,
+    wilaya: schoolInfoTable.wilaya,
+    commune: schoolInfoTable.commune,
+  }).from(schoolInfoTable)
+    .where(and(eq(schoolInfoTable.stage, "lycee"), ne(schoolInfoTable.userId, req.user!.id)));
+  res.json(schools);
+});
+
+router.get("/orientation/incoming", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (getSchoolStageForRequest(req) !== "lycee") {
+    res.status(403).json({ error: "قوائم الاستقبال متاحة لحسابات الثانوي فقط" });
+    return;
+  }
+  const annee = String(req.query.annee ?? "").trim();
+  if (!/^\d{4}-\d{4}$/.test(annee)) { res.status(400).json({ error: "السنة الدراسية غير صالحة" }); return; }
+
+  const incoming = await db.select({
+    id: orientationTransfersTable.id,
+    studentId: orientationTransfersTable.destinationStudentId,
+    studentName: studentsTable.nomPrenom,
+    dateNaissance: studentsTable.dateNaissance,
+    sexe: studentsTable.sexe,
+    parentPhone: studentsTable.parentPhone,
+    annualAvg: orientationTransfersTable.annualAvg,
+    stream: orientationTransfersTable.stream,
+    destinationName: orientationTransfersTable.destinationName,
+    sourceUserId: orientationTransfersTable.sourceUserId,
+    sourceSchoolName: schoolInfoTable.nom,
+    classe: studentsTable.classe,
+  }).from(orientationTransfersTable)
+    .innerJoin(studentsTable, eq(studentsTable.id, orientationTransfersTable.destinationStudentId))
+    .leftJoin(schoolInfoTable, eq(schoolInfoTable.userId, orientationTransfersTable.sourceUserId))
+    .where(and(
+      eq(orientationTransfersTable.destinationUserId, req.user!.id),
+      eq(orientationTransfersTable.annee, annee),
+    ));
+  res.json(incoming.map(student => ({ ...student, annualAvg: student.annualAvg === null ? null : Number(student.annualAvg) })));
+});
+
+router.patch("/orientation/incoming/:transferId/class", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (getSchoolStageForRequest(req) !== "lycee") {
+    res.status(403).json({ error: "تنظيم الأفواج متاح لحسابات الثانوي فقط" });
+    return;
+  }
+  const parsed = UpdateIncomingClassBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "اسم الفوج غير صالح", details: parsed.error.issues }); return; }
+
+  const [transfer] = await db.select({
+    studentId: orientationTransfersTable.destinationStudentId,
+  }).from(orientationTransfersTable).where(and(
+    eq(orientationTransfersTable.id, String(req.params.transferId)),
+    eq(orientationTransfersTable.destinationUserId, req.user!.id),
+  ));
+  if (!transfer) { res.status(404).json({ error: "التلميذ غير موجود ضمن قوائم الاستقبال" }); return; }
+  const [updated] = await db.update(studentsTable)
+    .set({ classe: parsed.data.classe })
+    .where(and(eq(studentsTable.id, transfer.studentId), eq(studentsTable.userId, req.user!.id)))
+    .returning({ id: studentsTable.id, classe: studentsTable.classe });
+  if (!updated) { res.status(404).json({ error: "سجل التلميذ غير موجود في مؤسستك" }); return; }
+  res.json(updated);
+});
 
 router.get("/orientation/plans/:annee", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const annee = String(req.params.annee ?? "").trim();
   if (!/^\d{4}-\d{4}$/.test(annee)) { res.status(400).json({ error: "السنة الدراسية غير صالحة" }); return; }
+  if (getSchoolStageForRequest(req) !== "moyen") { res.status(403).json({ error: "إصدار قرارات التوجيه متاح لحسابات المتوسط فقط" }); return; }
 
   const [plan] = await db.select().from(orientationPlansTable)
     .where(and(eq(orientationPlansTable.userId, req.user!.id), eq(orientationPlansTable.annee, annee)));
@@ -25,9 +99,28 @@ router.put("/orientation/plans", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const parsed = UpsertOrientationPlanBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "بيانات الخريطة غير صالحة", details: parsed.error.issues }); return; }
+  if (getSchoolStageForRequest(req) !== "moyen") { res.status(403).json({ error: "إعداد خريطة التوجيه متاح لحسابات المتوسط فقط" }); return; }
 
   const userId = req.user!.id;
   const { annee, destinations } = parsed.data;
+  const schoolUserIds = [...new Set(destinations.map(destination => destination.schoolUserId))];
+  if (schoolUserIds.length) {
+    const schools = await db.select({
+      userId: schoolInfoTable.userId,
+      name: schoolInfoTable.nom,
+    }).from(schoolInfoTable).where(and(
+      eq(schoolInfoTable.stage, "lycee"),
+      inArray(schoolInfoTable.userId, schoolUserIds),
+    ));
+    if (schools.length !== schoolUserIds.length || schoolUserIds.includes(userId)) {
+      res.status(400).json({ error: "تأكد من اختيار حسابات ثانويات مستقبلة صحيحة" });
+      return;
+    }
+    const schoolsById = new Map(schools.map(school => [school.userId, school]));
+    for (const destination of destinations) {
+      destination.name = schoolsById.get(destination.schoolUserId)!.name;
+    }
+  }
   const [existing] = await db.select().from(orientationPlansTable)
     .where(and(eq(orientationPlansTable.userId, userId), eq(orientationPlansTable.annee, annee)));
   if (existing?.status === "published") {
@@ -60,6 +153,7 @@ router.post("/orientation/plans/:annee/publish", async (req, res): Promise<void>
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const annee = String(req.params.annee ?? "").trim();
   if (!/^\d{4}-\d{4}$/.test(annee)) { res.status(400).json({ error: "السنة الدراسية غير صالحة" }); return; }
+  if (getSchoolStageForRequest(req) !== "moyen") { res.status(403).json({ error: "اعتماد قرارات التوجيه متاح لحسابات المتوسط فقط" }); return; }
   const parsed = PublishOrientationPlanBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "قائمة التوجيه غير صالحة", details: parsed.error.issues }); return; }
 
@@ -76,17 +170,29 @@ router.post("/orientation/plans/:annee/publish", async (req, res): Promise<void>
     return;
   }
 
-  const destinationByName = new Map(plan.destinations.map(destination => [destination.name, destination]));
+  const destinationUserIds = [...new Set(plan.destinations.map(destination => destination.schoolUserId))];
+  const registeredDestinations = destinationUserIds.length
+    ? await db.select({ userId: schoolInfoTable.userId }).from(schoolInfoTable).where(and(
+      eq(schoolInfoTable.stage, "lycee"),
+      inArray(schoolInfoTable.userId, destinationUserIds),
+    ))
+    : [];
+  if (registeredDestinations.length !== destinationUserIds.length) {
+    res.status(409).json({ error: "تغيرت بيانات إحدى الثانويات المحددة. حدّث الخريطة ثم أعد المحاولة" });
+    return;
+  }
   const counts = new Map<string, { science: number; arts: number }>();
   for (const assignment of assignments) {
-    const destination = destinationByName.get(assignment.destinationName);
+    const destination = plan.destinations.find(item =>
+      item.name === assignment.destinationName && item.schoolUserId === assignment.destinationUserId
+    );
     if (!destination) {
       res.status(400).json({ error: `الثانوية "${assignment.destinationName}" غير موجودة في الخريطة` });
       return;
     }
-    const count = counts.get(destination.name) ?? { science: 0, arts: 0 };
+    const count = counts.get(destination.schoolUserId) ?? { science: 0, arts: 0 };
     count[assignment.stream]++;
-    counts.set(destination.name, count);
+    counts.set(destination.schoolUserId, count);
     if (count.science > destination.scienceSeats || count.arts > destination.artsSeats) {
       res.status(400).json({ error: `تم تجاوز سعة المقاعد في ثانوية ${destination.name}` });
       return;
@@ -99,6 +205,9 @@ router.post("/orientation/plans/:annee/publish", async (req, res): Promise<void>
       id: studentsTable.id,
       nomPrenom: studentsTable.nomPrenom,
       classe: studentsTable.classe,
+      dateNaissance: studentsTable.dateNaissance,
+      sexe: studentsTable.sexe,
+      parentPhone: studentsTable.parentPhone,
     }).from(studentsTable)
       .where(and(
         eq(studentsTable.userId, userId),
@@ -118,10 +227,68 @@ router.post("/orientation/plans/:annee/publish", async (req, res): Promise<void>
     }));
   }
 
-  const [published] = await db.update(orientationPlansTable)
-    .set({ status: "published", assignments: verifiedAssignments, publishedAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(orientationPlansTable.id, plan.id), eq(orientationPlansTable.status, "draft")))
-    .returning();
+  const [published] = await db.transaction(async tx => {
+    const [updatedPlan] = await tx.update(orientationPlansTable)
+      .set({ status: "published", assignments: verifiedAssignments, publishedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(orientationPlansTable.id, plan.id), eq(orientationPlansTable.status, "draft")))
+      .returning();
+    if (!updatedPlan) return [];
+
+    const students = studentIds.length
+      ? await tx.select({
+        id: studentsTable.id,
+        nomPrenom: studentsTable.nomPrenom,
+        dateNaissance: studentsTable.dateNaissance,
+        sexe: studentsTable.sexe,
+        parentPhone: studentsTable.parentPhone,
+      }).from(studentsTable).where(and(
+        eq(studentsTable.userId, userId),
+        eq(studentsTable.annee, annee),
+        inArray(studentsTable.id, studentIds),
+      ))
+      : [];
+    const studentById = new Map(students.map(student => [student.id, student]));
+    const destinationStudents = verifiedAssignments.map(assignment => {
+      const sourceStudent = studentById.get(assignment.studentId);
+      if (!sourceStudent) throw new Error("Missing source student after orientation validation");
+      const destinationStudentId = crypto.randomUUID();
+      return {
+        transfer: {
+          id: crypto.randomUUID(),
+          planId: plan.id,
+          sourceUserId: userId,
+          destinationUserId: assignment.destinationUserId,
+          sourceStudentId: assignment.studentId,
+          destinationStudentId,
+          annee,
+          studentName: sourceStudent.nomPrenom,
+          annualAvg: assignment.annualAvg === null ? null : String(assignment.annualAvg),
+          stream: assignment.stream,
+          destinationName: assignment.destinationName,
+        },
+        student: {
+          id: destinationStudentId,
+          userId: assignment.destinationUserId,
+          nomPrenom: sourceStudent.nomPrenom,
+          dateNaissance: sourceStudent.dateNaissance,
+          parentPhone: sourceStudent.parentPhone,
+          niveau: "1AS" as const,
+          classe: "غير موزع",
+          sexe: sourceStudent.sexe,
+          statut: "nouveau" as const,
+          resultat: null,
+          annee,
+        },
+      };
+    });
+
+    for (let i = 0; i < destinationStudents.length; i += 500) {
+      const chunk = destinationStudents.slice(i, i + 500);
+      await tx.insert(studentsTable).values(chunk.map(item => item.student));
+      await tx.insert(orientationTransfersTable).values(chunk.map(item => item.transfer));
+    }
+    return [updatedPlan];
+  });
   if (!published) { res.status(409).json({ error: "تم اعتماد التوجيه من جلسة أخرى" }); return; }
   res.json(published);
 });

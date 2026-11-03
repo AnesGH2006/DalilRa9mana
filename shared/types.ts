@@ -42,6 +42,7 @@ export interface SchoolInfo {
   nom: string;
   wilaya: string;
   commune: string;
+  stage?: "moyen" | "lycee";
   annee: string;
   directeur?: string | null;
   phone?: string | null;

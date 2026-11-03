@@ -50,6 +50,7 @@ export const SchoolInfoSchema = zod.object({
   nom: zod.string(),
   wilaya: zod.string(),
   commune: zod.string(),
+  stage: zod.enum(["moyen", "lycee"]).optional(),
   annee: zod.string(),
   directeur: zod.string().nullable().optional(),
   phone: zod.string().nullable().optional(),
@@ -201,6 +202,7 @@ export const ImportOrientationWishesResponse = zod.object({
 
 export const OrientationDestinationSchema = zod.object({
   name: zod.string().trim().min(1).max(160),
+  schoolUserId: zod.string().min(1),
   scienceSeats: zod.number().int().min(0).max(500),
   artsSeats: zod.number().int().min(0).max(500),
 });
@@ -209,9 +211,9 @@ export const UpsertOrientationPlanBody = zod.object({
   annee: zod.string().regex(/^\d{4}-\d{4}$/),
   destinations: zod.array(OrientationDestinationSchema).max(100),
 }).superRefine(({ destinations }, context) => {
-  const names = destinations.map(destination => destination.name.toLocaleLowerCase("ar-DZ"));
-  if (new Set(names).size !== names.length) {
-    context.addIssue({ code: zod.ZodIssueCode.custom, path: ["destinations"], message: "أسماء الثانويات يجب أن تكون فريدة" });
+  const schoolUserIds = destinations.map(destination => destination.schoolUserId);
+  if (new Set(schoolUserIds).size !== schoolUserIds.length) {
+    context.addIssue({ code: zod.ZodIssueCode.custom, path: ["destinations"], message: "لا يمكن إضافة الثانوية أكثر من مرة" });
   }
 });
 
@@ -223,7 +225,12 @@ export const PublishOrientationPlanBody = zod.object({
     annualAvg: zod.number().min(0).max(20).nullable(),
     stream: zod.enum(["science", "arts"]),
     destinationName: zod.string().min(1).max(160),
+    destinationUserId: zod.string().min(1),
   })).max(5000),
+});
+
+export const UpdateIncomingClassBody = zod.object({
+  classe: zod.string().trim().min(1).max(30),
 });
 
 // Legacy (kept for compat)

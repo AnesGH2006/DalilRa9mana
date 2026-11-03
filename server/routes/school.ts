@@ -1,8 +1,9 @@
 import crypto from "crypto";
 import { Router, type IRouter } from "express";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, schoolInfoTable } from "../../shared/db.js";
 import { UpsertSchoolInfoBody, SchoolInfoSchema } from "../../shared/schemas.js";
+import { getSchoolStageForRequest } from "../config/school-stage.js";
 
 /** Generate a random 6-char alphanumeric join code. */
 const JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I
@@ -16,7 +17,11 @@ const router: IRouter = Router();
 
 router.get("/school", async (req, res): Promise<void> => {
     if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const [info] = await db.select().from(schoolInfoTable).where(eq(schoolInfoTable.userId, req.user!.id));
+  const [existing] = await db.select().from(schoolInfoTable).where(eq(schoolInfoTable.userId, req.user!.id));
+  const info = existing
+    ? (await db.update(schoolInfoTable).set({ stage: getSchoolStageForRequest(req) })
+      .where(eq(schoolInfoTable.userId, req.user!.id)).returning())[0]
+    : undefined;
   if (!info) { res.json(null); return; }
   // Auto-assign a join code if none exists yet
   if (!info.joinCode) {
@@ -54,6 +59,7 @@ router.put("/school", async (req, res): Promise<void> => {
 
   const vals = {
     nom, wilaya, commune, annee,
+    stage: getSchoolStageForRequest(req),
     directeur: directeur ?? "",
     phone: phone ?? "",
     smsGatewayUrl: smsGatewayUrl ?? "",
