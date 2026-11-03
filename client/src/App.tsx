@@ -14,6 +14,7 @@ import {
   ScanLine, Shield, Calendar, Shuffle,
 } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 import { QuickImportDialog } from "@/components/quick-import";
 import AiChatWidget from "@/components/ai-chat-widget";
 import { motion, AnimatePresence } from "framer-motion";
@@ -207,6 +208,11 @@ const PARENT_SECTIONS: SectionDef[] = [
 
 /** Choose the nav sections to display based on the logged-in user's role. */
 function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): SectionDef[] {
+  const stageSections = SCHOOL_STAGE === "lycee"
+    ? SECTIONS.map(section => section.id === "orient"
+      ? { ...section, items: section.items.filter(item => item.href === "/orientation") }
+      : section).filter(section => section.items.length > 0)
+    : SECTIONS;
   const role = user?.memberContext?.role;
   if (role === "parent")  return PARENT_SECTIONS;
   const isStandaloneStaffPlan = user?.subscriptionPlan === "staff"
@@ -216,7 +222,7 @@ function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): Secti
   if (isStandaloneStaffPlan) {
     const permissions = new Set<StaffPermission>(DEFAULT_STAFF_PERMISSIONS.teacher.filter(permission => permission !== "dashboard"));
     const allowedNonPermissionPaths = new Set(["/settings", "/account", "/subscription"]);
-    return SECTIONS.map(section => ({
+    return stageSections.map(section => ({
       ...section,
       items: section.items.filter(item => {
         const permission = permissionForAppPath(item.href);
@@ -229,7 +235,7 @@ function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): Secti
   if (role === "teacher" || role === "supervisor" || role === "counselor") {
     const permissions = user?.memberContext?.permissions ?? [];
     const allowedNonPermissionPaths = new Set(["/settings", "/account", "/subscription"]);
-    let sections = SECTIONS.map(section => ({
+    let sections = stageSections.map(section => ({
       ...section,
       items: section.items.filter(item => {
         const permission = permissionForAppPath(item.href);
@@ -250,12 +256,12 @@ function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): Secti
   }
   if (user?.subscriptionPlan === "free" && user.subscriptionStatus === "active" && user.role !== "admin") {
     const freePaths = new Set(["/", "/students", "/results", "/subjects", "/import", "/settings", "/account", "/subscription"]);
-    return SECTIONS.map(section => ({
+    return stageSections.map(section => ({
       ...section,
       items: section.items.filter(item => freePaths.has(item.href)),
     })).filter(section => section.items.length > 0);
   }
-  return SECTIONS;
+  return stageSections;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -897,12 +903,12 @@ function AppLayout() {
               <Route path="/subscription"        component={SubscriptionPage} />
               <Route path="/payment-demo"         component={PaymentDemoPage} />
               <Route path="/admin"               component={AdminPage} />
-              <Route path="/preorient/tracking" component={PreOrientTrackingPage} />
-              <Route path="/preorient/first"    component={PreOrientFirstPage} />
-              <Route path="/preorient/wishes"   component={OrientationWishesPage} />
-              <Route path="/preorient/second"   component={PreOrientSecondPage} />
-              <Route path="/preorient/final"    component={PreOrientFinalPage} />
-              <Route path="/preorient/reports"  component={PreOrientReportsPage} />
+              <Route path="/preorient/tracking" component={SCHOOL_STAGE === "lycee" ? OrientationWorkflowPage : PreOrientTrackingPage} />
+              <Route path="/preorient/first"    component={SCHOOL_STAGE === "lycee" ? OrientationWorkflowPage : PreOrientFirstPage} />
+              <Route path="/preorient/wishes"   component={SCHOOL_STAGE === "lycee" ? OrientationWorkflowPage : OrientationWishesPage} />
+              <Route path="/preorient/second"   component={SCHOOL_STAGE === "lycee" ? OrientationWorkflowPage : PreOrientSecondPage} />
+              <Route path="/preorient/final"    component={SCHOOL_STAGE === "lycee" ? OrientationWorkflowPage : PreOrientFinalPage} />
+              <Route path="/preorient/reports"  component={SCHOOL_STAGE === "lycee" ? OrientationWorkflowPage : PreOrientReportsPage} />
               <Route path="/orientation" component={OrientationWorkflowPage} />
               <Route path="/assistant"           component={AssistantPage} />
               <Route path="/pedagogy-center"     component={PedagogyCenterPage} />

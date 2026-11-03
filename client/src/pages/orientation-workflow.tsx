@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { CheckCircle2, Download, LockKeyhole, Plus, RefreshCw, Save, Send, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, LockKeyhole, Plus, RefreshCw, Save, Send, Shuffle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -375,9 +375,10 @@ interface IncomingStudent {
 function IncomingOrientationPage() {
   const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
   const [students, setStudents] = useState<IncomingStudent[]>([]);
-  const [classDrafts, setClassDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [organizing, setOrganizing] = useState(false);
+  const [scienceGroups, setScienceGroups] = useState(1);
+  const [artsGroups, setArtsGroups] = useState(1);
   const { toast } = useToast();
 
   const loadIncoming = useCallback(async (selectedYear: string) => {
@@ -387,7 +388,6 @@ function IncomingOrientationPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "تعذر تحميل قائمة التلاميذ الوافدين");
       setStudents(data as IncomingStudent[]);
-      setClassDrafts(Object.fromEntries((data as IncomingStudent[]).map(student => [student.id, student.classe])));
     } catch (error) {
       toast({
         title: "تعذر تحميل قوائم الاستقبال",
@@ -405,32 +405,27 @@ function IncomingOrientationPage() {
     void loadIncoming(year);
   }, [year, loadIncoming]);
 
-  const saveClass = async (student: IncomingStudent) => {
-    const classe = classDrafts[student.id]?.trim();
-    if (!classe) {
-      toast({ title: "اكتب اسم الفوج", variant: "destructive" });
-      return;
-    }
-    setSavingId(student.id);
+  const organizeGroups = async () => {
+    setOrganizing(true);
     try {
-      const response = await fetch(`${BASE}api/orientation/incoming/${encodeURIComponent(student.id)}/class`, {
-        method: "PATCH",
+      const response = await fetch(`${BASE}api/orientation/incoming/organize`, {
+        method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classe }),
+        body: JSON.stringify({ annee: year, scienceGroups, artsGroups }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "تعذر تحديث الفوج");
-      setStudents(current => current.map(item => item.id === student.id ? { ...item, classe: data.classe } : item));
-      toast({ title: "تم تحديث فوج التلميذ" });
+      if (!response.ok) throw new Error(data.error ?? "تعذر تشكيل الأفواج");
+      await loadIncoming(year);
+      toast({ title: "تم تشكيل الأفواج", description: `تم توزيع ${data.assigned} تلميذاً بالتوازن داخل جذعهم المقرر.` });
     } catch (error) {
       toast({
-        title: "فشل تحديث الفوج",
+        title: "تعذر تشكيل الأفواج",
         description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
         variant: "destructive",
       });
     } finally {
-      setSavingId(null);
+      setOrganizing(false);
     }
   };
 
@@ -506,6 +501,26 @@ function IncomingOrientationPage() {
       )}
 
       <Card>
+        <CardHeader>
+          <CardTitle>تشكيل الأفواج حسب قرار التوجيه</CardTitle>
+          <p className="text-xs text-muted-foreground">الجذع الذي حددته المتوسطة نهائياً يبقى كما هو. أدخل عدد الأفواج لكل جذع ليُوزع التلاميذ بالتوازن بحسب المعدلات.</p>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <label className="space-y-1 text-xs font-semibold">
+            أفواج العلوم ({students.filter(student => student.stream === "science").length} تلميذاً)
+            <Input type="number" min={0} max={30} value={scienceGroups} onChange={event => setScienceGroups(Math.max(0, Math.min(30, Number(event.target.value) || 0)))} />
+          </label>
+          <label className="space-y-1 text-xs font-semibold">
+            أفواج الآداب ({students.filter(student => student.stream === "arts").length} تلميذاً)
+            <Input type="number" min={0} max={30} value={artsGroups} onChange={event => setArtsGroups(Math.max(0, Math.min(30, Number(event.target.value) || 0)))} />
+          </label>
+          <Button disabled={loading || organizing || students.length === 0} onClick={() => void organizeGroups()}>
+            <Shuffle /> {organizing ? "جارٍ تشكيل الأفواج..." : "تشكيل الأفواج بالتوازن"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader><CardTitle>ملفات التلاميذ الوافدين — {year}</CardTitle></CardHeader>
         <CardContent>
           {loading ? <p className="py-8 text-center text-sm text-muted-foreground">جارٍ تحميل القائمة...</p> : students.length === 0 ? (
@@ -514,7 +529,7 @@ function IncomingOrientationPage() {
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full min-w-[820px] text-sm">
                 <thead className="bg-muted/50 text-right text-xs text-muted-foreground">
-                  <tr><th className="p-3">التلميذ</th><th className="p-3">المتوسطة</th><th className="p-3">تاريخ الميلاد</th><th className="p-3">الجنس</th><th className="p-3">الجذع</th><th className="p-3">المعدل</th><th className="p-3">الفوج</th><th className="p-3">إجراء</th></tr>
+                  <tr><th className="p-3">التلميذ</th><th className="p-3">المتوسطة</th><th className="p-3">تاريخ الميلاد</th><th className="p-3">الجنس</th><th className="p-3">الجذع النهائي</th><th className="p-3">المعدل</th><th className="p-3">الفوج</th></tr>
                 </thead>
                 <tbody>{students.map(student => (
                   <tr key={student.id} className="border-t">
@@ -524,8 +539,7 @@ function IncomingOrientationPage() {
                     <td className="p-3">{student.sexe === "M" ? "ذكر" : "أنثى"}</td>
                     <td className="p-3">{student.stream === "science" ? STREAMS.science : STREAMS.arts}</td>
                     <td className="p-3">{student.annualAvg?.toFixed(2) ?? "—"}</td>
-                    <td className="p-3"><Input className="w-32" value={classDrafts[student.id] ?? student.classe} onChange={event => setClassDrafts(current => ({ ...current, [student.id]: event.target.value }))} placeholder="مثال: 1ع1" /></td>
-                    <td className="p-3"><Button size="sm" variant="outline" disabled={savingId === student.id} onClick={() => void saveClass(student)}>{savingId === student.id ? "جارٍ الحفظ..." : "حفظ الفوج"}</Button></td>
+                    <td className="p-3">{student.classe}</td>
                   </tr>
                 ))}</tbody>
               </table>

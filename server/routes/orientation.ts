@@ -4,7 +4,7 @@ import multer from "multer";
 import * as XLSX from "xlsx";
 import { eq, and, inArray, ne } from "drizzle-orm";
 import { db, studentsTable, gradesTable, orientationWishesTable, orientationPlansTable, orientationTransfersTable, schoolInfoTable } from "../../shared/db.js";
-import { ImportOrientationWishesResponse, UpsertOrientationPlanBody, PublishOrientationPlanBody, UpdateIncomingClassBody } from "../../shared/schemas.js";
+import { ImportOrientationWishesResponse, UpsertOrientationPlanBody, PublishOrientationPlanBody, OrganizeIncomingGroupsBody } from "../../shared/schemas.js";
 import { getSubjectsForLevel, calcWeightedAvg } from "../../shared/subjects.js";
 import type { Niveau } from "../../shared/types.js";
 import { getSchoolStageForRequest } from "../config/school-stage.js";
@@ -60,28 +60,64 @@ router.get("/orientation/incoming", async (req, res): Promise<void> => {
   res.json(incoming.map(student => ({ ...student, annualAvg: student.annualAvg === null ? null : Number(student.annualAvg) })));
 });
 
-router.patch("/orientation/incoming/:transferId/class", async (req, res): Promise<void> => {
+router.post("/orientation/incoming/organize", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   if (getSchoolStageForRequest(req) !== "lycee") {
     res.status(403).json({ error: "تنظيم الأفواج متاح لحسابات الثانوي فقط" });
     return;
   }
-  const parsed = UpdateIncomingClassBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "اسم الفوج غير صالح", details: parsed.error.issues }); return; }
+  const parsed = OrganizeIncomingGroupsBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "عدد الأفواج غير صالح", details: parsed.error.issues }); return; }
 
-  const [transfer] = await db.select({
+  const { annee } = parsed.data;
+  const incoming = await db.select({
     studentId: orientationTransfersTable.destinationStudentId,
+    stream: orientationTransfersTable.stream,
+    annualAvg: orientationTransfersTable.annualAvg,
   }).from(orientationTransfersTable).where(and(
-    eq(orientationTransfersTable.id, String(req.params.transferId)),
     eq(orientationTransfersTable.destinationUserId, req.user!.id),
+    eq(orientationTransfersTable.annee, annee),
   ));
-  if (!transfer) { res.status(404).json({ error: "التلميذ غير موجود ضمن قوائم الاستقبال" }); return; }
-  const [updated] = await db.update(studentsTable)
-    .set({ classe: parsed.data.classe })
-    .where(and(eq(studentsTable.id, transfer.studentId), eq(studentsTable.userId, req.user!.id)))
-    .returning({ id: studentsTable.id, classe: studentsTable.classe });
-  if (!updated) { res.status(404).json({ error: "سجل التلميذ غير موجود في مؤسستك" }); return; }
-  res.json(updated);
+  const scienceStudents = incoming.filter(student => student.stream === "science")
+    .sort((a, b) => Number(b.annualAvg ?? 0) - Number(a.annualAvg ?? 0) || a.studentId.localeCompare(b.studentId));
+  const artsStudents = incoming.filter(student => student.stream === "arts")
+    .sort((a, b) => Number(b.annualAvg ?? 0) - Number(a.annualAvg ?? 0) || a.studentId.localeCompare(b.studentId));
+
+  if ((scienceStudents.length && parsed.data.scienceGroups === 0) || (artsStudents.length && parsed.data.artsGroups === 0)) {
+    res.status(400).json({ error: "حدد عدد الأفواج لكل جذع يوجد به تلاميذ وافدون" });
+    return;
+  }
+
+  const groups = [
+    { students: scienceStudents, count: parsed.data.scienceGroups, label: "علوم" },
+    { students: artsStudents, count: parsed.data.artsGroups, label: "آداب" },
+  ];
+  await db.transaction(async tx => {
+    for (const group of groups) {
+      const byClass = new Map<string, string[]>();
+      group.students.forEach((student, index) => {
+        const classe = `${group.label} ${index % group.count + 1}`;
+        const studentIds = byClass.get(classe) ?? [];
+        studentIds.push(student.studentId);
+        byClass.set(classe, studentIds);
+      });
+      for (const [classe, studentIds] of byClass) {
+        await tx.update(studentsTable).set({ classe }).where(and(
+          eq(studentsTable.userId, req.user!.id),
+          inArray(studentsTable.id, studentIds),
+        ));
+      }
+    }
+  });
+
+  res.json({
+    assigned: incoming.length,
+    groups: groups.map(group => ({
+      stream: group.label,
+      count: group.count,
+      students: group.students.length,
+    })),
+  });
 });
 
 router.get("/orientation/plans/:annee", async (req, res): Promise<void> => {

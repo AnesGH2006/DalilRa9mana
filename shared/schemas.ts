@@ -233,6 +233,12 @@ export const UpdateIncomingClassBody = zod.object({
   classe: zod.string().trim().min(1).max(30),
 });
 
+export const OrganizeIncomingGroupsBody = zod.object({
+  annee: zod.string().regex(/^\d{4}-\d{4}$/),
+  scienceGroups: zod.number().int().min(0).max(30),
+  artsGroups: zod.number().int().min(0).max(30),
+});
+
 // Legacy (kept for compat)
 export const UploadGradesResponse = zod.object({
   students: zod.array(zod.object({
