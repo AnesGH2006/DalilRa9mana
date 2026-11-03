@@ -240,6 +240,17 @@ export const orientationPlansTable = pgTable("orientation_plans", {
 
 export type OrientationPlan = typeof orientationPlansTable.$inferSelect;
 
+export const feederSchoolsTable = pgTable("feeder_schools", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  middleSchoolUserId: varchar("middle_school_user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  highSchoolUserId: varchar("high_school_user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  annee: varchar("annee", { length: 20 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("feeder_schools_middle_high_year_unique").on(table.middleSchoolUserId, table.highSchoolUserId, table.annee),
+  index("feeder_schools_high_school_idx").on(table.highSchoolUserId),
+]);
+
 export const orientationTransfersTable = pgTable("orientation_transfers", {
   id: varchar("id", { length: 64 }).primaryKey(),
   planId: varchar("plan_id", { length: 64 }).notNull().references(() => orientationPlansTable.id, { onDelete: "cascade" }),

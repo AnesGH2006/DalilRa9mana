@@ -3,7 +3,7 @@ import { Router, type IRouter } from "express";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import { eq, and, inArray, ne } from "drizzle-orm";
-import { db, studentsTable, gradesTable, orientationWishesTable, orientationPlansTable, orientationTransfersTable, schoolInfoTable } from "../../shared/db.js";
+import { db, studentsTable, gradesTable, orientationWishesTable, orientationPlansTable, orientationTransfersTable, schoolInfoTable, feederSchoolsTable } from "../../shared/db.js";
 import { ImportOrientationWishesResponse, UpsertOrientationPlanBody, PublishOrientationPlanBody, OrganizeIncomingGroupsBody } from "../../shared/schemas.js";
 import { getSubjectsForLevel, calcWeightedAvg } from "../../shared/subjects.js";
 import type { Niveau } from "../../shared/types.js";
@@ -58,6 +58,79 @@ router.get("/orientation/incoming", async (req, res): Promise<void> => {
       eq(orientationTransfersTable.annee, annee),
     ));
   res.json(incoming.map(student => ({ ...student, annualAvg: student.annualAvg === null ? null : Number(student.annualAvg) })));
+});
+
+router.get("/orientation/incoming/linked-schools", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (getSchoolStageForRequest(req) !== "lycee") {
+    res.status(403).json({ error: "الروافد متاحة لحسابات الثانوي فقط" });
+    return;
+  }
+  const annee = String(req.query.annee ?? "").trim();
+  if (!/^\d{4}-\d{4}$/.test(annee)) { res.status(400).json({ error: "السنة الدراسية غير صالحة" }); return; }
+
+  const linkedSchools = await db.select({
+    userId: feederSchoolsTable.middleSchoolUserId,
+    name: schoolInfoTable.nom,
+    wilaya: schoolInfoTable.wilaya,
+    commune: schoolInfoTable.commune,
+  }).from(feederSchoolsTable)
+    .innerJoin(schoolInfoTable, eq(schoolInfoTable.userId, feederSchoolsTable.middleSchoolUserId))
+    .where(and(
+      eq(feederSchoolsTable.highSchoolUserId, req.user!.id),
+      eq(feederSchoolsTable.annee, annee),
+      eq(schoolInfoTable.stage, "moyen"),
+    ));
+
+  if (!linkedSchools.length) { res.json([]); return; }
+  const middleSchoolIds = linkedSchools.map(school => school.userId);
+  const [students, plans, transfers] = await Promise.all([
+    db.select({ userId: studentsTable.userId }).from(studentsTable).where(and(
+      inArray(studentsTable.userId, middleSchoolIds),
+      eq(studentsTable.annee, annee),
+      eq(studentsTable.niveau, "4AM" as Niveau),
+    )),
+    db.select().from(orientationPlansTable).where(and(
+      inArray(orientationPlansTable.userId, middleSchoolIds),
+      eq(orientationPlansTable.annee, annee),
+    )),
+    db.select({
+      sourceUserId: orientationTransfersTable.sourceUserId,
+    }).from(orientationTransfersTable)
+      .where(and(
+        eq(orientationTransfersTable.destinationUserId, req.user!.id),
+        eq(orientationTransfersTable.annee, annee),
+      inArray(orientationTransfersTable.sourceUserId, middleSchoolIds),
+    )),
+  ]);
+
+  const expectedBySchool = new Map<string, number>();
+  for (const student of students) expectedBySchool.set(student.userId, (expectedBySchool.get(student.userId) ?? 0) + 1);
+
+  const planBySchool = new Map<string, typeof plans[number]>();
+  for (const plan of plans) {
+    for (const destination of plan.destinations) {
+      if (destination.schoolUserId === req.user!.id) planBySchool.set(plan.userId, plan);
+    }
+  }
+
+  const receivedBySchool = new Map<string, number>();
+  for (const transfer of transfers) receivedBySchool.set(
+    transfer.sourceUserId,
+    (receivedBySchool.get(transfer.sourceUserId) ?? 0) + 1,
+  );
+
+  res.json(linkedSchools.map(school => {
+    const plan = planBySchool.get(school.userId);
+    const status = plan?.status === "published" ? "sent" : plan ? "pending" : "not_sent";
+    return {
+      ...school,
+      expectedIncomingStudents: status === "sent"
+        ? receivedBySchool.get(school.userId) ?? 0
+        : expectedBySchool.get(school.userId) ?? 0,
+      dataStatus: status,
+    };
+  }));
 });
 
 router.post("/orientation/incoming/organize", async (req, res): Promise<void> => {
@@ -165,23 +238,49 @@ router.put("/orientation/plans", async (req, res): Promise<void> => {
   }
 
   if (existing) {
-    const [updated] = await db.update(orientationPlansTable)
-      .set({ destinations, updatedAt: new Date() })
-      .where(and(eq(orientationPlansTable.id, existing.id), eq(orientationPlansTable.status, "draft")))
-      .returning();
+    const [updated] = await db.transaction(async tx => {
+      const [savedPlan] = await tx.update(orientationPlansTable)
+        .set({ destinations, updatedAt: new Date() })
+        .where(and(eq(orientationPlansTable.id, existing.id), eq(orientationPlansTable.status, "draft")))
+        .returning();
+      if (savedPlan) {
+        await tx.delete(feederSchoolsTable).where(and(
+          eq(feederSchoolsTable.middleSchoolUserId, userId),
+          eq(feederSchoolsTable.annee, annee),
+        ));
+        if (destinations.length) await tx.insert(feederSchoolsTable).values(destinations.map(destination => ({
+          id: crypto.randomUUID(),
+          middleSchoolUserId: userId,
+          highSchoolUserId: destination.schoolUserId,
+          annee,
+        }))).onConflictDoNothing();
+      }
+      return [savedPlan];
+    });
     if (!updated) { res.status(409).json({ error: "تعذر تعديل خريطة معتمدة" }); return; }
     res.json(updated);
     return;
   }
 
-  const [created] = await db.insert(orientationPlansTable).values({
-    id: crypto.randomUUID(),
-    userId,
-    annee,
-    destinations,
-    status: "draft",
-    assignments: [],
-  }).returning();
+  const [created] = await db.transaction(async tx => {
+    const [plan] = await tx.insert(orientationPlansTable).values({
+      id: crypto.randomUUID(),
+      userId,
+      annee,
+      destinations,
+      status: "draft",
+      assignments: [],
+    }).returning();
+    if (destinations.length) {
+      await tx.insert(feederSchoolsTable).values(destinations.map(destination => ({
+        id: crypto.randomUUID(),
+        middleSchoolUserId: userId,
+        highSchoolUserId: destination.schoolUserId,
+        annee,
+      }))).onConflictDoNothing();
+    }
+    return [plan];
+  });
   res.json(created);
 });
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { CheckCircle2, Download, LockKeyhole, Plus, RefreshCw, Save, Send, Shuffle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -372,9 +373,19 @@ interface IncomingStudent {
   classe: string;
 }
 
+interface LinkedMiddleSchool {
+  userId: string;
+  name: string;
+  wilaya: string;
+  commune: string;
+  expectedIncomingStudents: number;
+  dataStatus: "sent" | "pending" | "not_sent";
+}
+
 function IncomingOrientationPage() {
   const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
   const [students, setStudents] = useState<IncomingStudent[]>([]);
+  const [linkedSchools, setLinkedSchools] = useState<LinkedMiddleSchool[]>([]);
   const [loading, setLoading] = useState(true);
   const [organizing, setOrganizing] = useState(false);
   const [scienceGroups, setScienceGroups] = useState(1);
@@ -384,10 +395,15 @@ function IncomingOrientationPage() {
   const loadIncoming = useCallback(async (selectedYear: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${BASE}api/orientation/incoming?annee=${encodeURIComponent(selectedYear)}`, { credentials: "include" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "تعذر تحميل قائمة التلاميذ الوافدين");
-      setStudents(data as IncomingStudent[]);
+      const [incomingResponse, schoolsResponse] = await Promise.all([
+        fetch(`${BASE}api/orientation/incoming?annee=${encodeURIComponent(selectedYear)}`, { credentials: "include" }),
+        fetch(`${BASE}api/orientation/incoming/linked-schools?annee=${encodeURIComponent(selectedYear)}`, { credentials: "include" }),
+      ]);
+      const [incomingData, schoolsData] = await Promise.all([incomingResponse.json(), schoolsResponse.json()]);
+      if (!incomingResponse.ok) throw new Error(incomingData.error ?? "تعذر تحميل قائمة التلاميذ الوافدين");
+      if (!schoolsResponse.ok) throw new Error(schoolsData.error ?? "تعذر تحميل المتوسطات الملحقة");
+      setStudents(incomingData as IncomingStudent[]);
+      setLinkedSchools(schoolsData as LinkedMiddleSchool[]);
     } catch (error) {
       toast({
         title: "تعذر تحميل قوائم الاستقبال",
@@ -395,6 +411,7 @@ function IncomingOrientationPage() {
         variant: "destructive",
       });
       setStudents([]);
+      setLinkedSchools([]);
     } finally {
       setLoading(false);
     }
@@ -444,15 +461,6 @@ function IncomingOrientationPage() {
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), "التلاميذ الوافدون");
     XLSX.writeFile(workbook, `التلاميذ-الوافدون-${year}.xlsx`);
   };
-  const feederSchools = Object.values(students.reduce<Record<string, { id: string; name: string; science: number; arts: number; total: number }>>((groups, student) => {
-    const id = student.sourceUserId;
-    groups[id] ??= { id, name: student.sourceSchoolName || "متوسطة غير محددة", science: 0, arts: 0, total: 0 };
-    groups[id]!.total++;
-    if (student.stream === "science") groups[id]!.science++;
-    else groups[id]!.arts++;
-    return groups;
-  }, {})).sort((a, b) => a.name.localeCompare(b.name, "ar"));
-
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6" dir="rtl">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -474,31 +482,47 @@ function IncomingOrientationPage() {
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">التلاميذ المستقبَلون</p><p className="mt-1 text-2xl font-black">{students.length}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">موزعون على أفواج</p><p className="mt-1 text-2xl font-black">{students.filter(student => student.classe !== "غير موزع").length}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">بانتظار توزيع الفوج</p><p className="mt-1 text-2xl font-black">{students.filter(student => student.classe === "غير موزع").length}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">المتوسطات المورّدة</p><p className="mt-1 text-2xl font-black">{feederSchools.length}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">المتوسطات الملحقة</p><p className="mt-1 text-2xl font-black">{linkedSchools.length}</p></CardContent></Card>
       </div>
 
-      {feederSchools.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle>ملخص المتوسطات المورّدة</CardTitle></CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>المتوسطات الملحقة بالخريطة التربوية</CardTitle>
+          <p className="text-xs text-muted-foreground">عدد التلاميذ المتوقع هو عدد تلاميذ 4AM قبل الاعتماد، ويصبح العدد الفعلي بعد إرسال قرار التوجيه.</p>
+        </CardHeader>
+        <CardContent>
+          {linkedSchools.length === 0 ? (
+            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+              لا توجد متوسطات ملحقة مسجلة لهذه السنة الدراسية.
+            </p>
+          ) : (
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-right text-xs text-muted-foreground">
-                  <tr><th className="p-3">المتوسطة</th><th className="p-3">علوم وتكنولوجيا</th><th className="p-3">آداب</th><th className="p-3">المجموع</th></tr>
+                  <tr>
+                    <th className="p-3">المتوسطة</th>
+                    <th className="p-3">البلدية / الولاية</th>
+                    <th className="p-3">التلاميذ المتوقعون</th>
+                    <th className="p-3">حالة البيانات</th>
+                  </tr>
                 </thead>
-                <tbody>{feederSchools.map(school => (
-                  <tr key={school.id} className="border-t">
+                <tbody>{linkedSchools.map(school => (
+                  <tr key={school.userId} className="border-t">
                     <td className="p-3 font-semibold">{school.name}</td>
-                    <td className="p-3">{school.science}</td>
-                    <td className="p-3">{school.arts}</td>
-                    <td className="p-3 font-bold">{school.total}</td>
+                    <td className="p-3">{[school.commune, school.wilaya].filter(Boolean).join("، ") || "—"}</td>
+                    <td className="p-3 font-bold">{school.expectedIncomingStudents}</td>
+                    <td className="p-3">
+                      <Badge variant={school.dataStatus === "sent" ? "default" : school.dataStatus === "pending" ? "secondary" : "outline"}>
+                        {school.dataStatus === "sent" ? "تم الإرسال" : school.dataStatus === "pending" ? "قيد الإعداد" : "لم ترسل"}
+                      </Badge>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
