@@ -199,6 +199,33 @@ export const ImportOrientationWishesResponse = zod.object({
   unmatched: zod.array(zod.string()),
 });
 
+export const OrientationDestinationSchema = zod.object({
+  name: zod.string().trim().min(1).max(160),
+  scienceSeats: zod.number().int().min(0).max(500),
+  artsSeats: zod.number().int().min(0).max(500),
+});
+
+export const UpsertOrientationPlanBody = zod.object({
+  annee: zod.string().regex(/^\d{4}-\d{4}$/),
+  destinations: zod.array(OrientationDestinationSchema).max(100),
+}).superRefine(({ destinations }, context) => {
+  const names = destinations.map(destination => destination.name.toLocaleLowerCase("ar-DZ"));
+  if (new Set(names).size !== names.length) {
+    context.addIssue({ code: zod.ZodIssueCode.custom, path: ["destinations"], message: "أسماء الثانويات يجب أن تكون فريدة" });
+  }
+});
+
+export const PublishOrientationPlanBody = zod.object({
+  assignments: zod.array(zod.object({
+    studentId: zod.string().min(1),
+    studentName: zod.string().min(1).max(255),
+    classe: zod.string().min(1).max(30),
+    annualAvg: zod.number().min(0).max(20).nullable(),
+    stream: zod.enum(["science", "arts"]),
+    destinationName: zod.string().min(1).max(160),
+  })).max(5000),
+});
+
 // Legacy (kept for compat)
 export const UploadGradesResponse = zod.object({
   students: zod.array(zod.object({

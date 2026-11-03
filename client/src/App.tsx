@@ -10,7 +10,7 @@ import {
   ChevronDown, FileSpreadsheet, BarChart3, UserX, List, CheckSquare,
   User, BarChart2, CalendarOff, UserCheck, RefreshCw, AlertCircle,
   TrendingUp, Star, CreditCard, Upload, FileText, Archive,
-  CircleArrowRight, MessageSquare, CircleDot, Trophy, FileBarChart, Bot, Download,
+  CircleArrowRight, MessageSquare, CircleDot, Trophy, FileBarChart, Bot, Download, Send,
   ScanLine, Shield, Calendar, Shuffle,
 } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
@@ -43,6 +43,7 @@ import PreOrientSecondPage from "@/pages/preorient-second";
 import PreOrientFinalPage from "@/pages/preorient-final";
 import PreOrientReportsPage from "@/pages/preorient-reports";
 import OrientationWishesPage from "@/pages/orientation-wishes";
+import OrientationWorkflowPage from "@/pages/orientation-workflow";
 import TransferResultsPage from "@/pages/transfer-results";
 import CouncilsPage from "@/pages/councils";
 import AnalyticsPage from "@/pages/analytics";
@@ -148,6 +149,7 @@ const SECTIONS: SectionDef[] = [
       { href: "/preorient/second",   icon: CircleDot,    labelKey: "nav.orient_second"   },
       { href: "/preorient/final",    icon: Trophy,       labelKey: "nav.orient_final"    },
       { href: "/preorient/reports",  icon: FileBarChart, labelKey: "nav.orient_reports"  },
+      { href: "/orientation",       icon: Send,         labelKey: "nav.orient_final", label: "دورة التوجيه" },
     ],
   },
   {
@@ -901,7 +903,7 @@ function AppLayout() {
               <Route path="/preorient/second"   component={PreOrientSecondPage} />
               <Route path="/preorient/final"    component={PreOrientFinalPage} />
               <Route path="/preorient/reports"  component={PreOrientReportsPage} />
-              <Route path="/orientation">{() => <ComingSoon title="التوجيه النهائي" />}</Route>
+              <Route path="/orientation" component={OrientationWorkflowPage} />
               <Route path="/assistant"           component={AssistantPage} />
               <Route path="/pedagogy-center"     component={PedagogyCenterPage} />
               <Route path="/pedagogy"            component={PedagogyCenterPage} />

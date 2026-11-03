@@ -210,6 +210,33 @@ export const orientationWishesTable = pgTable("orientation_wishes", {
 export type OrientationWish = typeof orientationWishesTable.$inferSelect;
 export type InsertOrientationWish = typeof orientationWishesTable.$inferInsert;
 
+export const orientationPlansTable = pgTable("orientation_plans", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  annee: varchar("annee", { length: 20 }).notNull(),
+  destinations: jsonb("destinations").notNull().$type<Array<{
+    name: string;
+    scienceSeats: number;
+    artsSeats: number;
+  }>>(),
+  status: varchar("status", { length: 20 }).notNull().default("draft"),
+  assignments: jsonb("assignments").notNull().$type<Array<{
+    studentId: string;
+    studentName: string;
+    classe: string;
+    annualAvg: number | null;
+    stream: "science" | "arts";
+    destinationName: string;
+  }>>().default([]),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+  uniqueIndex("orientation_plans_user_year_unique").on(table.userId, table.annee),
+]);
+
+export type OrientationPlan = typeof orientationPlansTable.$inferSelect;
+
 // ─── Desktop Agent ─────────────────────────────────────────────────────────────
 export const agentActionEnum = pgEnum("agent_action", [
   "upload_excel", "print_report", "open_folder", "open_file",

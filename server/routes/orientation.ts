@@ -3,13 +3,128 @@ import { Router, type IRouter } from "express";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import { eq, and, inArray } from "drizzle-orm";
-import { db, studentsTable, gradesTable, orientationWishesTable } from "../../shared/db.js";
-import { ImportOrientationWishesResponse } from "../../shared/schemas.js";
+import { db, studentsTable, gradesTable, orientationWishesTable, orientationPlansTable } from "../../shared/db.js";
+import { ImportOrientationWishesResponse, UpsertOrientationPlanBody, PublishOrientationPlanBody } from "../../shared/schemas.js";
 import { getSubjectsForLevel, calcWeightedAvg } from "../../shared/subjects.js";
 import type { Niveau } from "../../shared/types.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
+router.get("/orientation/plans/:annee", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const annee = String(req.params.annee ?? "").trim();
+  if (!/^\d{4}-\d{4}$/.test(annee)) { res.status(400).json({ error: "السنة الدراسية غير صالحة" }); return; }
+
+  const [plan] = await db.select().from(orientationPlansTable)
+    .where(and(eq(orientationPlansTable.userId, req.user!.id), eq(orientationPlansTable.annee, annee)));
+  res.json(plan ?? { annee, destinations: [], status: "draft", assignments: [], publishedAt: null });
+});
+
+router.put("/orientation/plans", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const parsed = UpsertOrientationPlanBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "بيانات الخريطة غير صالحة", details: parsed.error.issues }); return; }
+
+  const userId = req.user!.id;
+  const { annee, destinations } = parsed.data;
+  const [existing] = await db.select().from(orientationPlansTable)
+    .where(and(eq(orientationPlansTable.userId, userId), eq(orientationPlansTable.annee, annee)));
+  if (existing?.status === "published") {
+    res.status(409).json({ error: "تم اعتماد التوجيه لهذه السنة ولا يمكن تعديل الخريطة" });
+    return;
+  }
+
+  if (existing) {
+    const [updated] = await db.update(orientationPlansTable)
+      .set({ destinations, updatedAt: new Date() })
+      .where(and(eq(orientationPlansTable.id, existing.id), eq(orientationPlansTable.status, "draft")))
+      .returning();
+    if (!updated) { res.status(409).json({ error: "تعذر تعديل خريطة معتمدة" }); return; }
+    res.json(updated);
+    return;
+  }
+
+  const [created] = await db.insert(orientationPlansTable).values({
+    id: crypto.randomUUID(),
+    userId,
+    annee,
+    destinations,
+    status: "draft",
+    assignments: [],
+  }).returning();
+  res.json(created);
+});
+
+router.post("/orientation/plans/:annee/publish", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const annee = String(req.params.annee ?? "").trim();
+  if (!/^\d{4}-\d{4}$/.test(annee)) { res.status(400).json({ error: "السنة الدراسية غير صالحة" }); return; }
+  const parsed = PublishOrientationPlanBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "قائمة التوجيه غير صالحة", details: parsed.error.issues }); return; }
+
+  const userId = req.user!.id;
+  const [plan] = await db.select().from(orientationPlansTable)
+    .where(and(eq(orientationPlansTable.userId, userId), eq(orientationPlansTable.annee, annee)));
+  if (!plan) { res.status(409).json({ error: "احفظ الخريطة التربوية قبل اعتماد التوجيه" }); return; }
+  if (plan.status === "published") { res.status(409).json({ error: "تم اعتماد التوجيه مسبقاً" }); return; }
+
+  const assignments = parsed.data.assignments;
+  const studentIds = assignments.map(assignment => assignment.studentId);
+  if (new Set(studentIds).size !== studentIds.length) {
+    res.status(400).json({ error: "يوجد تلميذ مكرر في قائمة التوجيه" });
+    return;
+  }
+
+  const destinationByName = new Map(plan.destinations.map(destination => [destination.name, destination]));
+  const counts = new Map<string, { science: number; arts: number }>();
+  for (const assignment of assignments) {
+    const destination = destinationByName.get(assignment.destinationName);
+    if (!destination) {
+      res.status(400).json({ error: `الثانوية "${assignment.destinationName}" غير موجودة في الخريطة` });
+      return;
+    }
+    const count = counts.get(destination.name) ?? { science: 0, arts: 0 };
+    count[assignment.stream]++;
+    counts.set(destination.name, count);
+    if (count.science > destination.scienceSeats || count.arts > destination.artsSeats) {
+      res.status(400).json({ error: `تم تجاوز سعة المقاعد في ثانوية ${destination.name}` });
+      return;
+    }
+  }
+
+  let verifiedAssignments = assignments;
+  if (studentIds.length) {
+    const students = await db.select({
+      id: studentsTable.id,
+      nomPrenom: studentsTable.nomPrenom,
+      classe: studentsTable.classe,
+    }).from(studentsTable)
+      .where(and(
+        eq(studentsTable.userId, userId),
+        eq(studentsTable.annee, annee),
+        eq(studentsTable.niveau, "4AM" as Niveau),
+        inArray(studentsTable.id, studentIds),
+      ));
+    if (students.length !== studentIds.length) {
+      res.status(400).json({ error: "تتضمن القائمة تلاميذ غير مسجلين في مؤسستك لهذه السنة" });
+      return;
+    }
+    const studentById = new Map(students.map(student => [student.id, student]));
+    verifiedAssignments = assignments.map(assignment => ({
+      ...assignment,
+      studentName: studentById.get(assignment.studentId)!.nomPrenom,
+      classe: studentById.get(assignment.studentId)!.classe,
+    }));
+  }
+
+  const [published] = await db.update(orientationPlansTable)
+    .set({ status: "published", assignments: verifiedAssignments, publishedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(orientationPlansTable.id, plan.id), eq(orientationPlansTable.status, "draft")))
+    .returning();
+  if (!published) { res.status(409).json({ error: "تم اعتماد التوجيه من جلسة أخرى" }); return; }
+  res.json(published);
+});
 
 // ─── Normalisation (mirrors students.ts) ───────────────────────────────────────
 function norm(s: string): string {
