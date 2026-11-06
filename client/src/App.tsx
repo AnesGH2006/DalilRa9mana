@@ -209,9 +209,15 @@ const PARENT_SECTIONS: SectionDef[] = [
 /** Choose the nav sections to display based on the logged-in user's role. */
 function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): SectionDef[] {
   const stageSections = SCHOOL_STAGE === "lycee"
-    ? SECTIONS.map(section => section.id === "orient"
-      ? { ...section, items: section.items.filter(item => item.href === "/orientation") }
-      : section).filter(section => section.items.length > 0)
+    ? SECTIONS.map(section => ({
+      ...section,
+      items: section.items.filter(item => {
+        if (section.id === "orient") return item.href === "/orientation";
+        if (section.id === "results") return item.href !== "/bem" && item.href !== "/orientation-results";
+        if (section.id === "yearend") return item.href !== "/yearend/guides";
+        return true;
+      }),
+    })).filter(section => section.items.length > 0)
     : SECTIONS;
   const role = user?.memberContext?.role;
   if (role === "parent")  return PARENT_SECTIONS;
@@ -887,16 +893,16 @@ function AppLayout() {
               <Route path="/absences"            component={AbsencesPage} />
               <Route path="/repeaters"           component={RepeatersPage} />
               <Route path="/failed">{() => <RepeatersPage />}</Route>
-              <Route path="/orientation-results" component={OrientationResultsPage} />
+              <Route path="/orientation-results">{() => SCHOOL_STAGE === "moyen" ? <OrientationResultsPage /> : <NotFound />}</Route>
               <Route path="/transfer-results"    component={TransferResultsPage} />
               <Route path="/councils"            component={CouncilsPage} />
-              <Route path="/bem"                 component={BEMPage} />
+              <Route path="/bem">{() => SCHOOL_STAGE === "moyen" ? <BEMPage /> : <NotFound />}</Route>
               <Route path="/yearend"             component={YearEnd} />
               <Route path="/yearend/passed"     component={YearEndPassed} />
               <Route path="/yearend/failed"     component={YearEndFailed} />
               <Route path="/yearend/mustarrak"  component={YearEndMustarrak} />
               <Route path="/yearend/recovery"   component={YearEndRecovery} />
-              <Route path="/yearend/guides"     component={YearEndGuides} />
+              <Route path="/yearend/guides">{() => SCHOOL_STAGE === "moyen" ? <YearEndGuides /> : <NotFound />}</Route>
               <Route path="/yearend/final"      component={YearEndFinal} />
               <Route path="/analytics"           component={AnalyticsPage} />
               <Route path="/reports"             component={ReportsPage} />

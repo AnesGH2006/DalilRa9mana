@@ -8,6 +8,7 @@ import {
   UserX, FileText, AlertTriangle, RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 import type { StudentResult, SchoolInfo, SubjectAverage } from "@shared/types";
 
 const BASE = import.meta.env.BASE_URL;
@@ -17,9 +18,13 @@ const LEVEL_LABELS: Record<string, string> = {
   "2AM": "السنة الثانية متوسط",
   "3AM": "السنة الثالثة متوسط",
   "4AM": "السنة الرابعة متوسط",
+  "1AS": "السنة الأولى ثانوي",
+  "2AS": "السنة الثانية ثانوي",
+  "3AS": "السنة الثالثة ثانوي",
 };
 const LEVEL_SHORT: Record<string, string> = {
   "1AM": "1 م.م", "2AM": "2 م.م", "3AM": "3 م.م", "4AM": "4 م.م",
+  "1AS": "1 ثانوي", "2AS": "2 ثانوي", "3AS": "3 ثانوي",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -998,7 +1003,7 @@ function buildPrintHTML(
   <!-- Footer -->
   <div style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:20px;
               display:flex;justify-content:space-between;font-size:10px;color:#9ca3af">
-    <span>CEM Manager — مدير المتوسطة</span>
+    <span>مدير {SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة"} — رفيق الرقمنة</span>
     <span>${title} | ${annee}</span>
   </div>
 

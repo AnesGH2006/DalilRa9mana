@@ -42,7 +42,8 @@ Never configure the two deployments with the same `DATABASE_URL`.
 Set `SCHOOL_STAGE` to `moyen` for the CEM deployment or `lycee` for the lycée
 deployment. Set the same value for both the build and server runtime; the frontend
 uses it to fix the available levels, and the server uses it to validate and scope
-student data. The default is `moyen` for existing CEM deployments.
+student data. The stage is fixed per deployment and cannot be switched from a
+browser setting. The default is `moyen` for existing CEM deployments.
 
 Each deployment must also use its own `SESSION_SECRET` and public `APP_BASE_URL`.
 Register the matching OAuth callback URL for each deployment. To prepare a

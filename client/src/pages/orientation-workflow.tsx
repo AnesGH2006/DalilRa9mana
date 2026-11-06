@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { CheckCircle2, Download, LockKeyhole, Plus, RefreshCw, Save, Send, Shuffle, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, LockKeyhole, Plus, RefreshCw, Save, Send, Shuffle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useOrientationWishes } from "@/hooks/use-orientation-wishes";
-import { SCHOOL_STAGE } from "@/lib/deployment";
 import {
   rankFourAMArtsApplicants,
   rankFourAMScienceApplicants,
@@ -576,5 +575,20 @@ function IncomingOrientationPage() {
 }
 
 export default function OrientationWorkflowPage() {
-  return SCHOOL_STAGE === "lycee" ? <IncomingOrientationPage /> : <MiddleOrientationWorkflowPage />;
+  return (
+    <div className="mx-auto max-w-3xl p-6" dir="rtl">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            النقل الآلي إلى الثانوية غير مفعّل
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm leading-7 text-muted-foreground">
+          لأن لكل مرحلة قاعدة بيانات ونشراً مستقلاً، لا يمكن نقل قوائم التلاميذ بين المتوسطة والثانوية تلقائياً حالياً.
+          أضف المقبولين في 1AS من حساب الثانوية عبر صفحة التلاميذ أو الاستيراد إلى حين إعداد الربط الآمن بين النسختين.
+        </CardContent>
+      </Card>
+    </div>
+  );
 }

@@ -15,6 +15,7 @@ import {
   ArrowUpLeft,
 } from "lucide-react";
 import { CountUp } from "@/components/count-up";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
@@ -186,7 +187,10 @@ export default function Dashboard() {
   }, [viewYear, fetchStats]);
 
   const handleSave = async () => {
-    if (!form.nom || !form.wilaya || !form.commune || !form.annee) return;
+    if (!form.nom.trim() || !form.wilaya.trim() || !form.commune.trim() || !form.annee.trim()) {
+      toast({ title: "يرجى ملء اسم المؤسسة والولاية والبلدية والسنة الدراسية", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}api/school`, {
@@ -194,11 +198,18 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (res.ok) {
-        const d = await res.json(); setSchool(d);
-        setEditOpen(false);
-        toast({ title: t("dashboard.save") });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data.error === "string" ? data.error : "تعذر حفظ معلومات المؤسسة");
       }
+      setSchool(data);
+      setEditOpen(false);
+      toast({ title: t("dashboard.save") });
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "تعذر حفظ معلومات المؤسسة",
+        variant: "destructive",
+      });
     } finally { setSaving(false); }
   };
 
@@ -233,7 +244,9 @@ export default function Dashboard() {
             </span>
             {t("dashboard.title")}
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5 ms-11">نظرة عامة على المتوسطة</p>
+          <p className="text-xs text-muted-foreground mt-0.5 ms-11">
+            نظرة عامة على {SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة"}
+          </p>
         </motion.div>
         <motion.div className="flex items-center gap-2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
           {/* Year selector */}
@@ -706,7 +719,7 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("dashboard.cancel")}</Button>
             <Button
               onClick={handleSave}
-              disabled={saving || !form.nom || !form.wilaya || !form.commune || !form.annee}
+              disabled={saving}
               className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 shadow-md"
             >
               {saving ? (

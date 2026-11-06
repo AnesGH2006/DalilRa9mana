@@ -17,12 +17,14 @@ import {
   PieChart, Pie, Cell, Legend, RadialBarChart, RadialBar,
 } from "recharts";
 import { CountUp } from "@/components/count-up";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 import type { DashboardStats, SchoolInfo, StudentResult } from "@shared/types";
 
 const BASE = import.meta.env.BASE_URL;
 const ACADEMIC_YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024", "2022-2023"];
 const LEVEL_LABELS: Record<string, string> = {
   "1AM": "1 AM", "2AM": "2 AM", "3AM": "3 AM", "4AM": "4 AM",
+  "1AS": "1 AS", "2AS": "2 AS", "3AS": "3 AS",
 };
 const LEVEL_COLORS = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef"];
 const GENDER_COLORS = ["#3b82f6", "#ec4899"];
@@ -718,7 +720,7 @@ export default function ReportsPage() {
 
               {/* ── Print footer ── */}
               <div className="hidden print-only border-t pt-3 mt-4 flex items-center justify-between text-xs text-gray-500 print-section">
-                <p>CEM Manager — مدير المتوسطة</p>
+                <p>مدير {SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة"} — رفيق الرقمنة</p>
                 <p>السنة الدراسية: {year} | تاريخ الطباعة: {today}</p>
               </div>
             </div>

@@ -7,7 +7,7 @@
  *   {grade}         — grade value
  *   {class}         — class name
  *   {school_name}   — school name
- *   {niveau}        — academic level (1AM–4AM)
+ *   {niveau}        — academic level (1AM–3AS)
  *   {parent_name}   — parent/guardian name (optional)
  */
 

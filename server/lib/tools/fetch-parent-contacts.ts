@@ -15,10 +15,11 @@ import { eq, and, isNull } from "drizzle-orm";
 import { sendDesktopCommand } from "../../socket/agentHandler.js";
 import { logger } from "../logger.js";
 import { randomUUID } from "crypto";
+import type { SchoolLevel } from "../../../shared/school-stage.js";
 
 export interface FetchParentContactsInput {
   /** Optionally restrict to a specific grade level */
-  niveau?: "1AM" | "2AM" | "3AM" | "4AM";
+  niveau?: SchoolLevel;
   /** Optionally restrict to a specific class */
   classe?: string;
   /** School year, e.g. "2025-2026" */

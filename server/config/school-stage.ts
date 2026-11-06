@@ -11,9 +11,8 @@ if (!isSchoolStage(configuredStage)) {
 export const SCHOOL_STAGE = configuredStage;
 export const SCHOOL_LEVELS = SCHOOL_STAGE_LEVELS[SCHOOL_STAGE];
 
-export function getSchoolStageForRequest(req: Request): SchoolStage {
-  const stage = req.cookies?.["rafik-school-stage"];
-  return isSchoolStage(stage) ? stage : SCHOOL_STAGE;
+export function getSchoolStageForRequest(_req: Request): SchoolStage {
+  return SCHOOL_STAGE;
 }
 
 export function getSchoolLevelsForRequest(req: Request) {

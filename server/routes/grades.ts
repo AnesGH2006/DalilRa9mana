@@ -285,8 +285,7 @@ router.post("/grades/batch-import", async (req, res): Promise<void> => {
     if (!student) {
       // Auto-create student if we have enough info (niveau + classe from parsed file)
       if (s.niveau && s.classe) {
-        const validNiveaux = ["1AM", "2AM", "3AM", "4AM"];
-        const niv = validNiveaux.includes(s.niveau) ? s.niveau as "1AM"|"2AM"|"3AM"|"4AM" : null;
+        const niv = getSchoolLevelsForRequest(req).find(level => level === s.niveau);
         if (niv) {
           const newStudent = {
             id: crypto.randomBytes(16).toString("hex"),

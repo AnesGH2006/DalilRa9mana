@@ -7,6 +7,10 @@ import { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, Bord
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
 import { randomUUID } from "crypto";
+import { SCHOOL_STAGE } from "../../config/school-stage.js";
+
+const schoolTypeLabel = SCHOOL_STAGE === "lycee" ? "ثانوية" : "متوسطة";
+const directorLabel = SCHOOL_STAGE === "lycee" ? "مدير الثانوية" : "مدير المتوسطة";
 
 export interface DocumentDraftingInput {
   document_type: "letter" | "report" | "notice" | "warning" | "meeting_report" | "certificate" | "summary";
@@ -33,7 +37,7 @@ function makeHeader(input: DocumentDraftingInput, date: string): Paragraph[] {
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: input.school_name || "متوسطة —", bold: true, size: 24, font: "Arial" })],
+      children: [new TextRun({ text: input.school_name || `${schoolTypeLabel} —`, bold: true, size: 24, font: "Arial" })],
     }),
     new Paragraph({ children: [new TextRun({ text: "" })] }),
     new Paragraph({
@@ -95,7 +99,7 @@ export async function documentDraftingTool(input: DocumentDraftingInput, userId:
         new Paragraph({ children: [new TextRun({ text: "" })] }),
         new Paragraph({
           alignment: AlignmentType.LEFT,
-          children: [new TextRun({ text: input.sender || "مدير المتوسطة", bold: true, size: 20, font: "Arial" })],
+          children: [new TextRun({ text: input.sender || directorLabel, bold: true, size: 20, font: "Arial" })],
         }),
       ],
     }],

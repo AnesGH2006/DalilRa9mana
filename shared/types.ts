@@ -46,6 +46,7 @@ export interface SchoolInfo {
   annee: string;
   directeur?: string | null;
   phone?: string | null;
+  supportPhone?: string | null;
   smsGatewayUrl?: string | null;
   smsGatewayApiKey?: string | null;
 }

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Zap, Star, Crown, Calendar, Leaf, Building2 } from "lucide-react";
 import { FREE_STUDENT_LIMIT, PAID_PLAN_PRICES_DZD } from "@shared/subscription";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 
 const pageVariants = {
   initial: { opacity: 0, y: 16 },
@@ -108,7 +109,7 @@ export default function SubscriptionPage() {
         "كل ميزات الأساسي",
         "تحليلات وإحصائيات متقدمة",
         "رفع درجات بالـ OCR",
-        "نتائج شهادة BEM",
+        ...(SCHOOL_STAGE === "moyen" ? ["نتائج شهادة BEM"] : []),
         "التوجيه المسبق",
         "المساعد الذكي",
       ],
@@ -159,7 +160,7 @@ export default function SubscriptionPage() {
         <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
           اختر الباقة المناسبة
         </h1>
-        <p className="text-muted-foreground text-base max-w-md mx-auto">كل باقة مصممة لاحتياجات مختلفة — من مدرسة صغيرة إلى شبكة مؤسسات</p>
+        <p className="text-muted-foreground text-base max-w-md mx-auto">كل باقة مصممة لاحتياجات مختلفة — من مؤسسة صغيرة إلى شبكة مؤسسات</p>
 
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}
@@ -307,7 +308,11 @@ export default function SubscriptionPage() {
             { label: "طباعة PDF",            free: "—",          bas: "✓",          pro: "✓",         inst: "✓"         },
             { label: "تحليلات متقدمة",       free: "—",          bas: "—",          pro: "✓",         inst: "✓"         },
             { label: "OCR رفع الدرجات",      free: "—",          bas: "—",          pro: "✓",         inst: "✓"         },
-            { label: "نتائج BEM",            free: "—",          bas: "—",          pro: "✓",         inst: "✓"         },
+            ...(SCHOOL_STAGE === "moyen" ? [
+              ...(SCHOOL_STAGE === "moyen" ? [
+                { label: "نتائج BEM",        free: "—",          bas: "—",          pro: "✓",         inst: "✓"         },
+              ] : []),
+            ] : []),
             { label: "المساعد الذكي",        free: "—",          bas: "—",          pro: "✓",         inst: "✓"         },
             { label: "متعدد المدارس",        free: "—",          bas: "—",          pro: "—",         inst: "✓"         },
             { label: "وكيل سطح المكتب",      free: "—",          bas: "—",          pro: "—",         inst: "✓"         },
@@ -344,7 +349,7 @@ export default function SubscriptionPage() {
           </div>
           <div>
             <p className="text-sm font-bold text-violet-700 dark:text-violet-300">Pro — 7 000 دج / سنة</p>
-            <p className="text-xs text-muted-foreground">1 000 دج / شهر — الأنسب للمتوسطات</p>
+            <p className="text-xs text-muted-foreground">1 000 دج / شهر — الأنسب للمؤسسات التعليمية</p>
           </div>
         </div>
         <div className="rounded-xl border bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-800/50 px-4 py-3 flex items-center gap-3">

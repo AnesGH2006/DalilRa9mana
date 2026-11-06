@@ -137,7 +137,7 @@ export async function sendSmsAlertTool(
       success: false,
       student: studentName,
       phone,
-      message: `⚠️ لم يتم إرسال الرسالة إلى "${studentName}": لا توجد بوابة SMS مضبوطة. أدخل رابط بوابة SMS في إعدادات المتوسطة.`,
+      message: `⚠️ لم يتم إرسال الرسالة إلى "${studentName}": لا توجد بوابة SMS مضبوطة. أدخل رابط بوابة SMS في إعدادات المؤسسة.`,
     };
   }
 
@@ -178,6 +178,6 @@ export async function sendSmsAlertTool(
     student: studentName,
     phone,
     error: dispatchResult.error,
-    message: `❌ فشل إرسال SMS عبر البوابة: ${dispatchResult.error}. تحقق من رابط البوابة في إعدادات المتوسطة.`,
+    message: `❌ فشل إرسال SMS عبر البوابة: ${dispatchResult.error}. تحقق من رابط البوابة في إعدادات المؤسسة.`,
   };
 }

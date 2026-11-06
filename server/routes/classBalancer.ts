@@ -24,7 +24,7 @@
  *
  * Request body:
  * {
- *   niveau: "1AM"|"2AM"|"3AM"|"4AM",
+ *   niveau: a level supported by the configured school stage,
  *   annee?: string,
  *   classCount: number,
  *   weights?: { ... }
@@ -34,6 +34,8 @@
 import { Router } from "express";
 import { and, eq, avg as drizzleAvg, inArray } from "drizzle-orm";
 import { db, studentsTable, gradesTable } from "../../shared/db.js";
+import type { SchoolLevel } from "../../shared/school-stage.js";
+import { getSchoolLevelsForRequest } from "../config/school-stage.js";
 import { balanceClasses, type StudentInput } from "../services/classBalancer.js";
 
 const router = Router();
@@ -42,12 +44,13 @@ const router = Router();
 async function fetchStudentsWithGrades(
   userId: string,
   studentIds: string[] | null,
-  niveau: string | null,
+  niveau: SchoolLevel | null,
   annee: string,
+  allowedLevels: readonly SchoolLevel[],
 ): Promise<StudentInput[]> {
   // Build the student where clause
-  const conds = [eq(studentsTable.userId, userId)];
-  if (niveau) conds.push(eq(studentsTable.niveau, niveau as any));
+  const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, [...allowedLevels])];
+  if (niveau) conds.push(eq(studentsTable.niveau, niveau));
 
   const studentRows = await db
     .select({
@@ -120,7 +123,7 @@ router.post("/class-balancer/balance", async (req, res): Promise<void> => {
     return;
   }
 
-  const students = await fetchStudentsWithGrades(userId, studentIds, null, annee);
+  const students = await fetchStudentsWithGrades(userId, studentIds, null, annee, getSchoolLevelsForRequest(req));
   if (students.length === 0) {
     res.status(404).json({ error: "لم يُعثر على تلاميذ بالمعرّفات المُحدَّدة" });
     return;
@@ -143,9 +146,9 @@ router.post("/class-balancer/balance-niveau", async (req, res): Promise<void> =>
     rules?: string;
   };
 
-  const VALID_NIVEAUX = ["1AM", "2AM", "3AM", "4AM"];
-  if (!niveau || !VALID_NIVEAUX.includes(niveau)) {
-    res.status(400).json({ error: `niveau must be one of: ${VALID_NIVEAUX.join(", ")}` });
+  const validLevel = getSchoolLevelsForRequest(req).find(level => level === niveau);
+  if (!validLevel) {
+    res.status(400).json({ error: `niveau must be one of: ${getSchoolLevelsForRequest(req).join(", ")}` });
     return;
   }
   if (!classCount || classCount < 2 || classCount > 10) {
@@ -153,7 +156,7 @@ router.post("/class-balancer/balance-niveau", async (req, res): Promise<void> =>
     return;
   }
 
-  const students = await fetchStudentsWithGrades(userId, null, niveau, annee);
+  const students = await fetchStudentsWithGrades(userId, null, validLevel, annee, getSchoolLevelsForRequest(req));
   if (students.length === 0) {
     res.status(404).json({ error: `لا يوجد تلاميذ للمستوى ${niveau} في السنة ${annee}` });
     return;
@@ -185,6 +188,7 @@ router.post("/class-balancer/apply", async (req, res): Promise<void> => {
     .where(and(
       eq(studentsTable.userId, userId),
       inArray(studentsTable.id, studentIds),
+      inArray(studentsTable.niveau, getSchoolLevelsForRequest(req)),
     ));
   const ownedSet = new Set(ownedStudents.map(s => s.id));
 

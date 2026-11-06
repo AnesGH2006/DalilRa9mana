@@ -9,6 +9,9 @@ import { calendarTaskTool } from "./calendar.js";
 import { browserAutomationWebhook } from "./webhook.js";
 import { desktopControlTool } from "./desktop-control.js";
 import { fetchParentContactsTool } from "./fetch-parent-contacts.js";
+import { SCHOOL_LEVELS, SCHOOL_STAGE } from "../../config/school-stage.js";
+
+const schoolTypeLabel = SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة";
 
 export type ToolName =
   | "database_query_tool"
@@ -37,7 +40,7 @@ export const toolDefinitions: OpenAI.Chat.ChatCompletionTool[] = [
           filters: {
             type: "object",
             properties: {
-              niveau: { type: "string", enum: ["1AM", "2AM", "3AM", "4AM"], description: "المستوى الدراسي" },
+              niveau: { type: "string", enum: [...SCHOOL_LEVELS], description: "المستوى الدراسي" },
               classe: { type: "string", description: "القسم مثل: أ، ب، 1" },
               annee: { type: "string", description: "السنة الدراسية مثل: 2025-2026" },
               name_search: { type: "string", description: "البحث عن تلميذ بالاسم" },
@@ -68,9 +71,9 @@ export const toolDefinitions: OpenAI.Chat.ChatCompletionTool[] = [
           title: { type: "string", description: "عنوان الوثيقة" },
           body: { type: "string", description: "محتوى الوثيقة كاملاً (يمكن استخدام سطور جديدة)" },
           recipient: { type: "string", description: "المرسَل إليه (اسم أو منصب)" },
-          sender: { type: "string", description: "الجهة المُرسِلة، افتراضياً: مدير المتوسطة" },
+          sender: { type: "string", description: `الجهة المُرسِلة، افتراضياً: مدير ${schoolTypeLabel}` },
           date: { type: "string", description: "تاريخ الوثيقة" },
-          school_name: { type: "string", description: "اسم المتوسطة" },
+          school_name: { type: "string", description: `اسم ${schoolTypeLabel}` },
           reference_number: { type: "string", description: "رقم المرجع الإداري" },
           footer_note: { type: "string", description: "ملاحظة في نهاية الوثيقة" },
         },
@@ -178,7 +181,7 @@ export const toolDefinitions: OpenAI.Chat.ChatCompletionTool[] = [
       parameters: {
         type: "object",
         properties: {
-          niveau: { type: "string", enum: ["1AM", "2AM", "3AM", "4AM"], description: "تصفية حسب المستوى (اختياري)" },
+          niveau: { type: "string", enum: [...SCHOOL_LEVELS], description: "تصفية حسب المستوى (اختياري)" },
           classe: { type: "string", description: "تصفية حسب القسم مثل: A، B (اختياري)" },
           annee: { type: "string", description: "السنة الدراسية (افتراضي: 2025-2026)" },
           platform_url: { type: "string", description: "رابط منصة الرقمنة إذا كان مختلفاً عن الافتراضي" },

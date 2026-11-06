@@ -44,14 +44,27 @@ async function migrate() {
       nom varchar(255) NOT NULL DEFAULT '',
       wilaya varchar(100) NOT NULL DEFAULT '',
       commune varchar(100) NOT NULL DEFAULT '',
+      stage varchar(10) NOT NULL DEFAULT 'moyen',
       annee varchar(20) NOT NULL DEFAULT '2025-2026',
+      directeur varchar(255) DEFAULT '',
+      phone varchar(30) DEFAULT '',
+      sms_gateway_url varchar(500) DEFAULT '',
+      sms_gateway_api_key varchar(500) DEFAULT '',
+      join_code varchar(10),
+      support_phone varchar(30) DEFAULT '',
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     );
   `);
 
+  await db.execute(sql`ALTER TABLE school_info ADD COLUMN IF NOT EXISTS stage varchar(10) NOT NULL DEFAULT 'moyen';`);
   await db.execute(sql`ALTER TABLE school_info ADD COLUMN IF NOT EXISTS directeur varchar(255) DEFAULT '';`);
   await db.execute(sql`ALTER TABLE school_info ADD COLUMN IF NOT EXISTS phone varchar(30) DEFAULT '';`);
+  await db.execute(sql`ALTER TABLE school_info ADD COLUMN IF NOT EXISTS sms_gateway_url varchar(500) DEFAULT '';`);
+  await db.execute(sql`ALTER TABLE school_info ADD COLUMN IF NOT EXISTS sms_gateway_api_key varchar(500) DEFAULT '';`);
+  await db.execute(sql`ALTER TABLE school_info ADD COLUMN IF NOT EXISTS join_code varchar(10);`);
+  await db.execute(sql`ALTER TABLE school_info ADD COLUMN IF NOT EXISTS support_phone varchar(30) DEFAULT '';`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS school_info_join_code_unique ON school_info(join_code);`);
 
   await db.execute(sql`DO $$ BEGIN CREATE TYPE niveau AS ENUM ('1AM','2AM','3AM','4AM'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
   await db.execute(sql`ALTER TYPE niveau ADD VALUE IF NOT EXISTS '1AS';`);

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Download, X, Smartphone, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 
 export function PwaInstallPrompt() {
   const { canInstall, install, justInstalled } = usePwaInstall();
@@ -63,7 +64,7 @@ export function PwaInstallPrompt() {
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm leading-tight">تثبيت التطبيق</p>
                     <p className="text-white/65 text-xs mt-1 leading-relaxed">
-                      أضف مدير المتوسطة إلى شاشة الرئيسية للوصول السريع بدون متصفح
+                      أضف مدير {SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة"} إلى الشاشة الرئيسية للوصول السريع
                     </p>
                   </div>
                   <button

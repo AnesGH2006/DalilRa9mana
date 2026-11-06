@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, XCircle, GraduationCap, School } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { setSchoolStage } from "@/lib/deployment";
-import type { SchoolStage } from "@shared/school-stage";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 
 type Me = { role: string; plan: string; registered: boolean };
 
@@ -45,15 +44,8 @@ export default function PaymentReturn() {
     })();
   }, []);
 
-  const chooseStage = (stage: SchoolStage) => {
-    try {
-      setSchoolStage(stage);
-      if (me) window.location.assign(targetFor(me));
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "تعذر حفظ اختيار المرحلة.");
-      setStatus("failed");
-    }
-  };
+  const StageIcon = SCHOOL_STAGE === "lycee" ? GraduationCap : School;
+  const stageLabel = SCHOOL_STAGE === "lycee" ? "الثانوية · Lycée" : "المتوسطة · CEM";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
@@ -65,17 +57,11 @@ export default function PaymentReturn() {
         {status === "success" && (<>
           <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" />
           <h2 className="text-xl font-bold text-emerald-600">تم الدفع وتفعيل الباقة بنجاح!</h2>
-          <p className="text-sm text-muted-foreground">اختر مرحلة مؤسستك للمتابعة:</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Button onClick={() => chooseStage("moyen")} className="h-auto min-h-20 flex-col gap-2 whitespace-normal">
-              <School className="h-6 w-6" />
-              <span>المتوسطة · CEM</span>
-            </Button>
-            <Button onClick={() => chooseStage("lycee")} variant="outline" className="h-auto min-h-20 flex-col gap-2 whitespace-normal">
-              <GraduationCap className="h-6 w-6" />
-              <span>الثانوي · Lycée</span>
-            </Button>
-          </div>
+          <p className="text-sm text-muted-foreground">تم تفعيل نسخة {stageLabel}.</p>
+          <Button onClick={() => me && window.location.assign(targetFor(me))} disabled={!me} className="w-full gap-2">
+            <StageIcon className="h-5 w-5" />
+            متابعة إلى المؤسسة
+          </Button>
         </>)}
         {status === "failed" && (<>
           <XCircle className="w-16 h-16 text-red-500 mx-auto" />

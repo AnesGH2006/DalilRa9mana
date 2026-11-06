@@ -7,6 +7,9 @@ import nodemailer from "nodemailer";
 import { db, notificationsTable } from "../../../shared/db.js";
 import { randomUUID } from "crypto";
 import { sendPushToUser } from "../../services/pushNotificationService.js";
+import { SCHOOL_STAGE } from "../../config/school-stage.js";
+
+const schoolTypeLabel = SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة";
 
 export interface MessagingInput {
   channel: "email" | "whatsapp" | "dashboard" | "all";
@@ -39,7 +42,7 @@ async function sendEmail(input: MessagingInput): Promise<{ sent: boolean; info?:
 
   try {
     const result = await transporter.sendMail({
-      from: `"نظام مدير المتوسطة" <${smtpUser}>`,
+      from: `"نظام مدير ${schoolTypeLabel}" <${smtpUser}>`,
       to: input.recipient,
       subject: input.subject,
       text: input.message,

@@ -54,6 +54,7 @@ export const SchoolInfoSchema = zod.object({
   annee: zod.string(),
   directeur: zod.string().nullable().optional(),
   phone: zod.string().nullable().optional(),
+  supportPhone: zod.string().nullable().optional(),
   smsGatewayUrl: zod.string().nullable().optional(),
   smsGatewayApiKey: zod.string().nullable().optional(),
 });

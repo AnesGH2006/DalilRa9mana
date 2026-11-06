@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { School, User, Save, KeyRound, Sparkles } from "lucide-react";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 import type { SchoolInfo } from "@shared/types";
 
 const BASE = import.meta.env.BASE_URL;
@@ -42,7 +43,7 @@ export default function Settings() {
   const fetchSchool = useCallback(async () => {
     const res = await fetch(`${BASE}api/school`, { credentials: "include" });
     if (res.ok) {
-      const d: SchoolInfo & { supportPhone?: string } = await res.json();
+      const d: SchoolInfo = await res.json();
       if (d) setForm({ nom: d.nom, wilaya: d.wilaya, commune: d.commune, annee: d.annee, directeur: d.directeur ?? "", phone: d.phone ?? "", supportPhone: d.supportPhone ?? "" });
     }
   }, []);
@@ -62,7 +63,10 @@ export default function Settings() {
   }, [user]);
 
   const handleSave = async () => {
-    if (!form.nom || !form.wilaya || !form.commune || !form.annee) return;
+    if (!form.nom.trim() || !form.wilaya.trim() || !form.commune.trim() || !form.annee.trim()) {
+      toast({ title: "يرجى ملء اسم المؤسسة والولاية والبلدية والسنة الدراسية", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}api/school`, {
@@ -70,12 +74,21 @@ export default function Settings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (res.ok) toast({ title: t("settings.saved") });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data.error === "string" ? data.error : "تعذر حفظ معلومات المؤسسة");
+      }
+      toast({ title: t("settings.saved") });
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "تعذر حفظ معلومات المؤسسة",
+        variant: "destructive",
+      });
     } finally { setSaving(false); }
   };
 
   const schoolFields = [
-    { key: "nom",      label: t("dashboard.schoolName"), placeholder: "متوسطة..." },
+    { key: "nom",      label: t("dashboard.schoolName"), placeholder: SCHOOL_STAGE === "lycee" ? "ثانوية..." : "متوسطة..." },
     { key: "wilaya",   label: t("dashboard.wilaya"),     placeholder: "ولاية..." },
     { key: "commune",  label: t("dashboard.commune"),    placeholder: "بلدية..." },
     { key: "annee",    label: t("dashboard.year"),       placeholder: "2025-2026" },
