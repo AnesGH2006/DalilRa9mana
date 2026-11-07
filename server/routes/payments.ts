@@ -73,10 +73,6 @@ function ownPlanIsActive(req: Request): boolean {
 
   const plan = String(user.subscriptionPlan);
   const expires = user.subscriptionExpiresAt ? new Date(String(user.subscriptionExpiresAt)) : null;
-  const [trial] = await db.select({ startedAt: usersTable.trialStartedAt })
-    .from(usersTable)
-    .where(eq(usersTable.id, user.id))
-    .limit(1);
   const live = String(user.subscriptionStatus) === "active" && (!expires || expires.getTime() > Date.now());
   if (member?.role === "parent") return live && plan === PARENT_PLAN;
   if (member) return false;
@@ -90,6 +86,10 @@ router.get("/payments/me", async (req, res): Promise<void> => {
   const member = req.memberContext;
   const role = member ? member.role : (user.role === "admin" ? "admin" : "owner");
   const expires = user.subscriptionExpiresAt ? new Date(String(user.subscriptionExpiresAt)) : null;
+  const [trial] = await db.select({ startedAt: usersTable.trialStartedAt })
+    .from(usersTable)
+    .where(eq(usersTable.id, user.id))
+    .limit(1);
 
   const [last] = await db.select({
     amountDzd: paymentsTable.amountDzd,

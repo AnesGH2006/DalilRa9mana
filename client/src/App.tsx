@@ -276,7 +276,7 @@ function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): Secti
       }),
     })).filter(section => section.items.length > 0);
 
-    if (role !== "parent" && hasFreeTierAccess(user)) {
+    if (hasFreeTierAccess(user)) {
       const freePaths = new Set(["/", "/results", "/subjects", "/settings", "/account", "/subscription"]);
       sections = sections.map(section => ({
         ...section,
@@ -1143,6 +1143,7 @@ function AuthGate() {
     && subscriptionIsUnexpired(user.subscriptionExpiresAt);
   const schoolSubscriptionActive = user?.memberContext?.schoolSubscriptionStatus === "active"
     && subscriptionIsUnexpired(user.memberContext.schoolSubscriptionExpiresAt);
+  const isFreeAccount = hasFreeTierAccess(user);
   const isSubscribed = ownSubscriptionActive || schoolSubscriptionActive || isTeacherMember || isFreePlan || isFreeAccount;
 
     return (

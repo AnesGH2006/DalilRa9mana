@@ -340,7 +340,7 @@ export default function SubscriptionPage() {
                     variant="outline"
                     className="w-full rounded-xl border-emerald-600 font-bold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
                     disabled={trialBusy !== null}
-                    onClick={() => void startTrial(plan.key)}
+                    onClick={() => void startTrial(plan.key === "basic" ? "basic" : "pro")}
                   >
                     {trialBusy === plan.key ? "جارٍ تفعيل التجربة..." : "ابدأ تجربة مجانية لمدة شهر"}
                   </Button>
