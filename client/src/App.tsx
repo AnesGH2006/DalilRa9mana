@@ -34,6 +34,7 @@ import ImportPage from "@/pages/import";
 import ArchivePage from "@/pages/archive";
 import SettingsPage from "@/pages/settings";
 import BEMPage from "@/pages/bem";
+import BacPage from "@/pages/bac";
 import ExamResultsPage from "@/pages/exam-results";
 import AbsencesPage from "@/pages/absences-page";
 import RepeatersPage from "@/pages/repeaters";
@@ -90,6 +91,28 @@ interface SectionDef {
   color: string;
   gradient: string;
   items: NavItemDef[];
+}
+
+function subscriptionIsUnexpired(expiresAt?: string | null): boolean {
+  return !expiresAt || new Date(expiresAt).getTime() > Date.now();
+}
+
+function schoolSubscriptionExpired(user: import("@/hooks/use-auth").AuthUser | null): boolean {
+  const member = user?.memberContext;
+  const schoolPlan = member?.schoolSubscriptionPlan;
+  return !!member
+    && (schoolPlan === "basic" || schoolPlan === "pro")
+    && !subscriptionIsUnexpired(member.schoolSubscriptionExpiresAt);
+}
+
+function hasFreeTierAccess(user: import("@/hooks/use-auth").AuthUser | null): boolean {
+  if (!user || user.role === "admin") return false;
+  if (user.memberContext) {
+    return user.memberContext.role !== "parent"
+      && (user.memberContext.schoolSubscriptionPlan === "free" || schoolSubscriptionExpired(user));
+  }
+  return user.subscriptionStatus === "active"
+    && (user.subscriptionPlan === "free" || !subscriptionIsUnexpired(user.subscriptionExpiresAt));
 }
 
 // ── Sidebar sections ──────────────────────────────────────────────────────────
@@ -209,20 +232,22 @@ const PARENT_SECTIONS: SectionDef[] = [
 /** Choose the nav sections to display based on the logged-in user's role. */
 function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): SectionDef[] {
   const stageSections = SCHOOL_STAGE === "lycee"
-    ? SECTIONS.map(section => ({
-      ...section,
-      items: section.items.filter(item => {
+    ? SECTIONS.map(section => {
+      const items = section.items.filter(item => {
         if (section.id === "orient") return item.href === "/orientation";
         if (section.id === "results") return item.href !== "/bem" && item.href !== "/orientation-results";
         if (section.id === "yearend") return item.href !== "/yearend/guides";
         return true;
-      }),
-    })).filter(section => section.items.length > 0)
+      });
+      if (section.id === "results") items.push({ href: "/bac-results", icon: GraduationCap, labelKey: "nav.bac_results" });
+      return { ...section, items };
+    }).filter(section => section.items.length > 0)
     : SECTIONS;
   const role = user?.memberContext?.role;
   if (role === "parent")  return PARENT_SECTIONS;
   const isStandaloneStaffPlan = user?.subscriptionPlan === "staff"
     && user.subscriptionStatus === "active"
+    && subscriptionIsUnexpired(user.subscriptionExpiresAt)
     && !user.memberContext
     && user.role !== "admin";
   if (isStandaloneStaffPlan) {
@@ -251,8 +276,8 @@ function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): Secti
       }),
     })).filter(section => section.items.length > 0);
 
-    if (role !== "parent" && user?.memberContext?.schoolSubscriptionPlan === "free") {
-      const freePaths = new Set(["/", "/results", "/subjects"]);
+    if (role !== "parent" && hasFreeTierAccess(user)) {
+      const freePaths = new Set(["/", "/results", "/subjects", "/settings", "/account", "/subscription"]);
       sections = sections.map(section => ({
         ...section,
         items: section.items.filter(item => freePaths.has(item.href)),
@@ -260,7 +285,7 @@ function getNavSections(user: import("@/hooks/use-auth").AuthUser | null): Secti
     }
     return sections;
   }
-  if (user?.subscriptionPlan === "free" && user.subscriptionStatus === "active" && user.role !== "admin") {
+  if (hasFreeTierAccess(user)) {
     const freePaths = new Set(["/", "/students", "/results", "/subjects", "/import", "/settings", "/account", "/subscription"]);
     return stageSections.map(section => ({
       ...section,
@@ -612,6 +637,7 @@ function TopNav() {
   const isParent = user?.memberContext?.role === "parent";
   const isStandaloneStaffPlan = user?.subscriptionPlan === "staff"
     && user.subscriptionStatus === "active"
+    && subscriptionIsUnexpired(user.subscriptionExpiresAt)
     && !user.memberContext
     && user.role !== "admin";
   const sections = getNavSections(user);
@@ -802,7 +828,10 @@ function TopNav() {
       </AnimatePresence>
 
       {/* AI Chat Widget */}
-      {user?.subscriptionPlan !== "free" && user?.memberContext?.schoolSubscriptionPlan !== "free" && (
+      {user?.subscriptionPlan !== "free"
+        && subscriptionIsUnexpired(user?.subscriptionExpiresAt)
+        && user?.memberContext?.schoolSubscriptionPlan !== "free"
+        && !schoolSubscriptionExpired(user) && (
         <AiChatWidget
           open={aiOpen}
           onClose={() => setAiOpen(false)}
@@ -835,12 +864,10 @@ function AppLayout() {
   const isParent = user?.memberContext?.role === "parent";
   const isStandaloneStaffPlan = user?.subscriptionPlan === "staff"
     && user.subscriptionStatus === "active"
+    && subscriptionIsUnexpired(user.subscriptionExpiresAt)
     && !user.memberContext
     && user.role !== "admin";
-  const isFreeAccount = user?.role !== "admin" && (
-    (user?.subscriptionPlan === "free" && user.subscriptionStatus === "active" && !user.memberContext)
-    ||     (user?.memberContext && user.memberContext.role !== "parent" && user.memberContext.schoolSubscriptionPlan === "free")
-  );
+  const isFreeAccount = hasFreeTierAccess(user);
   useEffect(() => {
     const freePaths = ["/", "/students", "/results", "/subjects", "/import", "/settings", "/account", "/subscription", "/payment-demo"];
     if (isFreeAccount && !freePaths.some(path => path === "/" ? loc === "/" : loc === path || loc.startsWith(`${path}/`))) {
@@ -897,6 +924,7 @@ function AppLayout() {
               <Route path="/transfer-results"    component={TransferResultsPage} />
               <Route path="/councils"            component={CouncilsPage} />
               <Route path="/bem">{() => SCHOOL_STAGE === "moyen" ? <BEMPage /> : <NotFound />}</Route>
+              <Route path="/bac-results">{() => SCHOOL_STAGE === "lycee" ? <BacPage /> : <NotFound />}</Route>
               <Route path="/yearend"             component={YearEnd} />
               <Route path="/yearend/passed"     component={YearEndPassed} />
               <Route path="/yearend/failed"     component={YearEndFailed} />
@@ -1111,7 +1139,11 @@ function AuthGate() {
   // separate service paid by the parent account.
   const isTeacherMember = user?.memberContext?.role === "teacher";
   const isFreePlan = user?.subscriptionPlan === "free" && user.subscriptionStatus === "active";
-  const isSubscribed = user?.subscriptionStatus === "active" || isTeacherMember || isFreePlan;
+  const ownSubscriptionActive = user?.subscriptionStatus === "active"
+    && subscriptionIsUnexpired(user.subscriptionExpiresAt);
+  const schoolSubscriptionActive = user?.memberContext?.schoolSubscriptionStatus === "active"
+    && subscriptionIsUnexpired(user.memberContext.schoolSubscriptionExpiresAt);
+  const isSubscribed = ownSubscriptionActive || schoolSubscriptionActive || isTeacherMember || isFreePlan || isFreeAccount;
 
     return (
     <AnimatePresence mode="wait">

@@ -13,6 +13,7 @@ import type { SchoolLevel } from "../../shared/school-stage.js";
 import { FREE_STUDENT_LIMIT } from "../../shared/subscription.js";
 import { getSchoolLevelsForRequest, getSchoolStageForRequest } from "../config/school-stage.js";
 import { SCHOOL_STAGE_LEVELS, type SchoolStage } from "../../shared/school-stage.js";
+import { normalizeLyceeBacFiliere } from "../../shared/subjects.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -139,6 +140,7 @@ const RESULT_N = ["نتيجه","نتيجة","résultat","resultat","result","men
 //    وأضفنا "رقم القيد" بشكل صريح
 const RAQM_N  = ["رقم القيد","رقم التلميذ","رقم الفوج","رقم المتعلم","no","n°","numero","numéro","#"];
 const PHONE_N = ["رقم هاتف الولي","هاتف الولي","هاتف ولي الأمر","رقم الهاتف","الهاتف","phone","tel","telephone","téléphone","mobile","gsm","portable","contact"];
+const FILIERE_N = ["الشعبة","شعبة","filiere","filière","stream","specialite","spécialité"];
 
 // ─── Column detector ──────────────────────────────────────────────────────────
 function findCol(headers: string[], needles: string[]): string | null {
@@ -295,6 +297,7 @@ function processRows(
   const colResult = findCol(headerCells, RESULT_N);
   const colRaqm   = findCol(headerCells, RAQM_N);   // ✅ now correctly picks "رقم القيد"
   const colPhone  = findCol(headerCells, PHONE_N);   // رقم هاتف الولي
+  const colFiliere = findCol(headerCells, FILIERE_N);
 
   // A combined "الاسم واللقب" header contains both keywords, so fuzzy
   // detection returns the same column for nom and prenom. Use it as one name.
@@ -303,7 +306,7 @@ function processRows(
     colPrenom = null;
   }
 
-  logger.info({ colNom, colPrenom, colName, colLevel, colClass, colGender, colRaqm, colPhone }, "Column map");
+  logger.info({ colNom, colPrenom, colName, colLevel, colClass, colGender, colRaqm, colPhone, colFiliere }, "Column map");
 
   function rowToObj(r: unknown[]): Record<string, unknown> {
     const obj: Record<string, unknown> = {};
@@ -372,6 +375,13 @@ function processRows(
     const dateNaissance = cellStr(row, colBirth) || null;
     const statut  = normalizeStatut(cellStr(row, colStatus));
     const resultat = normalizeResultat(cellStr(row, colResult));
+    const rawFiliere = cellStr(row, colFiliere);
+    const filiere = rawFiliere ? normalizeLyceeBacFiliere(rawFiliere) : null;
+    if (rawFiliere && stage === "lycee" && !filiere && niveauFinal !== "1AS") {
+      if (errors.length < 30) errors.push(`صف ${i + headerRowIdx + 2}: الشعبة غير معروفة ← "${rawFiliere}"`);
+      skipped++;
+      continue;
+    }
 
     // ── رقم هاتف الولي ────────────────────────────────────────────────────────
     const rawPhone = cellStr(row, colPhone).replace(/\s+/g, "");
@@ -382,6 +392,7 @@ function processRows(
       id: crypto.randomBytes(16).toString("hex"),
       userId, nomPrenom, dateNaissance,
       niveau: niveauFinal, classe: classeRaw,
+      filiere: stage === "lycee" && niveauFinal !== "1AS" ? filiere : null,
       sexe, statut, resultat, annee, raqm, parentPhone,
     });
   }
@@ -390,6 +401,39 @@ function processRows(
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+
+router.patch("/students/:id/filiere", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (getSchoolStageForRequest(req) !== "lycee") { res.status(403).json({ error: "هذا الإجراء متاح للثانويات فقط" }); return; }
+  const { filiere } = req.body as { filiere?: unknown };
+  if (filiere !== null && typeof filiere !== "string") {
+    res.status(400).json({ error: "الشعبة غير صالحة" });
+    return;
+  }
+  const normalized = filiere ? normalizeLyceeBacFiliere(filiere) : null;
+  if (filiere && !normalized) {
+    res.status(400).json({ error: "الشعبة غير معروفة" });
+    return;
+  }
+  try {
+    const [student] = await db.select({ id: studentsTable.id, niveau: studentsTable.niveau })
+      .from(studentsTable)
+      .where(and(eq(studentsTable.id, req.params.id), eq(studentsTable.userId, req.user!.id)))
+      .limit(1);
+    if (!student) { res.status(404).json({ error: "التلميذ غير موجود" }); return; }
+    if (student.niveau === "1AS" && normalized) {
+      res.status(400).json({ error: "لا تُحدد شعبة البكالوريا للسنة الأولى ثانوي" });
+      return;
+    }
+    const [updated] = await db.update(studentsTable).set({ filiere: normalized })
+      .where(and(eq(studentsTable.id, student.id), eq(studentsTable.userId, req.user!.id)))
+      .returning();
+    res.json(updated);
+  } catch (error) {
+    req.log.error(error, "Failed to update student filiere");
+    res.status(500).json({ error: "تعذر حفظ شعبة التلميذ" });
+  }
+});
 
 // Single student lookup (used by QR scan page)
 router.get("/students/:id", async (req, res): Promise<void> => {
@@ -412,13 +456,21 @@ router.get("/students/:id", async (req, res): Promise<void> => {
 router.get("/students", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const userId = req.user!.id;
-  const { annee, niveau, classe, sexe, statut, q } = req.query as Record<string, string>;
+  const { annee, niveau, classe, sexe, statut, q, filiere } = req.query as Record<string, string>;
   const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))];
   if (annee) conds.push(eq(studentsTable.annee, annee));
   if (niveau && NiveauEnum.safeParse(niveau).success) conds.push(eq(studentsTable.niveau, niveau as any));
   if (classe) conds.push(eq(studentsTable.classe, classe));
   if (sexe && SexeEnum.safeParse(sexe).success) conds.push(eq(studentsTable.sexe, sexe as any));
   if (statut && StatutEnum.safeParse(statut).success) conds.push(eq(studentsTable.statut, statut as any));
+  if (filiere) {
+    const normalizedFiliere = normalizeLyceeBacFiliere(filiere);
+    if (!normalizedFiliere || getSchoolStageForRequest(req) !== "lycee") {
+      res.status(400).json({ error: "الشعبة غير صالحة" });
+      return;
+    }
+    conds.push(eq(studentsTable.filiere, normalizedFiliere));
+  }
   if (q) conds.push(ilike(studentsTable.nomPrenom, `%${q}%`));
   const students = await db.select().from(studentsTable)
     .where(and(...conds))

@@ -48,11 +48,14 @@ export function requirePaidPlan(req: Request, res: Response, next: NextFunction)
 
   const plan = isSchoolStaff ? member?.schoolSubscriptionPlan : user.subscriptionPlan;
   const status = isSchoolStaff ? member?.schoolSubscriptionStatus : user.subscriptionStatus;
-  if (plan === "basic" || plan === "pro") {
+  const expiresAt = isSchoolStaff ? member?.schoolSubscriptionExpiresAt : user.subscriptionExpiresAt;
+  const unexpired = !expiresAt || new Date(expiresAt).getTime() > Date.now();
+  if ((plan === "basic" || plan === "pro") && status === "active" && unexpired) {
     next();
     return;
   }
-  if (plan === "free" && status === "active" && FREE_TIER_PATHS.some(path => path.test(req.path))) {
+  const expiredPaidPlan = (plan === "basic" || plan === "pro") && status === "active" && !unexpired;
+  if (((plan === "free" && status === "active") || expiredPaidPlan) && FREE_TIER_PATHS.some(path => path.test(req.path))) {
     next();
     return;
   }

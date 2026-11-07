@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useOrientationWishes } from "@/hooks/use-orientation-wishes";
+import { SCHOOL_STAGE } from "@/lib/deployment";
 import {
   rankFourAMArtsApplicants,
   rankFourAMScienceApplicants,
@@ -575,6 +576,7 @@ function IncomingOrientationPage() {
 }
 
 export default function OrientationWorkflowPage() {
+  if (SCHOOL_STAGE === "moyen") return <MiddleOrientationWorkflowPage />;
   return (
     <div className="mx-auto max-w-3xl p-6" dir="rtl">
       <Card>

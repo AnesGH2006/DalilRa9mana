@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/language-provider";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,6 +19,61 @@ export default function SubscriptionPage() {
   const { user } = useAuth();
   const [checkoutBusy, setCheckoutBusy] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState("");
+  const [trialBusy, setTrialBusy] = useState<string | null>(null);
+  const [trialError, setTrialError] = useState("");
+  const [trialMessage, setTrialMessage] = useState("");
+  const [paymentInfo, setPaymentInfo] = useState<{
+    plan: string;
+    status: string;
+    active: boolean;
+    trialAvailable: boolean;
+    expiresAt: string | null;
+  } | null>(null);
+
+  async function loadPaymentInfo() {
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}api/payments/me`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("تعذر تحميل حالة الاشتراك");
+      setPaymentInfo(await response.json());
+    } catch (error) {
+      setTrialError(error instanceof Error ? error.message : "تعذر تحميل حالة الاشتراك");
+    }
+  }
+
+  useEffect(() => { void loadPaymentInfo(); }, []);
+
+  function isCurrentPlan(plan: string): boolean {
+    if (paymentInfo) {
+      if (plan === "free") return paymentInfo.plan === "free" && paymentInfo.status === "active";
+      return paymentInfo.plan === plan && paymentInfo.active;
+    }
+    return (user?.subscriptionPlan ?? (user?.subscriptionStatus === "active" ? "pro" : "free")) === plan;
+  }
+
+  async function startTrial(plan: "basic" | "pro") {
+    setTrialBusy(plan);
+    setTrialError("");
+    setTrialMessage("");
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}api/payments/trial`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const payload = await response.json() as { error?: string; expiresAt?: string };
+      if (!response.ok) throw new Error(payload.error ?? "تعذر تفعيل التجربة المجانية");
+      setTrialMessage(`تم تفعيل باقة ${plan === "basic" ? "أساسي" : "Pro"} مجاناً لمدة 30 يوماً.`);
+      await loadPaymentInfo();
+    } catch (error) {
+      setTrialError(error instanceof Error ? error.message : "تعذر تفعيل التجربة المجانية");
+    } finally {
+      setTrialBusy(null);
+    }
+  }
 
   async function startCheckout(planKey: string, amountDzd: number) {
     if (planKey === "institution") {
@@ -70,7 +125,7 @@ export default function SubscriptionPage() {
       ],
       cta: "الخطة الحالية",
       ctaVariant: "outline" as const,
-      current: (user?.subscriptionPlan ?? (user?.subscriptionStatus === "active" ? "pro" : "free")) === "free",
+      current: isCurrentPlan("free"),
       popular: false,
     },
     {
@@ -91,7 +146,7 @@ export default function SubscriptionPage() {
       ],
       cta: "ترقية إلى أساسي",
       ctaVariant: "default" as const,
-      current: (user?.subscriptionPlan ?? (user?.subscriptionStatus === "active" ? "pro" : "free")) === "basic",
+      current: isCurrentPlan("basic"),
       popular: false,
     },
     {
@@ -109,13 +164,13 @@ export default function SubscriptionPage() {
         "كل ميزات الأساسي",
         "تحليلات وإحصائيات متقدمة",
         "رفع درجات بالـ OCR",
-        ...(SCHOOL_STAGE === "moyen" ? ["نتائج شهادة BEM"] : []),
+        ...(SCHOOL_STAGE === "moyen" ? ["نتائج شهادة BEM"] : ["تحليل نتائج البكالوريا من Excel"]),
         "التوجيه المسبق",
         "المساعد الذكي",
       ],
       cta: "ترقية إلى Pro",
       ctaVariant: "default" as const,
-      current: (user?.subscriptionPlan ?? (user?.subscriptionStatus === "active" ? "pro" : "free")) === "pro",
+      current: isCurrentPlan("pro"),
       popular: true,
     },
     {
@@ -161,6 +216,9 @@ export default function SubscriptionPage() {
           اختر الباقة المناسبة
         </h1>
         <p className="text-muted-foreground text-base max-w-md mx-auto">كل باقة مصممة لاحتياجات مختلفة — من مؤسسة صغيرة إلى شبكة مؤسسات</p>
+        <p className="mx-auto max-w-xl rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+          جرّب باقتي أساسي وPro مجاناً لمدة 30 يوماً، مرة واحدة لكل حساب وبدون إدخال بيانات الدفع.
+        </p>
 
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}
@@ -277,6 +335,19 @@ export default function SubscriptionPage() {
                     {plan.current ? `✓ ${plan.cta}` : checkoutBusy === plan.key ? "جارٍ التحضير…" : plan.cta}
                   </Button>
                 </motion.div>
+                {(plan.key === "basic" || plan.key === "pro") && paymentInfo?.trialAvailable && !plan.current && (
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl border-emerald-600 font-bold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                    disabled={trialBusy !== null}
+                    onClick={() => void startTrial(plan.key)}
+                  >
+                    {trialBusy === plan.key ? "جارٍ تفعيل التجربة..." : "ابدأ تجربة مجانية لمدة شهر"}
+                  </Button>
+                )}
+                {(plan.key === "basic" || plan.key === "pro") && paymentInfo && !paymentInfo.trialAvailable && !plan.current && (
+                  <p className="text-center text-[11px] text-muted-foreground">التجربة المجانية متاحة مرة واحدة لكل حساب.</p>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -286,6 +357,16 @@ export default function SubscriptionPage() {
       {checkoutError && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
           {checkoutError}
+        </div>
+      )}
+      {trialError && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+          {trialError}
+        </div>
+      )}
+      {trialMessage && (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+          {trialMessage}{paymentInfo?.expiresAt ? ` تنتهي في ${new Date(paymentInfo.expiresAt).toLocaleDateString("ar-DZ")}.` : ""}
         </div>
       )}
 
@@ -310,7 +391,7 @@ export default function SubscriptionPage() {
             { label: "OCR رفع الدرجات",      free: "—",          bas: "—",          pro: "✓",         inst: "✓"         },
             ...(SCHOOL_STAGE === "moyen" ? [
               ...(SCHOOL_STAGE === "moyen" ? [
-                { label: "نتائج BEM",        free: "—",          bas: "—",          pro: "✓",         inst: "✓"         },
+                { label: SCHOOL_STAGE === "moyen" ? "نتائج BEM" : "تحليل نتائج البكالوريا", free: "—", bas: "—", pro: "✓", inst: "✓" },
               ] : []),
             ] : []),
             { label: "المساعد الذكي",        free: "—",          bas: "—",          pro: "✓",         inst: "✓"         },

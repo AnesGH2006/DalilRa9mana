@@ -47,12 +47,16 @@ export function canUseStaffFeature(req: Request, feature: StaffFeature): boolean
 
   const member = req.memberContext;
   if (!member) {
-    return req.user.role === "admin" || String(req.user.subscriptionStatus) === "active";
+    if (req.user.role === "admin") return true;
+    const expires = req.user.subscriptionExpiresAt ? new Date(String(req.user.subscriptionExpiresAt)).getTime() : null;
+    return String(req.user.subscriptionStatus) === "active" && (!expires || expires > Date.now());
   }
   if (member.role === "parent") return false;
 
   const schoolPlan = String(member.schoolSubscriptionPlan);
+  const schoolExpires = member.schoolSubscriptionExpiresAt ? new Date(member.schoolSubscriptionExpiresAt).getTime() : null;
   const schoolPaid = String(member.schoolSubscriptionStatus) === "active"
+    && (!schoolExpires || schoolExpires > Date.now())
     && (schoolPlan === "basic" || schoolPlan === "pro");
   if (schoolPaid) return true;
 

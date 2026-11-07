@@ -498,8 +498,10 @@ function TabGeneral({ results }: { results: StudentResult[] }) {
 function TabSubjects({ results }: { results: StudentResult[] }) {
   const withAvg = results.filter(r => r.annualAvg !== null);
 
-  const niveau = withAvg[0]?.student.niveau as Niveau | undefined;
-  const subjects = niveau ? getSubjectsWithCorrectCoefs(niveau) : [];
+  const subjects = Array.from(new Map(withAvg.flatMap(result =>
+    getSubjectsWithCorrectCoefs(result.student.niveau as Niveau, result.student.filiere ?? undefined)
+      .map(subject => [subject.key, subject] as const),
+  )).values());
 
   const subjectStats = subjects.map(s => {
     // Collect each student's annual average for this subject
@@ -1033,8 +1035,10 @@ function TabProgress({ results }: { results: StudentResult[] }) {
   ].filter(d => d.value > 0);
 
   // Per-subject trend: class average per trimester
-  const niveau = withMulti[0]?.student.niveau as Niveau | undefined;
-  const subjects = niveau ? getSubjectsWithCorrectCoefs(niveau) : [];
+  const subjects = Array.from(new Map(withMulti.flatMap(result =>
+    getSubjectsWithCorrectCoefs(result.student.niveau as Niveau, result.student.filiere ?? undefined)
+      .map(subject => [subject.key, subject] as const),
+  )).values());
   const subjectTrends = subjects.map(s => {
     const byTri: Record<1 | 2 | 3, number[]> = { 1: [], 2: [], 3: [] };
     withMulti.forEach(r => {
@@ -2061,8 +2065,8 @@ const COEF_OVERRIDE_4AM: Record<string, number> = {
 };
 
 // Returns subjects with overridden coefficients for 4AM
-function getSubjectsWithCorrectCoefs(niveau: Niveau) {
-  const base = getSubjectsForLevel(niveau);
+function getSubjectsWithCorrectCoefs(niveau: Niveau, filiere?: import("@shared/subjects").LyceeBacFiliere) {
+  const base = getSubjectsForLevel(niveau, filiere);
   if (niveau !== "4AM") return base;
   return base.map(s => ({
     ...s,
@@ -2588,7 +2592,7 @@ function ImportModal({ annee, onClose, onDone }: { annee: string; onClose: () =>
 // ─── Subject Breakdown Modal (click average to see subject scores) ────────────
 function SubjectBreakdownModal({ result, onClose }: { result: StudentResult; onClose: () => void }) {
   const niveau = result.student.niveau as Niveau;
-  const subjects = getSubjectsWithCorrectCoefs(niveau);
+  const subjects = getSubjectsWithCorrectCoefs(niveau, result.student.filiere ?? undefined);
 
   // Per-subject: compute T1/T2/T3 scores + annual avg
   const subjectRows = subjects.map(s => {

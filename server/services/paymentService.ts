@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { db, paymentsTable, usersTable } from "../../shared/db.js";
 import { PAID_PLAN_PRICES_DZD } from "../../shared/subscription.js";
 
 const DEFAULT_AMOUNT_DZD = 1000;
+export const PAID_PLAN_TRIAL_DAYS = 30;
 
 // إضافة جميع المبالغ المتاحة في بطاقات الواجهة
 const ALLOWED_AMOUNTS_DZD = new Set([
@@ -137,6 +138,46 @@ export async function activateFreePlan(userId: string): Promise<void> {
     subscriptionExpiresAt: null,
     updatedAt: new Date(),
   }).where(eq(usersTable.id, userId));
+}
+
+export async function activatePaidPlanTrial(userId: string, plan: "basic" | "pro"): Promise<Date> {
+  const [user] = await db.select({
+    subscriptionStatus: usersTable.subscriptionStatus,
+    subscriptionPlan: usersTable.subscriptionPlan,
+    subscriptionExpiresAt: usersTable.subscriptionExpiresAt,
+    trialStartedAt: usersTable.trialStartedAt,
+  }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+  if (!user) throw new Error("User not found");
+  if (user.trialStartedAt) throw new Error("تم استخدام التجربة المجانية لهذا الحساب مسبقاً");
+  const now = new Date();
+  const expiresAt = user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt) : null;
+  const currentPlanActive = user.subscriptionStatus === "active"
+    && user.subscriptionPlan !== "free"
+    && (!expiresAt || expiresAt.getTime() > now.getTime());
+  if (currentPlanActive) throw new Error("لديك اشتراك مدفوع نشط بالفعل");
+
+  const eligibleAccount = or(
+    eq(usersTable.subscriptionStatus, "pending"),
+    and(eq(usersTable.subscriptionStatus, "active"), eq(usersTable.subscriptionPlan, "free")),
+    and(eq(usersTable.subscriptionStatus, "active"), lt(usersTable.subscriptionExpiresAt, now)),
+  );
+  const [updated] = await db.update(usersTable).set({
+    subscriptionStatus: "active",
+    subscriptionPlan: plan,
+    subscriptionExpiresAt: new Date(now.getTime() + PAID_PLAN_TRIAL_DAYS * 24 * 60 * 60 * 1000),
+    trialStartedAt: now,
+    updatedAt: now,
+  }).where(and(
+    eq(usersTable.id, userId),
+    isNull(usersTable.trialStartedAt),
+    eligibleAccount,
+  )).returning({ subscriptionExpiresAt: usersTable.subscriptionExpiresAt });
+
+  if (!updated?.subscriptionExpiresAt) {
+    throw new Error("تعذر تفعيل التجربة؛ تحقق من حالة الاشتراك أو أن التجربة لم تُستخدم سابقاً");
+  }
+  return updated.subscriptionExpiresAt;
 }
 
 export async function verifyChargilyCheckout(checkoutId: string, userId: string) {

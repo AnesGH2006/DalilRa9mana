@@ -12,7 +12,8 @@ import { Upload, Trash2, Search, Users, FileSpreadsheet, X, CheckCircle2, AlertC
 import { CountUp } from "@/components/count-up";
 import { StudentHealthDialog } from "@/components/student-health-dialog";
 import type { Student, Niveau, Sexe, Statut } from "@shared/types";
-import { SCHOOL_LEVELS } from "@/lib/deployment";
+import { SCHOOL_LEVELS, SCHOOL_STAGE } from "@/lib/deployment";
+import { LYCEE_BAC_FILIERES, LYCEE_BAC_FILIERE_LABELS, type LyceeBacFiliere } from "@shared/subjects";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
 } from "recharts";
@@ -385,6 +386,7 @@ export default function Students() {
   const [importResultOpen, setImportResultOpen] = useState(false);
   const [listKey, setListKey] = useState(0);
   const [showAnalytics, setShowAnalytics] = useState(true);
+  const [updatingFiliere, setUpdatingFiliere] = useState<string | null>(null);
 
   const [filters, setFilters] = useState({ q: "", niveau: "", classe: "", sexe: "", statut: "", annee: DEFAULT_YEAR });
 
@@ -437,6 +439,32 @@ export default function Students() {
       }
     } finally { setLoading(false); }
   }, [filters]);
+
+  const saveFiliere = async (studentId: string, value: string) => {
+    setUpdatingFiliere(studentId);
+    try {
+      const response = await fetch(`${BASE}api/students/${encodeURIComponent(studentId)}/filiere`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filiere: value === "__none__" ? null : value }),
+      });
+      const data = await response.json() as { error?: string; filiere?: LyceeBacFiliere | null };
+      if (!response.ok) throw new Error(data.error || "تعذر حفظ الشعبة");
+      setStudents(current => current.map(student => student.id === studentId
+        ? { ...student, filiere: data.filiere ?? null }
+        : student));
+      toast({ title: "تم حفظ الشعبة", description: "" });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "تعذر حفظ الشعبة",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
+      });
+    } finally {
+      setUpdatingFiliere(null);
+    }
+  };
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
 
@@ -671,7 +699,7 @@ export default function Students() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/60 sticky top-0 z-10">
                   <tr>
-                    {[t("col.name"), t("col.birth"), "العمر", "هاتف الولي", `معدل ${previousAcademicYear(filters.annee || DEFAULT_YEAR) ?? "السنة السابقة"}`, t("col.level"), t("col.class"), t("col.gender"), t("col.status"), t("col.result"), "الملف الصحي"].map(h => (
+                    {[t("col.name"), t("col.birth"), "العمر", "هاتف الولي", `معدل ${previousAcademicYear(filters.annee || DEFAULT_YEAR) ?? "السنة السابقة"}`, t("col.level"), t("col.class"), ...(SCHOOL_STAGE === "lycee" ? ["الشعبة"] : []), t("col.gender"), t("col.status"), t("col.result"), "الملف الصحي"].map(h => (
                       <th key={h} className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -699,6 +727,27 @@ export default function Students() {
                       <td className="px-4 py-3">
                         <Badge variant="outline" className="font-bold">{s.classe}</Badge>
                       </td>
+                      {SCHOOL_STAGE === "lycee" && (
+                        <td className="px-3 py-2 min-w-44">
+                          {s.niveau === "1AS" ? <span className="text-muted-foreground">—</span> : (
+                            <Select
+                              value={s.filiere ?? "__none__"}
+                              onValueChange={value => void saveFiliere(s.id, value)}
+                              disabled={updatingFiliere === s.id}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="اختر الشعبة" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">غير محددة</SelectItem>
+                                {LYCEE_BAC_FILIERES.map(filiere => (
+                                  <SelectItem key={filiere} value={filiere}>{LYCEE_BAC_FILIERE_LABELS[filiere]}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
                           s.sexe === "M"

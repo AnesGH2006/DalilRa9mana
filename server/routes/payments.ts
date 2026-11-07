@@ -1,8 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { desc, eq } from "drizzle-orm";
-import { db, paymentsTable, schoolInfoTable } from "../../shared/db.js";
+import { db, paymentsTable, schoolInfoTable, usersTable } from "../../shared/db.js";
 import { generateActivationBatch, redeemActivationCode } from "../services/activationCodeService.js";
-import { activateFreePlan, completeDemoPayment, createDemoCheckout, createChargilyCheckout, settleChargilyPayment, verifyChargilySignature, verifyChargilyCheckout } from "../services/paymentService.js";
+import { activateFreePlan, activatePaidPlanTrial, completeDemoPayment, createDemoCheckout, createChargilyCheckout, settleChargilyPayment, verifyChargilySignature, verifyChargilyCheckout } from "../services/paymentService.js";
 import { PAID_PLAN_PRICES_DZD } from "../../shared/subscription.js";
 import {
   STAFF_PLAN,
@@ -73,6 +73,10 @@ function ownPlanIsActive(req: Request): boolean {
 
   const plan = String(user.subscriptionPlan);
   const expires = user.subscriptionExpiresAt ? new Date(String(user.subscriptionExpiresAt)) : null;
+  const [trial] = await db.select({ startedAt: usersTable.trialStartedAt })
+    .from(usersTable)
+    .where(eq(usersTable.id, user.id))
+    .limit(1);
   const live = String(user.subscriptionStatus) === "active" && (!expires || expires.getTime() > Date.now());
   if (member?.role === "parent") return live && plan === PARENT_PLAN;
   if (member) return false;
@@ -104,6 +108,12 @@ router.get("/payments/me", async (req, res): Promise<void> => {
     status: String(user.subscriptionStatus),
     expiresAt: expires && !Number.isNaN(expires.getTime()) ? expires.toISOString() : null,
     active: ownPlanIsActive(req),
+    trialAvailable: role === "owner"
+      && user.role !== "admin"
+      && !member
+      && !trial?.startedAt
+      && !ownPlanIsActive(req),
+    trialStartedAt: trial?.startedAt?.toISOString() ?? null,
     options: await purchaseOptions(req),
     lastPayment: last ? { amountDzd: last.amountDzd, status: last.status, paidAt: last.paidAt } : null,
     prices: {
@@ -112,6 +122,30 @@ router.get("/payments/me", async (req, res): Promise<void> => {
       parent: PARENT_PLAN_PRICE_DZD,
     },
   });
+});
+
+router.post("/payments/trial", async (req, res): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  if (req.user!.role === "admin" || req.memberContext) {
+    res.status(403).json({ error: "التجربة متاحة لحسابات المؤسسة فقط" });
+    return;
+  }
+  const plan = req.body?.plan;
+  if (plan !== "basic" && plan !== "pro") {
+    res.status(400).json({ error: "اختر باقة أساسي أو Pro للتجربة المجانية" });
+    return;
+  }
+  try {
+    const expiresAt = await activatePaidPlanTrial(req.user!.id, plan);
+    res.json({
+      success: true,
+      plan,
+      expiresAt: expiresAt.toISOString(),
+      trialDays: 30,
+    });
+  } catch (error) {
+    res.status(409).json({ error: error instanceof Error ? error.message : "تعذر تفعيل التجربة المجانية" });
+  }
 });
 
 router.post("/payments/activation-codes/batches", async (req, res): Promise<void> => {

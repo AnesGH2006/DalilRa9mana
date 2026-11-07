@@ -37,6 +37,7 @@ export const translations: TranslationMap = {
   "nav.orient_final":   { en: "Final Orientation",          ar: "التوجيه النهائي",         fr: "Orientation finale" },
   "nav.orient_reports": { en: "Information Reports",        ar: "تقارير إعلامية",          fr: "Rapports informatifs" },
   "nav.bem":              { en: "BEM Results",          ar: "نتائج شهادة التعليم المتوسط", fr: "Résultats BEM" },
+  "nav.bac_results":      { en: "Baccalaureate Analysis", ar: "تحليل نتائج البكالوريا", fr: "Analyse du baccalauréat" },
   "nav.exam_results":     { en: "Exam / Test Results",  ar: "نتائج الاختبار،الفرض،المراقبة", fr: "Rés. devoirs/examens" },
   "nav.orient_results":   { en: "Orientation Results",  ar: "نتائج الذين سيوجَّهون",    fr: "Rés. orientation" },
   "nav.transfer_results": { en: "Remedial Results",     ar: "نتائج المنتقلين بالاستدراك", fr: "Rés. redoublement" },

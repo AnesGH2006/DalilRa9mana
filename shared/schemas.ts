@@ -13,6 +13,7 @@ const MemberContextSchema = zod.object({
   name: zod.string(),
   schoolSubscriptionPlan: zod.enum(["free", "basic", "pro"]).optional(),
   schoolSubscriptionStatus: zod.enum(["pending", "active", "suspended"]).optional(),
+  schoolSubscriptionExpiresAt: zod.string().nullable().optional(),
 });
 
 export const GetCurrentAuthUserResponse = zod.object({
@@ -84,6 +85,7 @@ export const StudentSchema = zod.object({
   parentPhone: zod.string().nullable(),
   niveau: NiveauEnum,
   classe: zod.string(),
+  filiere: zod.enum(["science", "math", "technical", "management", "letters", "languages"]).nullable().optional(),
   sexe: SexeEnum,
   statut: StatutEnum,
   resultat: ResultatEnum.nullable(),

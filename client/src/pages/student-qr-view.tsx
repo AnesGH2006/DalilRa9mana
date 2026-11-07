@@ -23,6 +23,7 @@ interface StudentPublicData {
     nomPrenom: string;
     niveau: string;
     classe: string;
+    filiere?: import("@shared/subjects").LyceeBacFiliere | null;
     annee: string;
     sexe: string;
   };
@@ -30,8 +31,8 @@ interface StudentPublicData {
   absences: { trimestre: number; justifiedHours: number; unjustifiedHours: number }[];
 }
 
-function calcTrimAvg(grades: StudentPublicData["grades"], trimestre: number, niveau: string) {
-  const subs = getSubjectsForLevel(niveau as Niveau);
+function calcTrimAvg(grades: StudentPublicData["grades"], trimestre: number, niveau: string, filiere?: import("@shared/subjects").LyceeBacFiliere | null) {
+  const subs = getSubjectsForLevel(niveau as Niveau, filiere ?? undefined);
   const scores: Record<string, number> = {};
   for (const g of grades) {
     if (g.trimestre === trimestre) scores[g.subject] = g.score;
@@ -127,7 +128,7 @@ export default function StudentQrViewPage() {
                 {/* Trimester averages */}
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   {[1, 2, 3].map(tr => {
-                    const avg = calcTrimAvg(data.grades, tr, data.student.niveau);
+                    const avg = calcTrimAvg(data.grades, tr, data.student.niveau, data.student.filiere);
                     return (
                       <div key={tr} className="rounded-xl bg-gray-50 dark:bg-gray-800/60 p-2 text-center">
                         <p className="text-xs text-muted-foreground">ف{tr}</p>
@@ -142,7 +143,7 @@ export default function StudentQrViewPage() {
                 {/* Annual average */}
                 {(() => {
                   const avgs = [1, 2, 3]
-                    .map(tr => calcTrimAvg(data.grades, tr, data.student.niveau))
+                    .map(tr => calcTrimAvg(data.grades, tr, data.student.niveau, data.student.filiere))
                     .filter(v => v !== null) as number[];
                   if (!avgs.length) return null;
                   const annual = avgs.reduce((a, b) => a + b, 0) / avgs.length;
@@ -170,8 +171,8 @@ export default function StudentQrViewPage() {
               {[1, 2, 3].map(tr => {
                 const trimGrades = data.grades.filter(g => g.trimestre === tr);
                 if (!trimGrades.length) return null;
-                const subs = getSubjectsForLevel(data.student.niveau as Niveau);
-                const avg = calcTrimAvg(data.grades, tr, data.student.niveau);
+                const subs = getSubjectsForLevel(data.student.niveau as Niveau, data.student.filiere ?? undefined);
+                const avg = calcTrimAvg(data.grades, tr, data.student.niveau, data.student.filiere);
                 return (
                   <div key={tr} className="rounded-2xl bg-white dark:bg-gray-900 border border-border/50 shadow-sm p-4">
                     <div className="flex items-center justify-between mb-3">

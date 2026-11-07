@@ -27,6 +27,7 @@ interface StudentData {
     nomPrenom: string;
     niveau: string;
     classe: string;
+    filiere?: import("@shared/subjects").LyceeBacFiliere | null;
     annee: string;
     sexe: string;
   };
@@ -56,8 +57,8 @@ const TRIMESTRE_LABELS: Record<number, string> = {
   3: "الفصل الثالث",
 };
 
-function calcTrimAvg(grades: StudentData["grades"], trimestre: number, niveau: string) {
-  const subs = getSubjectsForLevel(niveau as Niveau);
+function calcTrimAvg(grades: StudentData["grades"], trimestre: number, niveau: string, filiere?: StudentData["student"]["filiere"]) {
+  const subs = getSubjectsForLevel(niveau as Niveau, filiere ?? undefined);
   const scores: Record<string, number> = {};
   for (const g of grades) {
     if (g.trimestre === trimestre) scores[g.subject] = g.score;
@@ -196,11 +197,11 @@ export default function MyChildPage() {
   const grades = data?.grades ?? [];
   const absences = data?.absences ?? [];
   const { subs, trimesterGrades, t1Avg, t2Avg, t3Avg, annualAvg, totalJustified, totalUnjustified } = useMemo(() => {
-    const subjects = student ? getSubjectsForLevel(student.niveau as Niveau) : [];
+    const subjects = student ? getSubjectsForLevel(student.niveau as Niveau, student.filiere ?? undefined) : [];
     const averages = student ? [
-      data?.t1Avg ?? calcTrimAvg(grades, 1, student.niveau),
-      data?.t2Avg ?? calcTrimAvg(grades, 2, student.niveau),
-      data?.t3Avg ?? calcTrimAvg(grades, 3, student.niveau),
+      data?.t1Avg ?? calcTrimAvg(grades, 1, student.niveau, student.filiere),
+      data?.t2Avg ?? calcTrimAvg(grades, 2, student.niveau, student.filiere),
+      data?.t3Avg ?? calcTrimAvg(grades, 3, student.niveau, student.filiere),
     ] : [null, null, null];
     const availableAverages = averages.filter((value): value is number => value !== null);
     const groupedGrades = new Map<number, Map<string, number>>();
@@ -221,7 +222,7 @@ export default function MyChildPage() {
       totalJustified: absences.reduce((sum, absence) => sum + (absence.justifiedHours ?? 0), 0),
       totalUnjustified: absences.reduce((sum, absence) => sum + (absence.unjustifiedHours ?? 0), 0),
     };
-  }, [absences, data?.annualAvg, data?.t1Avg, data?.t2Avg, data?.t3Avg, grades, student?.niveau]);
+  }, [absences, data?.annualAvg, data?.t1Avg, data?.t2Avg, data?.t3Avg, grades, student?.niveau, student?.filiere]);
 
   const memberCtx = user?.memberContext;
 

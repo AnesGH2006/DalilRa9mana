@@ -58,9 +58,19 @@ function schoolIdOf(req: Request): string {
 
 function schoolPlanActive(req: Request): boolean {
   const member = req.memberContext;
-  if (!member) return req.user!.role === "admin" || String(req.user!.subscriptionStatus) === "active";
+  if (!member) {
+    if (req.user!.role === "admin") return true;
+    const expiresAt = req.user!.subscriptionExpiresAt ? new Date(String(req.user!.subscriptionExpiresAt)).getTime() : null;
+    const plan = String(req.user!.subscriptionPlan);
+    return String(req.user!.subscriptionStatus) === "active"
+      && (plan === "basic" || plan === "pro")
+      && (!expiresAt || expiresAt > Date.now());
+  }
   const plan = String(member.schoolSubscriptionPlan);
-  return String(member.schoolSubscriptionStatus) === "active" && (plan === "basic" || plan === "pro");
+  const expiresAt = member.schoolSubscriptionExpiresAt ? new Date(member.schoolSubscriptionExpiresAt).getTime() : null;
+  return String(member.schoolSubscriptionStatus) === "active"
+    && (!expiresAt || expiresAt > Date.now())
+    && (plan === "basic" || plan === "pro");
 }
 
 function canUseDocType(req: Request, docType: DocumentTypeId): boolean {

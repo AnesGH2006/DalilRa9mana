@@ -466,7 +466,7 @@ router.get("/results", async (req, res): Promise<void> => {
   const results = students.map(s => {
     const scores = gradeMap[s.id] ?? {};
     const storedAvgs = storedAvgMap[s.id] ?? {};
-    const subs = getSubjectsForLevel(s.niveau as Niveau);
+    const subs = getSubjectsForLevel(s.niveau as Niveau, s.filiere as import("../../shared/subjects.js").LyceeBacFiliere | undefined);
 
     // Prefer Ministry-provided average (stored as __avg__) over recalculation.
     // Fall back to calcWeightedAvg for manually-entered grades.
@@ -513,11 +513,14 @@ router.get("/results", async (req, res): Promise<void> => {
 router.get("/results/subjects", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const userId = req.user!.id;
-  const { annee, niveau, classe, trimestre, sexe } = req.query as Record<string, string>;
+  const { annee, niveau, classe, trimestre, sexe, filiere } = req.query as Record<string, string>;
 
   const studentConds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))];
   if (annee) studentConds.push(eq(studentsTable.annee, annee));
   if (niveau) studentConds.push(eq(studentsTable.niveau, niveau as Niveau));
+  if (filiere && ["science", "math", "technical", "management", "letters", "languages"].includes(filiere)) {
+    studentConds.push(eq(studentsTable.filiere, filiere));
+  }
   if (classe) studentConds.push(eq(studentsTable.classe, classe));
   if (sexe === "M" || sexe === "F") studentConds.push(eq(studentsTable.sexe, sexe));
   const students = await db.select().from(studentsTable).where(and(...studentConds));
@@ -565,8 +568,16 @@ router.get("/results/subjects", async (req, res): Promise<void> => {
     return { avg, passCount: scores.filter(v => v >= 10).length, total: scores.length };
   };
 
-  const subs = getSubjectsForLevel((niveau as Niveau) ?? "4AM");
-  const result = subs.map(s => {
+  const subjectMap = new Map<string, ReturnType<typeof getSubjectsForLevel>[number]>();
+  for (const student of students) {
+    for (const subject of getSubjectsForLevel(
+      student.niveau as Niveau,
+      student.filiere as import("../../shared/subjects.js").LyceeBacFiliere | undefined,
+    )) {
+      if (!subjectMap.has(subject.key)) subjectMap.set(subject.key, subject);
+    }
+  }
+  const result = Array.from(subjectMap.values()).map(s => {
     const scores = bySubject[s.key] ?? [];
     const avg = scores.length > 0
       ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100

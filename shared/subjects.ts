@@ -9,6 +9,35 @@ export interface Subject {
 }
 
 export type LyceeBacFiliere = "science" | "math" | "technical" | "management" | "letters" | "languages";
+export const LYCEE_BAC_FILIERES: LyceeBacFiliere[] = [
+  "science", "math", "technical", "management", "letters", "languages",
+];
+export const LYCEE_BAC_FILIERE_LABELS: Record<LyceeBacFiliere, string> = {
+  science: "علوم تجريبية",
+  math: "رياضيات",
+  technical: "تقني رياضي",
+  management: "تسيير واقتصاد",
+  letters: "آداب وفلسفة",
+  languages: "لغات أجنبية",
+};
+
+export function normalizeLyceeBacFiliere(value: string): LyceeBacFiliere | null {
+  const normalized = String(value ?? "")
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
+    .replace(/[أإآا]/g, "ا")
+    .replace(/[ةه]/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/[^\p{L}\p{N}]/gu, "");
+  if (!normalized) return null;
+  if (["science", "sciences", "experimental", "scientifique", "علوم", "علومطبيعيه", "علومالتجريبيه", "علومالتجريبية"].some(v => normalized.includes(v))) return "science";
+  if (["math", "mathematics", "mathematiques", "رياضيات"].some(v => normalized.includes(v))) return "math";
+  if (["technical", "technique", "تقنيرياضي", "تقني"].some(v => normalized.includes(v))) return "technical";
+  if (["management", "gestion", "economy", "اقتصاد", "تسيير"].some(v => normalized.includes(v))) return "management";
+  if (["letters", "literature", "lettres", "اداب", "فلسفه"].some(v => normalized.includes(v))) return "letters";
+  if (["languages", "langues", "لغات", "لغهاجنبيه"].some(v => normalized.includes(v))) return "languages";
+  return null;
+}
 
 const SUBJECTS_LYCEE: Subject[] = [
   { key: "arabe", arLabel: "اللغة العربية", frLabel: "Langue Arabe", coef: 4 },

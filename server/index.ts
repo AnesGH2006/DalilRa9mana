@@ -78,6 +78,7 @@ async function probeDb(attempt = 1): Promise<void> {
         updated_at timestamptz NOT NULL DEFAULT now()
       )
     `);
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_at timestamptz`);
 
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS school_info (
@@ -125,6 +126,7 @@ async function probeDb(attempt = 1): Promise<void> {
         date_naissance varchar(30),
         niveau niveau NOT NULL,
         classe varchar(10) NOT NULL,
+        filiere varchar(30),
         sexe sexe NOT NULL,
         statut statut_eleve NOT NULL DEFAULT 'nouveau',
         resultat resultat_eleve,
@@ -132,6 +134,7 @@ async function probeDb(attempt = 1): Promise<void> {
         created_at timestamptz NOT NULL DEFAULT now()
       )
     `);
+    await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS filiere varchar(30)`);
     
     // 4. Create grades table (references users and students)
     await db.execute(sql`
@@ -148,6 +151,29 @@ async function probeDb(attempt = 1): Promise<void> {
       )
     `);
     await db.execute(sql`ALTER TABLE grades ADD COLUMN IF NOT EXISTS grade_type varchar(20) NOT NULL DEFAULT 'general'`);
+    await db.execute(sql`
+      UPDATE grades SET subject = CASE subject
+        WHEN 'عربية' THEN 'arabe'
+        WHEN 'فرنسية' THEN 'francais'
+        WHEN 'رياضيات' THEN 'maths'
+        WHEN 'علوم' THEN 'svt'
+        WHEN 'تربية إسلامية' THEN 'islam'
+        WHEN 'تربية اسلامية' THEN 'islam'
+        WHEN 'تاريخ وجغرافيا' THEN 'histoire_geo'
+        WHEN 'تربية مدنية' THEN 'civique'
+        WHEN 'إنجليزية' THEN 'anglais'
+        WHEN 'انجليزية' THEN 'anglais'
+        WHEN 'تربية تشكيلية' THEN 'arts'
+        WHEN 'تربية موسيقية' THEN 'arts'
+        WHEN 'تربية بدنية' THEN 'eps'
+        ELSE subject
+      END
+      WHERE subject IN (
+        'عربية','فرنسية','رياضيات','علوم','تربية إسلامية','تربية اسلامية',
+        'تاريخ وجغرافيا','تربية مدنية','إنجليزية','انجليزية',
+        'تربية تشكيلية','تربية موسيقية','تربية بدنية'
+      )
+    `);
     
     // 5. Create student_daily_attendance table (references users and students)
     await db.execute(sql`

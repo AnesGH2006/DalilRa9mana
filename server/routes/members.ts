@@ -282,7 +282,10 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
     }
   }
 
-  const subs = getSubjectsForLevel(student.niveau as import("../../shared/subjects.js").Niveau);
+  const subs = getSubjectsForLevel(
+    student.niveau as import("../../shared/subjects.js").Niveau,
+    student.filiere as import("../../shared/subjects.js").LyceeBacFiliere | undefined,
+  );
 
   const t1Avg = storedAvgs["1"] ?? calcWeightedAvg(subjectGrades["1"] ?? {}, subs);
   const t2Avg = storedAvgs["2"] ?? calcWeightedAvg(subjectGrades["2"] ?? {}, subs);
@@ -471,7 +474,7 @@ router.post("/parent-register", async (req: Request, res: Response): Promise<voi
     return;
   }
   const [student] = await db
-    .select({ id: studentsTable.id, nomPrenom: studentsTable.nomPrenom, niveau: studentsTable.niveau, classe: studentsTable.classe })
+    .select({ id: studentsTable.id, nomPrenom: studentsTable.nomPrenom, niveau: studentsTable.niveau, classe: studentsTable.classe, filiere: studentsTable.filiere })
     .from(studentsTable)
     .where(and(eq(studentsTable.userId, school.userId), eq(studentsTable.raqm, raqmInt)))
     .limit(1);
@@ -515,7 +518,7 @@ router.post("/parent-register", async (req: Request, res: Response): Promise<voi
   res.status(201).json({
     success: true,
     member: created,
-    student: { id: student.id, nomPrenom: student.nomPrenom, niveau: student.niveau, classe: student.classe },
+    student: { id: student.id, nomPrenom: student.nomPrenom, niveau: student.niveau, classe: student.classe, filiere: student.filiere },
     school: { nom: school.nom },
   });
 });

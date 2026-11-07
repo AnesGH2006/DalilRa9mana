@@ -93,6 +93,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         const [schoolOwner] = await db.select({
           subscriptionPlan: usersTable.subscriptionPlan,
           subscriptionStatus: usersTable.subscriptionStatus,
+          subscriptionExpiresAt: usersTable.subscriptionExpiresAt,
         })
           .from(usersTable)
           .where(eq(usersTable.id, member.schoolUserId))
@@ -100,6 +101,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         if (schoolOwner) {
           req.memberContext.schoolSubscriptionPlan = schoolOwner.subscriptionPlan as SchoolSubscriptionPlan;
           req.memberContext.schoolSubscriptionStatus = schoolOwner.subscriptionStatus;
+          req.memberContext.schoolSubscriptionExpiresAt = schoolOwner.subscriptionExpiresAt?.toISOString() ?? null;
         }
       }
     }

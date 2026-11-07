@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,12 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { flushDailyAttendance, queueDailyAttendance } from "@/lib/attendance-outbox";
+import { SCHOOL_LEVELS, SCHOOL_STAGE } from "@/lib/deployment";
+import {
+  getSubjectsForLevel, LYCEE_BAC_FILIERES, LYCEE_BAC_FILIERE_LABELS,
+  type LyceeBacFiliere,
+} from "@shared/subjects";
+import type { Niveau } from "@shared/types";
 import {
   ScanLine, Upload, Loader2, CheckCircle2, AlertCircle, AlertTriangle,
   Pencil, Save, RotateCcw, FileImage, Clock, BookOpen, ClipboardCheck, Download,
@@ -21,12 +27,7 @@ const GRADE_TYPES     = [
   { value: "test", label: "فرض" },
   { value: "exam", label: "اختبار" },
 ] as const;
-const NIVEAUX        = ["1AM", "2AM", "3AM", "4AM"];
-const SUBJECTS_AR    = [
-  "عربية", "فرنسية", "رياضيات", "علوم", "تربية إسلامية",
-  "تاريخ وجغرافيا", "تربية مدنية", "إنجليزية", "تربية تشكيلية",
-  "تربية موسيقية", "تربية بدنية",
-];
+const NIVEAUX = SCHOOL_LEVELS;
 
 type OcrMode = "grades" | "absences" | "daily_register";
 
@@ -125,6 +126,7 @@ export default function UploadGradesOcrPage() {
   const [niveau,    setNiveau]    = useState("");
   const [classe,    setClasse]    = useState("");
   const [trimestre, setTrimestre] = useState("1");
+  const [filiere, setFiliere] = useState<LyceeBacFiliere | "">("");
   const [subject,   setSubject]   = useState("");
   const [gradeType, setGradeType] = useState("test");
 
@@ -137,6 +139,10 @@ export default function UploadGradesOcrPage() {
   const [dragging, setDragging] = useState(false);
 
   const [saveState, setSaveState] = useState<SaveState>({ phase: "idle", saved: 0, failed: 0, errors: [] });
+  const availableSubjects = useMemo(
+    () => niveau ? getSubjectsForLevel(niveau as Niveau, filiere || undefined) : [],
+    [filiere, niveau],
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -339,7 +345,10 @@ export default function UploadGradesOcrPage() {
     if ((mode !== "daily_register" && !classe) || (mode === "grades" && !niveau)) return [];
     const params = new URLSearchParams({ annee });
     if (classe) params.set("classe", classe);
-    if (mode === "grades") params.set("niveau", niveau);
+    if (mode === "grades") {
+      params.set("niveau", niveau);
+      if (SCHOOL_STAGE === "lycee" && filiere) params.set("filiere", filiere);
+    }
     try {
       const res = await fetch(
         `${BASE}api/students?${params}`,
@@ -358,6 +367,10 @@ export default function UploadGradesOcrPage() {
     }
     if (mode === "grades" && !subject) {
       toast({ variant: "destructive", title: "خطأ", description: "يرجى تحديد المادة قبل الحفظ" });
+      return;
+    }
+    if (mode === "grades" && SCHOOL_STAGE === "lycee" && niveau === "3AS" && !filiere) {
+      toast({ variant: "destructive", title: "بيانات ناقصة", description: "حدد شعبة البكالوريا قبل حفظ العلامات" });
       return;
     }
     if (mode === "daily_register" && !isIsoDate(reportDate)) {
@@ -627,9 +640,27 @@ export default function UploadGradesOcrPage() {
           <SelectContent>{ACADEMIC_YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
         </Select>
         {mode === "grades" && (
-          <Select value={niveau} onValueChange={setNiveau}>
+          <Select value={niveau} onValueChange={value => {
+            setNiveau(value);
+            setFiliere("");
+            setSubject("");
+          }}>
             <SelectTrigger><SelectValue placeholder="المستوى" /></SelectTrigger>
             <SelectContent>{NIVEAUX.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+          </Select>
+        )}
+        {mode === "grades" && SCHOOL_STAGE === "lycee" && niveau !== "1AS" && niveau !== "" && (
+          <Select value={filiere || "__none__"} onValueChange={value => {
+            setFiliere(LYCEE_BAC_FILIERES.find(stream => stream === value) ?? "");
+            setSubject("");
+          }}>
+            <SelectTrigger><SelectValue placeholder="الشعبة" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">اختر الشعبة</SelectItem>
+              {LYCEE_BAC_FILIERES.map(stream => (
+                <SelectItem key={stream} value={stream}>{LYCEE_BAC_FILIERE_LABELS[stream]}</SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         )}
         <Input
@@ -650,7 +681,7 @@ export default function UploadGradesOcrPage() {
           <>
             <Select value={subject} onValueChange={setSubject}>
               <SelectTrigger><SelectValue placeholder="المادة" /></SelectTrigger>
-              <SelectContent>{SUBJECTS_AR.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              <SelectContent>{availableSubjects.map(item => <SelectItem key={item.key} value={item.key}>{item.arLabel}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={gradeType} onValueChange={setGradeType}>
               <SelectTrigger><SelectValue placeholder="نوع الدرجة" /></SelectTrigger>
