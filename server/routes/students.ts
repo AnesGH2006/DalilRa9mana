@@ -13,7 +13,7 @@ import type { SchoolLevel } from "../../shared/school-stage.js";
 import { FREE_STUDENT_LIMIT } from "../../shared/subscription.js";
 import { getSchoolLevelsForRequest, getSchoolStageForRequest } from "../config/school-stage.js";
 import { SCHOOL_STAGE_LEVELS, type SchoolStage } from "../../shared/school-stage.js";
-import { normalizeLyceeBacFiliere } from "../../shared/subjects.js";
+import { normalizeLyceeFiliere } from "../../shared/subjects.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -376,8 +376,10 @@ function processRows(
     const statut  = normalizeStatut(cellStr(row, colStatus));
     const resultat = normalizeResultat(cellStr(row, colResult));
     const rawFiliere = cellStr(row, colFiliere);
-    const filiere = rawFiliere ? normalizeLyceeBacFiliere(rawFiliere) : null;
-    if (rawFiliere && stage === "lycee" && !filiere && niveauFinal !== "1AS") {
+    const filiere = rawFiliere && stage === "lycee"
+      ? normalizeLyceeFiliere(rawFiliere, niveauFinal)
+      : null;
+    if (rawFiliere && stage === "lycee" && !filiere) {
       if (errors.length < 30) errors.push(`صف ${i + headerRowIdx + 2}: الشعبة غير معروفة ← "${rawFiliere}"`);
       skipped++;
       continue;
@@ -392,7 +394,7 @@ function processRows(
       id: crypto.randomBytes(16).toString("hex"),
       userId, nomPrenom, dateNaissance,
       niveau: niveauFinal, classe: classeRaw,
-      filiere: stage === "lycee" && niveauFinal !== "1AS" ? filiere : null,
+      filiere: stage === "lycee" ? filiere : null,
       sexe, statut, resultat, annee, raqm, parentPhone,
     });
   }
@@ -410,19 +412,15 @@ router.patch("/students/:id/filiere", async (req, res): Promise<void> => {
     res.status(400).json({ error: "الشعبة غير صالحة" });
     return;
   }
-  const normalized = filiere ? normalizeLyceeBacFiliere(filiere) : null;
-  if (filiere && !normalized) {
-    res.status(400).json({ error: "الشعبة غير معروفة" });
-    return;
-  }
   try {
     const [student] = await db.select({ id: studentsTable.id, niveau: studentsTable.niveau })
       .from(studentsTable)
       .where(and(eq(studentsTable.id, req.params.id), eq(studentsTable.userId, req.user!.id)))
       .limit(1);
     if (!student) { res.status(404).json({ error: "التلميذ غير موجود" }); return; }
-    if (student.niveau === "1AS" && normalized) {
-      res.status(400).json({ error: "لا تُحدد شعبة البكالوريا للسنة الأولى ثانوي" });
+    const normalized = filiere ? normalizeLyceeFiliere(filiere, student.niveau) : null;
+    if (filiere && !normalized) {
+      res.status(400).json({ error: "الشعبة لا تطابق مستوى التلميذ" });
       return;
     }
     const [updated] = await db.update(studentsTable).set({ filiere: normalized })
@@ -464,7 +462,9 @@ router.get("/students", async (req, res): Promise<void> => {
   if (sexe && SexeEnum.safeParse(sexe).success) conds.push(eq(studentsTable.sexe, sexe as any));
   if (statut && StatutEnum.safeParse(statut).success) conds.push(eq(studentsTable.statut, statut as any));
   if (filiere) {
-    const normalizedFiliere = normalizeLyceeBacFiliere(filiere);
+    const normalizedFiliere = niveau
+      ? normalizeLyceeFiliere(filiere, niveau as SchoolLevel)
+      : normalizeLyceeFiliere(filiere, "2AS") ?? normalizeLyceeFiliere(filiere, "1AS");
     if (!normalizedFiliere || getSchoolStageForRequest(req) !== "lycee") {
       res.status(400).json({ error: "الشعبة غير صالحة" });
       return;

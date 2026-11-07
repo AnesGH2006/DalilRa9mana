@@ -86,7 +86,10 @@ export const StudentSchema = zod.object({
   parentPhone: zod.string().nullable(),
   niveau: NiveauEnum,
   classe: zod.string(),
-  filiere: zod.enum(["science", "math", "technical", "management", "letters", "languages"]).nullable().optional(),
+  filiere: zod.enum([
+    "science", "math", "technical", "management", "letters", "languages",
+    "common_science", "common_literature",
+  ]).nullable().optional(),
   sexe: SexeEnum,
   statut: StatutEnum,
   resultat: ResultatEnum.nullable(),

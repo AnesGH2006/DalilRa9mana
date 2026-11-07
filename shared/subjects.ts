@@ -9,9 +9,12 @@ export interface Subject {
 }
 
 export type LyceeBacFiliere = "science" | "math" | "technical" | "management" | "letters" | "languages";
+export type LyceeCommonCoreFiliere = "common_science" | "common_literature";
+export type LyceeFiliere = LyceeBacFiliere | LyceeCommonCoreFiliere;
 export const LYCEE_BAC_FILIERES: LyceeBacFiliere[] = [
   "science", "math", "technical", "management", "letters", "languages",
 ];
+export const LYCEE_COMMON_CORE_FILIERES: LyceeCommonCoreFiliere[] = ["common_science", "common_literature"];
 export const LYCEE_BAC_FILIERE_LABELS: Record<LyceeBacFiliere, string> = {
   science: "علوم تجريبية",
   math: "رياضيات",
@@ -20,15 +23,27 @@ export const LYCEE_BAC_FILIERE_LABELS: Record<LyceeBacFiliere, string> = {
   letters: "آداب وفلسفة",
   languages: "لغات أجنبية",
 };
+export const LYCEE_COMMON_CORE_FILIERE_LABELS: Record<LyceeCommonCoreFiliere, string> = {
+  common_science: "جذع مشترك علوم وتكنولوجيا",
+  common_literature: "جذع مشترك آداب",
+};
+export const LYCEE_FILIERE_LABELS: Record<LyceeFiliere, string> = {
+  ...LYCEE_BAC_FILIERE_LABELS,
+  ...LYCEE_COMMON_CORE_FILIERE_LABELS,
+};
 
-export function normalizeLyceeBacFiliere(value: string): LyceeBacFiliere | null {
-  const normalized = String(value ?? "")
+function normalizeFiliereText(value: string): string {
+  return String(value ?? "")
     .toLowerCase()
     .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
     .replace(/[أإآا]/g, "ا")
     .replace(/[ةه]/g, "ه")
     .replace(/ى/g, "ي")
     .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+export function normalizeLyceeBacFiliere(value: string): LyceeBacFiliere | null {
+  const normalized = normalizeFiliereText(value);
   if (!normalized) return null;
   if (["science", "sciences", "experimental", "scientifique", "علوم", "علومطبيعيه", "علومالتجريبيه", "علومالتجريبية"].some(v => normalized.includes(v))) return "science";
   if (["math", "mathematics", "mathematiques", "رياضيات"].some(v => normalized.includes(v))) return "math";
@@ -37,6 +52,25 @@ export function normalizeLyceeBacFiliere(value: string): LyceeBacFiliere | null 
   if (["letters", "literature", "lettres", "اداب", "فلسفه"].some(v => normalized.includes(v))) return "letters";
   if (["languages", "langues", "لغات", "لغهاجنبيه"].some(v => normalized.includes(v))) return "languages";
   return null;
+}
+
+function isLyceeBacFiliere(value: LyceeFiliere): value is LyceeBacFiliere {
+  return LYCEE_BAC_FILIERES.some(filiere => filiere === value);
+}
+
+export function normalizeLyceeFiliere(value: string, niveau: Niveau): LyceeFiliere | null {
+  const normalized = normalizeFiliereText(value);
+  if (!normalized) return null;
+  if (niveau === "1AS") {
+    if (["common_science", "sciences", "science", "sciencetechnology", "sciencesettechnologie", "tronccommuns", "علوم", "علوموتكنولوجيا", "علوموتقنيات", "جذعمشتركعلوم", "جذعمشتركعلوموتكنولوجيا"].some(v => normalized.includes(normalizeFiliereText(v)))) {
+      return "common_science";
+    }
+    if (["common_literature", "common_arts", "letters", "literature", "lettres", "tronccommunlettres", "اداب", "جذعمشتركاداب"].some(v => normalized.includes(normalizeFiliereText(v)))) {
+      return "common_literature";
+    }
+    return null;
+  }
+  return normalizeLyceeBacFiliere(value);
 }
 
 const SUBJECTS_LYCEE: Subject[] = [
@@ -180,8 +214,10 @@ const SUBJECTS_4AM: Subject[] = [
 // ── Lookup ────────────────────────────────────────────────────────────────────
 export type Niveau = "1AM" | "2AM" | "3AM" | "4AM" | "1AS" | "2AS" | "3AS";
 
-export function getSubjectsForLevel(niveau: Niveau, filiere?: LyceeBacFiliere): Subject[] {
-  if (niveau === "3AS" && filiere) return getBacSubjectsForFiliere(filiere);
+export function getSubjectsForLevel(niveau: Niveau, filiere?: LyceeFiliere): Subject[] {
+  if (niveau === "3AS" && filiere && isLyceeBacFiliere(filiere)) {
+    return getBacSubjectsForFiliere(filiere);
+  }
   switch (niveau) {
     case "1AM":
     case "2AM": return SUBJECTS_1_2AM;

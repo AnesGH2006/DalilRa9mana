@@ -27,7 +27,7 @@ interface StudentData {
     nomPrenom: string;
     niveau: string;
     classe: string;
-    filiere?: import("@shared/subjects").LyceeBacFiliere | null;
+    filiere?: import("@shared/subjects").LyceeFiliere | null;
     annee: string;
     sexe: string;
   };

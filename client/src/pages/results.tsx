@@ -14,7 +14,14 @@ import {
   BarChart3, Users, Target, GraduationCap, XCircle, ArrowUpDown, Star,
   Trash2,
 } from "lucide-react";
-import { getSubjectsForLevel, calcWeightedAvg } from "@shared/subjects";
+import {
+  getSubjectsForLevel,
+  calcWeightedAvg,
+  LYCEE_BAC_FILIERES,
+  LYCEE_COMMON_CORE_FILIERES,
+  LYCEE_FILIERE_LABELS,
+  type LyceeFiliere,
+} from "@shared/subjects";
 import type { StudentResult } from "@shared/types";
 import type { Niveau } from "@shared/types";
 import { SCHOOL_STAGE } from "@/lib/deployment";
@@ -2065,7 +2072,7 @@ const COEF_OVERRIDE_4AM: Record<string, number> = {
 };
 
 // Returns subjects with overridden coefficients for 4AM
-function getSubjectsWithCorrectCoefs(niveau: Niveau, filiere?: import("@shared/subjects").LyceeBacFiliere) {
+function getSubjectsWithCorrectCoefs(niveau: Niveau, filiere?: LyceeFiliere) {
   const base = getSubjectsForLevel(niveau, filiere);
   if (niveau !== "4AM") return base;
   return base.map(s => ({
@@ -2849,7 +2856,7 @@ export default function Results() {
   const [subjectDetail, setSubjectDetail] = useState<StudentResult | null>(null);
   const [showImport, setShowImport]   = useState(false);
   const [annee, setAnnee]             = useState(DEFAULT_YEAR);
-  const [filters, setFilters]         = useState({ niveau: "", classe: "", sexe: "", q: "", tri: "" as TriFilter });
+  const [filters, setFilters]         = useState({ niveau: "", filiere: "", classe: "", sexe: "", q: "", tri: "" as TriFilter });
   const [listKey, setListKey]         = useState(0);
   const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTabId>("general");
 
@@ -2873,12 +2880,30 @@ export default function Results() {
   useEffect(() => { fetchResults(); }, [fetchResults]);
 
   const stageResults = results.filter(r => STAGE_LEVELS[SCHOOL_STAGE].includes(r.student.niveau));
-  const classes  = [...new Set(stageResults.map(r => r.student.classe))].sort();
+  const filiereOptions: LyceeFiliere[] = filters.niveau === "1AS"
+    ? LYCEE_COMMON_CORE_FILIERES
+    : filters.niveau === "2AS" || filters.niveau === "3AS"
+      ? LYCEE_BAC_FILIERES
+      : [...LYCEE_COMMON_CORE_FILIERES, ...LYCEE_BAC_FILIERES];
+  const classKey = (niveau: Niveau, classe: string) => JSON.stringify([niveau, classe]);
+  const classOptions = [...new Map(
+    stageResults
+      .filter(r => !filters.niveau || r.student.niveau === filters.niveau)
+      .filter(r => !filters.filiere
+        || (filters.filiere === "__none__" ? !r.student.filiere : r.student.filiere === filters.filiere))
+      .map(r => [classKey(r.student.niveau, r.student.classe), {
+        value: classKey(r.student.niveau, r.student.classe),
+        level: r.student.niveau,
+        classe: r.student.classe,
+      }] as const),
+  ).values()].sort((a, b) => a.level.localeCompare(b.level) || a.classe.localeCompare(b.classe, "ar"));
   // ✅ FIX: apply classe filter client-side; also sort by selected trimestre avg.
   const displayed = stageResults
     .filter(r => {
       if (filters.niveau && r.student.niveau !== filters.niveau) return false;
-      if (filters.classe && r.student.classe !== filters.classe) return false;
+      if (filters.filiere === "__none__" && r.student.filiere) return false;
+      if (filters.filiere && filters.filiere !== "__none__" && r.student.filiere !== filters.filiere) return false;
+      if (filters.classe && classKey(r.student.niveau, r.student.classe) !== filters.classe) return false;
       if (filters.q && !r.student.nomPrenom.toLowerCase().includes(filters.q.toLowerCase())) return false;
       return true;
     })
@@ -2972,19 +2997,36 @@ export default function Results() {
             </SelectContent>
           </Select>
           <Select value={filters.niveau || "__all__"}
-            onValueChange={v => setFilters(p => ({ ...p, niveau: v === "__all__" ? "" : v }))}>
+            onValueChange={v => setFilters(p => ({ ...p, niveau: v === "__all__" ? "" : v, filiere: "", classe: "" }))}>
             <SelectTrigger className="w-36"><SelectValue placeholder={t("students.filterLevel")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">{t("students.allLevels")}</SelectItem>
               {STAGE_LEVELS[SCHOOL_STAGE].map(l => <SelectItem key={l} value={l}>{LEVEL_LABELS[l]}</SelectItem>)}
             </SelectContent>
           </Select>
+          {SCHOOL_STAGE === "lycee" && (
+            <Select value={filters.filiere || "__all__"}
+              onValueChange={v => setFilters(p => ({ ...p, filiere: v === "__all__" ? "" : v, classe: "" }))}>
+              <SelectTrigger className="w-40"><SelectValue placeholder="الشعبة" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">كل الشعب</SelectItem>
+                <SelectItem value="__none__">غير محددة</SelectItem>
+                {filiereOptions.map(filiere => (
+                  <SelectItem key={filiere} value={filiere}>{LYCEE_FILIERE_LABELS[filiere]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={filters.classe || "__all__"}
             onValueChange={v => setFilters(p => ({ ...p, classe: v === "__all__" ? "" : v }))}>
-            <SelectTrigger className="w-32"><SelectValue placeholder={t("students.filterClass")} /></SelectTrigger>
+            <SelectTrigger className="w-40"><SelectValue placeholder={t("students.filterClass")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">{t("students.allClasses")}</SelectItem>
-              {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {classOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {LEVEL_LABELS[option.level]} — {option.classe}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={filters.sexe || "__all__"}
@@ -3068,7 +3110,8 @@ export default function Results() {
                   <thead className="bg-muted/60 sticky top-0">
                     <tr>
                       {([
-                          "#", t("col.name"), t("col.level"), t("col.class"), t("col.t1"), t("col.t2"), t("col.t3"),
+                          "#", t("col.name"), t("col.level"), ...(SCHOOL_STAGE === "lycee" ? ["الشعبة"] : []),
+                          t("col.class"), t("col.t1"), t("col.t2"), t("col.t3"),
                           filters.tri ? `م.${TRI_OPTIONS.find(o => o.value === filters.tri)?.label ?? ""}` : t("col.avg"),
                           t("col.result"), "",
                         ] as string[]).map((h, i) => (
@@ -3090,6 +3133,13 @@ export default function Results() {
                         </td>
                         <td className="px-3 py-3 font-medium">{r.student.nomPrenom}</td>
                         <td className="px-3 py-3"><Badge variant="secondary" className="text-xs">{LEVEL_LABELS[r.student.niveau as Niveau]}</Badge></td>
+                        {SCHOOL_STAGE === "lycee" && (
+                          <td className="px-3 py-3 text-xs">
+                            {r.student.filiere
+                              ? LYCEE_FILIERE_LABELS[r.student.filiere] ?? r.student.filiere
+                              : "—"}
+                          </td>
+                        )}
                         <td className="px-3 py-3"><Badge variant="outline" className="font-bold">{r.student.classe}</Badge></td>
                         {[r.t1Avg, r.t2Avg, r.t3Avg].map((a, ti) => {
                            const triIdx = filters.tri === "1" ? 0 : filters.tri === "2" ? 1 : filters.tri === "3" ? 2 : -1;

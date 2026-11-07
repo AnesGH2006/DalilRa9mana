@@ -140,7 +140,7 @@ export const translations: TranslationMap = {
   "results.subject":    { en: "Subject",           ar: "المادة",           fr: "Matière" },
   "results.pass":       { en: "Pass",              ar: "ناجح",             fr: "Admis" },
   "results.fail":       { en: "Fail",              ar: "راسب",             fr: "Non admis" },
-  "results.empty":      { en: "No students found. Import student data first.", ar: "لا يوجد تلاميذ. استورد قائمة التلاميذ أولاً.", fr: "Aucun élève. Importez d'abord les élèves." },
+  "results.empty":      { en: "No students match this year and these filters. Change the year or filters, or import student data.", ar: "لا يوجد تلاميذ لهذه السنة أو خيارات التصفية. غيّر السنة أو التصفية، أو استورد قائمة التلاميذ.", fr: "Aucun élève pour cette année ou ces filtres. Changez l'année ou les filtres, ou importez les élèves." },
 
   // Subjects page
   "subjects.title":     { en: "Subject Results",  ar: "نتائج المواد",     fr: "Résultats par matière" },

@@ -13,7 +13,12 @@ import { CountUp } from "@/components/count-up";
 import { StudentHealthDialog } from "@/components/student-health-dialog";
 import type { Student, Niveau, Sexe, Statut } from "@shared/types";
 import { SCHOOL_LEVELS, SCHOOL_STAGE } from "@/lib/deployment";
-import { LYCEE_BAC_FILIERES, LYCEE_BAC_FILIERE_LABELS, type LyceeBacFiliere } from "@shared/subjects";
+import {
+  LYCEE_BAC_FILIERES,
+  LYCEE_BAC_FILIERE_LABELS,
+  LYCEE_COMMON_CORE_FILIERES,
+  LYCEE_COMMON_CORE_FILIERE_LABELS,
+} from "@shared/subjects";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
 } from "recharts";
@@ -449,7 +454,7 @@ export default function Students() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filiere: value === "__none__" ? null : value }),
       });
-      const data = await response.json() as { error?: string; filiere?: LyceeBacFiliere | null };
+      const data = await response.json() as { error?: string; filiere?: Student["filiere"] };
       if (!response.ok) throw new Error(data.error || "تعذر حفظ الشعبة");
       setStudents(current => current.map(student => student.id === studentId
         ? { ...student, filiere: data.filiere ?? null }
@@ -729,23 +734,25 @@ export default function Students() {
                       </td>
                       {SCHOOL_STAGE === "lycee" && (
                         <td className="px-3 py-2 min-w-44">
-                          {s.niveau === "1AS" ? <span className="text-muted-foreground">—</span> : (
-                            <Select
-                              value={s.filiere ?? "__none__"}
-                              onValueChange={value => void saveFiliere(s.id, value)}
-                              disabled={updatingFiliere === s.id}
-                            >
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder="اختر الشعبة" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">غير محددة</SelectItem>
-                                {LYCEE_BAC_FILIERES.map(filiere => (
-                                  <SelectItem key={filiere} value={filiere}>{LYCEE_BAC_FILIERE_LABELS[filiere]}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
+                          <Select
+                            value={s.filiere ?? "__none__"}
+                            onValueChange={value => void saveFiliere(s.id, value)}
+                            disabled={updatingFiliere === s.id}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="اختر الشعبة" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">غير محددة</SelectItem>
+                              {s.niveau === "1AS"
+                                ? LYCEE_COMMON_CORE_FILIERES.map(filiere => (
+                                    <SelectItem key={filiere} value={filiere}>{LYCEE_COMMON_CORE_FILIERE_LABELS[filiere]}</SelectItem>
+                                  ))
+                                : LYCEE_BAC_FILIERES.map(filiere => (
+                                    <SelectItem key={filiere} value={filiere}>{LYCEE_BAC_FILIERE_LABELS[filiere]}</SelectItem>
+                                  ))}
+                            </SelectContent>
+                          </Select>
                         </td>
                       )}
                       <td className="px-4 py-3">

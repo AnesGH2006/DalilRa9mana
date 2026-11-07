@@ -23,7 +23,7 @@ interface StudentPublicData {
     nomPrenom: string;
     niveau: string;
     classe: string;
-    filiere?: import("@shared/subjects").LyceeBacFiliere | null;
+    filiere?: import("@shared/subjects").LyceeFiliere | null;
     annee: string;
     sexe: string;
   };
@@ -31,7 +31,7 @@ interface StudentPublicData {
   absences: { trimestre: number; justifiedHours: number; unjustifiedHours: number }[];
 }
 
-function calcTrimAvg(grades: StudentPublicData["grades"], trimestre: number, niveau: string, filiere?: import("@shared/subjects").LyceeBacFiliere | null) {
+function calcTrimAvg(grades: StudentPublicData["grades"], trimestre: number, niveau: string, filiere?: import("@shared/subjects").LyceeFiliere | null) {
   const subs = getSubjectsForLevel(niveau as Niveau, filiere ?? undefined);
   const scores: Record<string, number> = {};
   for (const g of grades) {

@@ -466,7 +466,7 @@ router.get("/results", async (req, res): Promise<void> => {
   const results = students.map(s => {
     const scores = gradeMap[s.id] ?? {};
     const storedAvgs = storedAvgMap[s.id] ?? {};
-    const subs = getSubjectsForLevel(s.niveau as Niveau, s.filiere as import("../../shared/subjects.js").LyceeBacFiliere | undefined);
+    const subs = getSubjectsForLevel(s.niveau as Niveau, s.filiere as import("../../shared/subjects.js").LyceeFiliere | undefined);
 
     // Prefer Ministry-provided average (stored as __avg__) over recalculation.
     // Fall back to calcWeightedAvg for manually-entered grades.
@@ -572,7 +572,7 @@ router.get("/results/subjects", async (req, res): Promise<void> => {
   for (const student of students) {
     for (const subject of getSubjectsForLevel(
       student.niveau as Niveau,
-      student.filiere as import("../../shared/subjects.js").LyceeBacFiliere | undefined,
+      student.filiere as import("../../shared/subjects.js").LyceeFiliere | undefined,
     )) {
       if (!subjectMap.has(subject.key)) subjectMap.set(subject.key, subject);
     }

@@ -54,7 +54,7 @@ export interface SchoolInfo {
 }
 
 export type Niveau = SchoolLevel;
-export type { LyceeBacFiliere } from "./subjects.js";
+export type { LyceeBacFiliere, LyceeCommonCoreFiliere, LyceeFiliere } from "./subjects.js";
 export type Sexe = "M" | "F";
 export type Statut = "nouveau" | "redoublant";
 export type Resultat = "admis" | "non_admis" | null;
@@ -67,7 +67,7 @@ export interface Student {
   parentPhone: string | null;
   niveau: Niveau;
   classe: string;
-  filiere?: import("./subjects.js").LyceeBacFiliere | null;
+  filiere?: import("./subjects.js").LyceeFiliere | null;
   sexe: Sexe;
   statut: Statut;
   resultat: Resultat;

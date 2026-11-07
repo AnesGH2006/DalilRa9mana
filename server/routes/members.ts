@@ -284,7 +284,7 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
 
   const subs = getSubjectsForLevel(
     student.niveau as import("../../shared/subjects.js").Niveau,
-    student.filiere as import("../../shared/subjects.js").LyceeBacFiliere | undefined,
+    student.filiere as import("../../shared/subjects.js").LyceeFiliere | undefined,
   );
 
   const t1Avg = storedAvgs["1"] ?? calcWeightedAvg(subjectGrades["1"] ?? {}, subs);
