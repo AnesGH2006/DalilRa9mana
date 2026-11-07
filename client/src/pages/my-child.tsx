@@ -347,9 +347,9 @@ export default function MyChildPage() {
       <div className="relative mx-auto flex w-full max-w-[1440px] gap-6 px-4 py-4 sm:px-6 lg:px-8">
         <aside className="hidden w-64 shrink-0 flex-col rounded-[26px] border border-white/10 bg-[#111a2c]/80 p-4 shadow-2xl backdrop-blur-xl lg:flex">
           <div className="flex items-center gap-3 border-b border-white/10 px-3 pb-6">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 text-lg font-bold text-slate-950 shadow-lg shadow-cyan-500/20">ر</div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 text-lg font-bold text-slate-950 shadow-lg shadow-cyan-500/20">د</div>
             <div>
-              <p className="text-sm font-bold tracking-wide">رفيق الرحمان</p>
+              <p className="text-sm font-bold tracking-wide">دليل الرقمنة</p>
               <p className="text-[11px] text-slate-400">بوابة الأولياء</p>
             </div>
           </div>

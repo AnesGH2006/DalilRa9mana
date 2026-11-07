@@ -46,7 +46,7 @@ function createWindow() {
     height:    680,
     minWidth:  820,
     minHeight: 560,
-    title:     'School Manager Agent',
+    title:     'Dalil Ra9mana Agent',
     frame:     false,
     backgroundColor: '#0f172a',
     show:      false,
@@ -79,7 +79,7 @@ function createTray() {
   if (!icon) { tray = null; return; }
 
   tray = new Tray(icon);
-  tray.setToolTip('School Manager Agent');
+  tray.setToolTip('Dalil Ra9mana Agent');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'إظهار النافذة', click: () => mainWindow?.show() },
     { type: 'separator' },

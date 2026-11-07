@@ -2,7 +2,7 @@
 
 module.exports = {
   // Change this to your production server URL before distributing
-  SERVER_URL: process.env.AGENT_SERVER_URL || 'https://rafik-ra-9-mana--ghalemanas193.replit.app',
+  SERVER_URL: process.env.AGENT_SERVER_URL || 'https://dalilra9mana.onrender.com',
   SOCKET_PATH: '/agent-socket',
 
   ENDPOINTS: {

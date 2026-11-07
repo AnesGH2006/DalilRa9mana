@@ -69,7 +69,7 @@ export async function createChargilyCheckout(userId: string, returnUrl: string, 
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "User-Agent": "RafikRa9mana/1.0",
+      "User-Agent": "DalilRa9mana/1.0",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SchoolManager Desktop Agent  —  وكيل مدير المتوسطة
+Dalil Ra9mana Desktop Agent  —  وكيل دليل الرقمنة
 ====================================================
-Connects to the School Manager platform via WebSocket and executes
+Connects to the Dalil Ra9mana platform via WebSocket and executes
 local automation tasks: screen control, file operations, SMS via GSM
 modem, and parent contact scraping from the digitalization platform.
 
@@ -11,11 +11,11 @@ Requirements (install once):
     pip install -r requirements.txt
 
 Usage:
-    python agent.py --server https://YOUR-APP.replit.app --token YOUR_TOKEN
+    python agent.py --server https://dalilra9mana.onrender.com --token YOUR_TOKEN
 
     OR create agent_config.json:
     {
-      "serverUrl": "https://YOUR-APP.replit.app",
+      "serverUrl": "https://dalilra9mana.onrender.com",
       "token":     "paste-token-here"
     }
     then just: python agent.py
@@ -476,7 +476,7 @@ def main():
 
     # Interactive fallback
     if not server:
-        server = input("🌐 أدخل رابط الخادم (مثال: https://app.replit.app): ").strip().rstrip("/")
+        server = input("🌐 أدخل رابط الخادم (مثال: https://dalilra9mana.onrender.com): ").strip().rstrip("/")
     if not token:
         token  = input("🔑 أدخل رمز الوكيل: ").strip()
 

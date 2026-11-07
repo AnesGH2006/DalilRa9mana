@@ -1,6 +1,6 @@
-# School Manager Agent — الوكيل المكتبي
+# Dalil Ra9mana Agent — الوكيل المكتبي
 
-A secure Windows desktop agent for the School Management SaaS. It connects to the server via WebSocket (Socket.IO), executes only pre-approved tasks, and gives the school administrator a clean Arabic dashboard.
+A secure Windows desktop agent for Dalil Ra9mana. It connects to the server via WebSocket (Socket.IO), executes only pre-approved tasks, and gives the school administrator a clean Arabic dashboard.
 
 ---
 
@@ -44,7 +44,7 @@ server/ (additions to the SaaS backend)
 Edit `agent/src/config.js` and set `SERVER_URL` to your deployed SaaS URL:
 
 ```js
-SERVER_URL: 'https://your-school-manager.replit.app',
+SERVER_URL: 'https://dalilra9mana.onrender.com',
 ```
 
 ### 2. Install agent dependencies
@@ -64,7 +64,7 @@ npm run dev
 
 ```bash
 npm run build:win
-# Output: agent/dist/School Manager Agent Setup.exe
+# Output: agent/dist/Dalil Ra9mana Agent Setup.exe
 ```
 
 ---
@@ -73,7 +73,7 @@ npm run build:win
 
 ### Getting an Agent Token
 
-1. Log in to the School Manager web app as an administrator.
+1. Log in to the Dalil Ra9mana web app as an administrator.
 2. Call `POST /api/agent/token` with `{ "deviceName": "حاسوب الإدارة" }` (this will be a settings screen in a future update).
 3. Copy the returned token.
 4. Paste the token into the agent's login screen.

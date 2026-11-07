@@ -1003,7 +1003,7 @@ function buildPrintHTML(
   <!-- Footer -->
   <div style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:20px;
               display:flex;justify-content:space-between;font-size:10px;color:#9ca3af">
-    <span>مدير {SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة"} — رفيق الرقمنة</span>
+    <span>مدير {SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة"} — دليل الرقمنة</span>
     <span>${title} | ${annee}</span>
   </div>
 

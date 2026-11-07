@@ -1,7 +1,7 @@
 {
-  "name": "school-manager-agent",
+  "name": "dalil-ra9mana-agent",
   "version": "1.0.0",
-  "description": "School Management Desktop Agent — secure Windows desktop client",
+  "description": "Dalil Ra9mana school management desktop agent for Windows",
   "main": "src/main.js",
   "private": true,
   "scripts": {
@@ -17,9 +17,10 @@
     "electron-builder": "25.1.8"
   },
   "build": {
-    "appId": "com.schoolmanager.agent",
-    "productName": "School Manager Agent",
-    "copyright": "School Management System",
+    "appId": "dz.dalilra9mana.agent",
+    "productName": "Dalil Ra9mana Agent",
+    "artifactName": "DalilRa9manaAgent-Setup.${ext}",
+    "copyright": "Dalil Ra9mana",
     "directories": {
       "output": "dist"
     },

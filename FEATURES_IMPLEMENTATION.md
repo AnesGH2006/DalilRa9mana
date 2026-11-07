@@ -1,4 +1,4 @@
-# 📱 School Manager - Advanced Features Implementation Guide
+# 📱 Dalil Ra9mana - Advanced Features Implementation Guide
 
 Historical implementation notes for OCR, SMS notifications, and student QR codes.
 

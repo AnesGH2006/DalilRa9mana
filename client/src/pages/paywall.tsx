@@ -264,10 +264,10 @@ export default function PaywallScreen() {
 
   function contactUs() {
     if (CONTACT_PHONE) {
-      const text = encodeURIComponent("مرحباً، أريد معلومات عن باقة مجموعات المدارس في رفيق الرقمنة");
+      const text = encodeURIComponent("مرحباً، أريد معلومات عن باقة مجموعات المدارس في دليل الرقمنة");
       window.open(`https://wa.me/${CONTACT_PHONE}?text=${text}`, "_blank", "noopener,noreferrer");
     } else {
-      setError("للتواصل بخصوص باقة مجموعات المدارس، راسلنا عبر الدعم التقني.");
+      setError("للتواصل بخصوص باقة مجموعات المدارس، راسل الدعم التقني لمنصة دليل الرقمنة.");
     }
   }
 

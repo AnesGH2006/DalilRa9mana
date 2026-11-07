@@ -3,7 +3,7 @@ type TranslationMap = {
 };
 
 export const translations: TranslationMap = {
-  appName: { en: "رفيق الرقمنة", ar: "رفيق الرقمنة", fr: "رفيق الرقمنة" },
+  appName: { en: "Dalil Ra9mana", ar: "دليل الرقمنة", fr: "Dalil Ra9mana" },
 
   // Sidebar sections
   "nav.students_section": { en: "Students", ar: "التلاميذ", fr: "Élèves" },

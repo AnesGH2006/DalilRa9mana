@@ -41,7 +41,7 @@ const STEPS = [
     icon: Download,
     color: "bg-blue-500",
     titleAr: "حمّل وثبّت الوكيل",
-    descAr: "قم بتنزيل مثبّت School Manager Agent لنظام Windows وشغّله على الحاسوب المكتبي الخاص بالإدارة.",
+    descAr: "قم بتنزيل مثبّت وكيل دليل الرقمنة لنظام Windows وشغّله على حاسوب الإدارة.",
   },
   {
     icon: Terminal,
@@ -100,7 +100,7 @@ function AgentDownloadBlock({ base }: { base: string }) {
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement("a");
         a.href     = url;
-        a.download = "SchoolManagerAgent-Setup.exe";
+        a.download = "DalilRa9manaAgent-Setup.exe";
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -214,7 +214,7 @@ export default function AgentSetupPage() {
   const serverUrl =
     typeof window !== "undefined"
       ? window.location.origin
-      : "https://your-school.replit.app";
+      : "https://dalilra9mana.onrender.com";
 
   const fetchTokens = useCallback(async () => {
     setLoadingTokens(true);
@@ -365,7 +365,7 @@ export default function AgentSetupPage() {
 
                       const link = document.createElement("a");
                       link.href = `${BASE}api/agent/download?download=1`;
-                      link.download = "SchoolManagerAgent-Setup.exe";
+                      link.download = "DalilRa9manaAgent-Setup.exe";
                       link.rel = "noopener noreferrer";
                       document.body.appendChild(link);
                       link.click();

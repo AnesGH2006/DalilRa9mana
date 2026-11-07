@@ -77,7 +77,7 @@ export default function SubscriptionPage() {
 
   async function startCheckout(planKey: string, amountDzd: number) {
     if (planKey === "institution") {
-      window.location.href = "mailto:contact@rafik-raqamna.dz?subject=Demande%20d'abonnement%20institutionnel";
+      setCheckoutError("للاشتراك المؤسسي، تواصل مع الدعم التقني من داخل تطبيق دليل الرقمنة.");
       return;
     }
 

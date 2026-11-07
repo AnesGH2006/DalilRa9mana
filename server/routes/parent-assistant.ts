@@ -17,7 +17,7 @@ const MAX_MESSAGES = 11;
 const MAX_MESSAGE_LENGTH = 2000;
 const MODEL = "openai/gpt-oss-120b";
 
-const SYSTEM_PROMPT = `أنت رفيق، مساعد أولياء التلاميذ في تطبيق رفيق الرقمنة بالجزائر.
+const SYSTEM_PROMPT = `أنت دليل، مساعد أولياء التلاميذ في تطبيق دليل الرقمنة بالجزائر.
 تحدث بعربية سليمة بسيطة، باحترام وطمأنينة، وأجب باختصار.
 
 قواعد ثابتة:

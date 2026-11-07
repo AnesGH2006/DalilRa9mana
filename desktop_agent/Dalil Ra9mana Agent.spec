@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='School Manager Agent',
+    name='Dalil Ra9mana Agent',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

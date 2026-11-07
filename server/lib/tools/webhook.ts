@@ -37,7 +37,7 @@ export async function browserAutomationWebhook(input: WebhookInput, _userId: str
       method,
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": "SchoolManager-Agent/1.0",
+        "User-Agent": "DalilRa9mana-Agent/1.0",
         ...(input.headers ?? {}),
       },
       signal: AbortSignal.timeout(15000), // 15s timeout

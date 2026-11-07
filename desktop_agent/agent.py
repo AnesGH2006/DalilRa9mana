@@ -110,7 +110,11 @@ def is_headless_environment() -> bool:
 
 # ── الإعدادات ────────────────────────────────────────────────────────────────
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "")
-REPLIT_API_URL = os.getenv("REPLIT_API_URL", "")   # مثال: https://your-app.replit.app
+DALILRA9MANA_SERVER_URL = (
+    os.getenv("DALILRA9MANA_SERVER_URL")
+    or os.getenv("REPLIT_API_URL")
+    or "https://dalilra9mana.onrender.com"
+)
 REPLIT_COOKIE  = os.getenv("REPLIT_SESSION", "")   # اختياري لجلب البيانات
 
 VISION_MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"
@@ -420,18 +424,18 @@ def run_agent(task: str, dry_run: bool = False) -> str:
 # ── وضع إدخال النقاط (Ministry integration) ──────────────────────────────────
 def fetch_grades_task() -> str:
     """اجلب النقاط من سيرفر Replit وأنشئ مهمة إدخالها."""
-    if not REPLIT_API_URL:
-        print("⚠️  REPLIT_API_URL غير مضبوط. استخدم --task لتحديد المهمة يدوياً.")
+    if not DALILRA9MANA_SERVER_URL:
+        print("⚠️  DALILRA9MANA_SERVER_URL غير مضبوط. استخدم --task لتحديد المهمة يدوياً.")
         return ""
 
-    print(f"📡 جلب البيانات من {REPLIT_API_URL}…")
+    print(f"📡 جلب البيانات من {DALILRA9MANA_SERVER_URL}…")
     try:
         sess = requests.Session()
         if REPLIT_COOKIE:
             sess.cookies.set("connect.sid", REPLIT_COOKIE)
 
         # جلب الأقسام
-        r = sess.get(f"{REPLIT_API_URL}/api/timetable/classes", timeout=10)
+        r = sess.get(f"{DALILRA9MANA_SERVER_URL}/api/timetable/classes", timeout=10)
         classes = r.json() if r.ok else []
 
         # جلب نتائج أول قسم كمثال
@@ -439,7 +443,7 @@ def fetch_grades_task() -> str:
             return "لا يوجد أقسام في قاعدة البيانات"
 
         cls = classes[0]
-        r2 = sess.get(f"{REPLIT_API_URL}/api/results?classe={cls}", timeout=10)
+        r2 = sess.get(f"{DALILRA9MANA_SERVER_URL}/api/results?classe={cls}", timeout=10)
         results = r2.json() if r2.ok else []
 
         lines = [f"ادخل نقاط الفصل 1 للقسم {cls} على موقع الوزارة:"]

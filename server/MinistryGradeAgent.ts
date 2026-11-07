@@ -1,6 +1,6 @@
 /**
  * Ministry Grade Automation Agent
- * Rafik Ra9mana Platform → Tharwa Integration
+ * Dalil Ra9mana Platform → Tharwa Integration
  * Status: Production-Ready
  */
 

@@ -72,7 +72,7 @@ export default function ParentAssistantPage() {
           </span>
           <div className="min-w-0">
             <h1 className="truncate text-lg font-bold">مساعد الأولياء</h1>
-            <p className="text-sm text-muted-foreground">رفيق معك لمتابعة شؤون طفلك</p>
+            <p className="text-sm text-muted-foreground">دليل معك لمتابعة شؤون طفلك</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -101,7 +101,7 @@ export default function ParentAssistantPage() {
         {messages.length === 0 ? (
           <div className="m-auto w-full max-w-2xl py-8">
             <div className="mb-7 text-center">
-              <p className="mb-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">السلام عليكم، أنا رفيق</p>
+              <p className="mb-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">السلام عليكم، أنا دليل</p>
               <h2 className="text-2xl font-bold">كيف نقدر نعاونك؟</h2>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -133,7 +133,7 @@ export default function ParentAssistantPage() {
             {loading && (
               <div role="status" className="flex items-center gap-2 ps-11 text-sm text-muted-foreground">
                 <LoaderCircle className="size-4 animate-spin" />
-                <span>رفيق يكتب…</span>
+                <span>دليل يكتب…</span>
               </div>
             )}
             {error && (

@@ -346,7 +346,7 @@ export default function AiChatWidget({ open, onClose, role }: AiChatWidgetProps)
                 <span className="absolute -bottom-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-background" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-foreground leading-tight">رفيق — المساعد الذكي</p>
+                <p className="text-sm font-bold text-foreground leading-tight">دليل — المساعد الذكي</p>
                 <p className="text-[11px] text-muted-foreground truncate">
                   {role === "parent" ? "مساعدك لمتابعة أداء طفلك"
                    : role === "teacher" ? "مساعد التدريس والملاحظات التربوية"
@@ -369,7 +369,7 @@ export default function AiChatWidget({ open, onClose, role }: AiChatWidgetProps)
                     <Sparkles className="w-7 h-7 text-fuchsia-400" />
                   </div>
                   <div>
-                    <p className="font-bold text-foreground">أهلاً! أنا رفيق</p>
+                    <p className="font-bold text-foreground">أهلاً! أنا دليل</p>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       {role === "parent"
                         ? "اسألني عن أداء طفلك، درجاته، وحضوره"

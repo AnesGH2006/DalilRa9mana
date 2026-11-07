@@ -720,7 +720,7 @@ export default function ReportsPage() {
 
               {/* ── Print footer ── */}
               <div className="hidden print-only border-t pt-3 mt-4 flex items-center justify-between text-xs text-gray-500 print-section">
-                <p>مدير {SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة"} — رفيق الرقمنة</p>
+                <p>مدير {SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة"} — دليل الرقمنة</p>
                 <p>السنة الدراسية: {year} | تاريخ الطباعة: {today}</p>
               </div>
             </div>

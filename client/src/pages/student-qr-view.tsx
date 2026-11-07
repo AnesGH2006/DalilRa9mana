@@ -77,7 +77,7 @@ export default function StudentQrViewPage() {
           <School className="w-5 h-5 text-white" />
         </div>
         <span className="font-bold text-lg bg-gradient-to-r from-violet-700 to-purple-600 bg-clip-text text-transparent">
-          رفيق الرقمنة
+          دليل الرقمنة
         </span>
       </div>
 
@@ -232,7 +232,7 @@ export default function StudentQrViewPage() {
 
               {/* Footer */}
               <p className="text-center text-xs text-muted-foreground pb-6">
-                رفيق الرقمنة · منظومة إدارة المتوسطة
+                دليل الرقمنة · منظومة إدارة المؤسسات التعليمية
               </p>
             </motion.div>
           )}

@@ -1,4 +1,4 @@
-# School Manager — رفيق الرقمنة
+# Dalil Ra9mana — دليل الرقمنة
 
 Algerian school management SaaS with separately deployed CEM and lycée instances. Full-stack Arabic-language web app.
 
@@ -117,10 +117,10 @@ The Electron agent in `agent/` is Windows-only and connects to the deployed SaaS
 - `GOOGLE_CLIENT_ID`: معرّف عميل Google OAuth.
 - `GOOGLE_CLIENT_SECRET`: سر عميل Google OAuth.
 - `OIDC_ISSUER_URL`: اختياري، والإعداد الافتراضي هو `https://accounts.google.com`.
-- `APP_BASE_URL`: عنوان الخدمة العام، مثل `https://rafikra9mana.onrender.com`.
+- `APP_BASE_URL`: عنوان الخدمة العام: `https://dalilra9mana.onrender.com`.
 
 يجب أن يطابق عنوان callback المسجل في Google Cloud Console:
-`https://YOUR-RENDER-DOMAIN.onrender.com/api/callback`
+`https://dalilra9mana.onrender.com/api/callback`
 
 ### الحصول على مفتاح Groq
 
@@ -139,4 +139,4 @@ The Electron agent in `agent/` is Windows-only and connects to the deployed SaaS
 للاختبار المؤقت بحساب المدير التجريبي، أضف `ALLOW_DEV_LOGIN=true` إلى متغيرات البيئة في Render ثم أعد النشر، وبعدها افتح `/api/dev-login`. هذا ينشئ جلسة المدير التجريبي `dev-test-user` مباشرة. احذف المتغير أو عيّنه إلى `false` بعد الاختبار، لأن الرابط يمنح صلاحيات المدير.
 
 في Render يجب إعداد `GOOGLE_CLIENT_ID` و`GOOGLE_CLIENT_SECRET` وضبط `APP_BASE_URL`، ثم إضافة رابط callback التالي إلى إعدادات Google OAuth:
-`https://YOUR-RENDER-DOMAIN.onrender.com/api/callback`
+`https://dalilra9mana.onrender.com/api/callback`

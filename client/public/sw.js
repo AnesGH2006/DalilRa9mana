@@ -1,9 +1,9 @@
-const CACHE_VERSION = "v4";
-const SHELL_CACHE = `rafi8-ra9mana-shell-${CACHE_VERSION}`;
-const ASSET_CACHE = `rafi8-ra9mana-assets-${CACHE_VERSION}`;
-const API_CACHE = `rafi8-ra9mana-api-${CACHE_VERSION}`;
+const CACHE_VERSION = "v5";
+const SHELL_CACHE = `dalil-ra9mana-shell-${CACHE_VERSION}`;
+const ASSET_CACHE = `dalil-ra9mana-assets-${CACHE_VERSION}`;
+const API_CACHE = `dalil-ra9mana-api-${CACHE_VERSION}`;
 
-const PRECACHE_URLS = ["/", "/offline.html", "/manifest.json", "/logo.png"];
+const PRECACHE_URLS = ["/", "/offline.html", "/manifest.json", "/logo.png", "/logo-192.png"];
 
 // ── Install: precache shell ──────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
@@ -140,12 +140,12 @@ self.addEventListener("push", (event) => {
     data = event.data ? event.data.json() : {};
   } catch {
     data = {
-      title: "رفيق الرقمنة",
+      title: "دليل الرقمنة",
       body: event.data ? event.data.text() : "إشعار جديد",
     };
   }
 
-  const title = data.title || "رفيق الرقمنة";
+  const title = data.title || "دليل الرقمنة";
   const options = {
     body: data.body || "لديك إشعار جديد",
     icon: "/logo.png",

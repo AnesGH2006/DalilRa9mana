@@ -21,12 +21,14 @@ function agentCors(req: Request, res: Response, next: NextFunction) {
 router.get("/agent/download", (req, res) => {
   // Serve pre-built installer from agent/dist/ if it exists
   const candidates = [
+    resolve(process.cwd(), "agent/dist/DalilRa9manaAgent-Setup.exe"),
+    resolve(process.cwd(), "agent/dist/Dalil Ra9mana Agent Setup.exe"),
     resolve(process.cwd(), "agent/dist/SchoolManagerAgent-Setup.exe"),
     resolve(process.cwd(), "agent/dist/SchoolManagerAgent Setup.exe"),
   ];
   const found = candidates.find(p => existsSync(p));
   if (found) {
-    res.download(found, "SchoolManagerAgent-Setup.exe");
+    res.download(found, "DalilRa9manaAgent-Setup.exe");
   } else {
     res.status(503).json({
       error: "installer_not_built",

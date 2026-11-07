@@ -520,7 +520,7 @@ function WhatsAppSupportButton() {
   // Don't show the button if no phone is configured
   if (!phone) return null;
 
-  const message = encodeURIComponent("مرحباً، أحتاج إلى دعم تقني لمنصة رفيق الرقمنة 🎓");
+  const message = encodeURIComponent("مرحباً، أحتاج إلى دعم تقني لمنصة دليل الرقمنة 🎓");
   const href = `https://wa.me/${phone.replace(/\D/g, "")}?text=${message}`;
 
   return (
