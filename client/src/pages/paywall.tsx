@@ -9,6 +9,7 @@ type Option = { plan: string; amountDzd: number };
 type Me = {
   role: string; // owner | admin | teacher | supervisor | counselor | parent
   options: Option[];
+  trialAvailable: boolean;
   prices: { school: Record<string, number>; staff: number; parent: number };
 };
 type Persona = "school" | "staff" | "parent";
@@ -119,6 +120,8 @@ const STYLE = `
 .pw-btn:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }
 .pw-btn-outline { background: transparent; border: 1.5px solid var(--accent); color: var(--accent); }
 .pw-btn-outline:hover:not(:disabled) { background: var(--accent-soft); filter: none; }
+.pw-trial { background: transparent; border: 1px solid #10b981; color: #6ee7b7; }
+.pw-trial:hover:not(:disabled) { background: rgba(16,185,129,0.12); filter: none; }
 .pw-note { color: #7f8aa8; font-size: 12px; text-align: center; }
 .pw-error { max-width: 760px; margin: 0 auto 18px; background: rgba(239,68,68,0.13); border: 1px solid #ef4444; border-radius: 12px; padding: 11px 15px; font-size: 14px; }
 .pw-section { margin-top: 38px; }
@@ -178,6 +181,7 @@ export default function PaywallScreen() {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [trialBusy, setTrialBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [persona, setPersona] = useState<Persona>("school");
@@ -217,6 +221,27 @@ export default function PaywallScreen() {
     } catch (e: any) {
       setError(e?.message ?? "تعذر بدء عملية الدفع");
       setBusy(false);
+    }
+  }
+
+  async function startTrial(plan: "basic" | "pro") {
+    setTrialBusy(plan);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch(`${BASE}api/payments/trial`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "تعذر تفعيل التجربة المجانية");
+      setNotice(`تم تفعيل التجربة المجانية لمدة 30 يوماً. جارٍ نقلك إلى التطبيق…`);
+      window.setTimeout(() => window.location.replace(BASE), 900);
+    } catch (e: any) {
+      setError(e?.message ?? "تعذر تفعيل التجربة المجانية");
+      setTrialBusy(null);
     }
   }
 
@@ -264,7 +289,11 @@ export default function PaywallScreen() {
       <div className="pw-inner">
         <header className="pw-hero">
           <h1>اختر الباقة المناسبة لك</h1>
-          <p>باقات واضحة لكل دور في المؤسسة. ادفع مرة واحدة في السنة، وتُفعَّل ميزاتك فور تأكيد الدفع.</p>
+          <p>
+            {me?.trialAvailable
+              ? "باقات واضحة لكل دور في المؤسسة. جرّب باقتي المؤسسة الأساسية والمتقدمة مجاناً لمدة 30 يوماً، أو ادفع مرة واحدة في السنة."
+              : "باقات واضحة لكل دور في المؤسسة. ادفع مرة واحدة في السنة، وتُفعَّل ميزاتك فور تأكيد الدفع."}
+          </p>
           <div className="pw-trust">
             {TRUST.map(item => <span key={item.text}>{item.icon} {item.text}</span>)}
           </div>
@@ -367,9 +396,21 @@ export default function PaywallScreen() {
               footer={
                 schoolOptions.length > 0 ? (
                   schoolOptions.map(option => (
-                    <button key={option.plan} type="button" className="pw-btn" disabled={busy} onClick={() => void pay(option.amountDzd)}>
-                      {busy ? "جارٍ التحويل…" : `الدفع عبر Chargily${schoolOptions.length > 1 ? ` · ${option.amountDzd.toLocaleString("en-US")} دج` : ""}`}
-                    </button>
+                    <div key={option.plan} style={{ display: "grid", gap: 8 }}>
+                      <button type="button" className="pw-btn" disabled={busy || trialBusy !== null} onClick={() => void pay(option.amountDzd)}>
+                        {busy ? "جارٍ التحويل…" : `الدفع عبر Chargily${schoolOptions.length > 1 ? ` · ${option.amountDzd.toLocaleString("en-US")} دج` : ""}`}
+                      </button>
+                      {me?.trialAvailable && (option.plan === "basic" || option.plan === "pro") && (
+                        <button
+                          type="button"
+                          className="pw-btn pw-trial"
+                          disabled={busy || trialBusy !== null}
+                          onClick={() => void startTrial(option.plan === "basic" ? "basic" : "pro")}
+                        >
+                          {trialBusy === option.plan ? "جارٍ تفعيل التجربة…" : `جرّب ${option.plan === "basic" ? "الأساسية" : "المتقدمة"} مجاناً لمدة شهر`}
+                        </button>
+                      )}
+                    </div>
                   ))
                 ) : (
                   <button type="button" className="pw-btn" disabled>غير متاحة لهذا الحساب</button>
