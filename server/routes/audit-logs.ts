@@ -15,7 +15,12 @@ router.get("/audit-logs", async (req: Request, res: Response): Promise<void> => 
   if (req.memberContext) { res.status(403).json({ error: "Forbidden" }); return; }
 
   const userId = req.user!.id;
-  const limit  = Math.min(parseInt(String(req.query.limit  ?? "200"), 10), 500);
+  const requestedLimit = Number(req.query.limit ?? 200);
+  const limit = Number.isSafeInteger(requestedLimit)
+    ? Math.min(Math.max(requestedLimit, 1), 500)
+    : 200;
+  const requestedOffset = Number(req.query.offset ?? 0);
+  const offset = Number.isSafeInteger(requestedOffset) ? Math.max(requestedOffset, 0) : 0;
   const since  = req.query.since ? new Date(String(req.query.since)) : null;
 
   const conds = [eq(auditLogsTable.userId, userId)];
@@ -28,7 +33,8 @@ router.get("/audit-logs", async (req: Request, res: Response): Promise<void> => 
     .from(auditLogsTable)
     .where(and(...conds))
     .orderBy(desc(auditLogsTable.createdAt))
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
 
   res.json(rows);
 });

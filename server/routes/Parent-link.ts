@@ -9,7 +9,8 @@
  */
 import { Router } from "express";
 import { and, desc, eq, ilike, isNotNull, or } from "drizzle-orm";
-import { db, schoolInfoTable, schoolMembersTable, studentsTable, auditLogsTable } from "../../shared/db.js";
+import { db, schoolInfoTable, schoolMembersTable, studentsTable } from "../../shared/db.js";
+import { logAudit } from "../lib/audit.js";
 import { logger } from "../lib/logger.js";
 import {
   NAME_MATCH_THRESHOLD,
@@ -176,21 +177,17 @@ router.post("/parent-link", async (req, res): Promise<void> => {
     return;
   }
 
-  try {
-    await db.insert(auditLogsTable).values({
-      userId: school.userId,
-      actorId: user.id,
-      actorName: displayName,
-      action: "parent_link",
-      description: "ربط حساب ولي أمر بتلميذ عبر مطابقة الاسم والهاتف",
-      entity: "student",
-      entityId: best.student.id,
-      details: { matchScore: Number(best.score.toFixed(2)) },
-      ipAddress: req.ip ?? null,
-    });
-  } catch (error) {
-    logger.warn({ error }, "parent-link audit insert failed");
-  }
+  await logAudit({
+    userId: school.userId,
+    actorId: user.id,
+    actorName: displayName,
+    action: "parent_link",
+    description: "ربط حساب ولي أمر بتلميذ عبر مطابقة الاسم والهاتف",
+    entity: "student",
+    entityId: best.student.id,
+    details: { matchScore: Number(best.score.toFixed(2)) },
+    req,
+  });
 
   res.status(201).json({
     success: true,

@@ -1,6 +1,6 @@
 /**
  * Audit Log Page — Head-Admin only
- * Shows all critical actions recorded for this school account.
+ * Shows successful API changes and explicitly audited actions for this school account.
  */
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Shield, AlertCircle, Search, RefreshCw, Clock,
   FileSpreadsheet, BookOpen, Users, CalendarOff, Trash2,
-  UserPlus, UserMinus, Edit3, Upload, Download, Settings,
+  UserPlus, UserMinus, Edit3, Upload, Download, Settings, CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -41,6 +41,7 @@ const ACTION_META: Record<string, { icon: React.ElementType; color: string; bg: 
   member_add:        { icon: Users,           color: "text-sky-600 dark:text-sky-400",       bg: "bg-sky-100 dark:bg-sky-900/30"       },
   member_remove:     { icon: UserMinus,       color: "text-rose-600 dark:text-rose-400",     bg: "bg-rose-100 dark:bg-rose-900/30"     },
   settings_update:   { icon: Settings,        color: "text-slate-600 dark:text-slate-400",   bg: "bg-slate-100 dark:bg-slate-900/30"   },
+  payment_operation: { icon: CreditCard,      color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30" },
 };
 
 const DEFAULT_META = { icon: Shield, color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-900/30" };
@@ -66,24 +67,58 @@ const FILTERS = [
   { key: "student",         label: "التلاميذ"     },
   { key: "absence",         label: "الغيابات"     },
   { key: "member",          label: "الأعضاء"      },
+  { key: "payment",         label: "المدفوعات"    },
+  { key: "settings",        label: "المؤسسة"      },
 ];
 
 const PAGE_SIZE = 50;
+const AUDIT_BATCH_SIZE = 500;
 
 export default function AuditLogPage() {
   const { user } = useAuth();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [hasMore, setHasMore] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("");
   const [page, setPage] = useState(1);
 
   const fetchLogs = async () => {
     setLoading(true);
+    setLoadError("");
     try {
-      const res = await fetch(`${BASE}api/audit-logs?limit=500`, { credentials: "include" });
-      if (res.ok) setEntries(await res.json());
-    } finally { setLoading(false); }
+      const res = await fetch(`${BASE}api/audit-logs?limit=${AUDIT_BATCH_SIZE}&offset=0`, { credentials: "include" });
+      if (!res.ok) throw new Error("تعذر تحميل سجل العمليات");
+      const rows = await res.json() as AuditEntry[];
+      setEntries(rows);
+      setHasMore(rows.length === AUDIT_BATCH_SIZE);
+      setPage(1);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "تعذر تحميل سجل العمليات");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    setLoadError("");
+    try {
+      const res = await fetch(
+        `${BASE}api/audit-logs?limit=${AUDIT_BATCH_SIZE}&offset=${entries.length}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) throw new Error("تعذر تحميل بقية العمليات");
+      const rows = await res.json() as AuditEntry[];
+      setEntries(current => [...current, ...rows]);
+      setHasMore(rows.length === AUDIT_BATCH_SIZE);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "تعذر تحميل بقية العمليات");
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   useEffect(() => { fetchLogs(); }, []);
@@ -127,7 +162,7 @@ export default function AuditLogPage() {
             </span>
             سجل العمليات
           </h1>
-          <p className="text-xs text-muted-foreground mt-1 ms-11">تتبع كل العمليات الحساسة في النظام</p>
+          <p className="text-xs text-muted-foreground mt-1 ms-11">تتبع عمليات الإضافة والتعديل والحذف في النظام</p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchLogs} className="gap-2">
           <RefreshCw className="w-3.5 h-3.5" /> تحديث
@@ -137,7 +172,7 @@ export default function AuditLogPage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "إجمالي العمليات", value: entries.length, color: "from-slate-500 to-slate-700" },
+          { label: "العمليات المحمّلة", value: entries.length, color: "from-slate-500 to-slate-700" },
           { label: "تعديلات الدرجات", value: entries.filter(e => e.action.startsWith("grade")).length, color: "from-violet-500 to-purple-700" },
           { label: "إجراءات التلاميذ", value: entries.filter(e => e.action.startsWith("student")).length, color: "from-blue-500 to-indigo-700" },
           { label: "اليوم", value: entries.filter(e => new Date(e.createdAt).toDateString() === new Date().toDateString()).length, color: "from-emerald-500 to-green-700" },
@@ -154,6 +189,11 @@ export default function AuditLogPage() {
       </div>
 
       {/* Filters + search */}
+      {loadError && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+          {loadError}
+        </div>
+      )}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -258,6 +298,14 @@ export default function AuditLogPage() {
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>السابق</Button>
           <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
           <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>التالي</Button>
+        </div>
+      )}
+      {!loading && hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" size="sm" onClick={() => void loadMore()} disabled={loadingMore} className="gap-2">
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingMore ? "animate-spin" : ""}`} />
+            {loadingMore ? "جارٍ تحميل بقية العمليات…" : "تحميل العمليات الأقدم"}
+          </Button>
         </div>
       )}
     </motion.div>

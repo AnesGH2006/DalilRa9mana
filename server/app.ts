@@ -6,6 +6,7 @@ import path from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { authMiddleware } from "./middlewares/authMiddleware.js";
+import { auditApiMutation } from "./lib/audit.js";
 import router from "./routes/index.js";
 import { logger } from "./lib/logger.js";
 
@@ -37,6 +38,7 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 app.use(authMiddleware);
 
+app.use("/api", auditApiMutation);
 app.use("/api", router);
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "مسار API غير موجود. حدّث التطبيق أو تحقق من عنوان الخدمة." });

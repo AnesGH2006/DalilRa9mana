@@ -17,7 +17,8 @@
 import { Router, type Request } from "express";
 import multer from "multer";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { db, studentsTable, studentDocumentsTable, auditLogsTable } from "../../shared/db.js";
+import { db, studentsTable, studentDocumentsTable } from "../../shared/db.js";
+import { logAudit } from "../lib/audit.js";
 import { logger } from "../lib/logger.js";
 import { getUserGeminiKey, getUserGroqKey } from "../lib/groq-key.js";
 import type { OcrEngine } from "../services/ocrService.js";
@@ -92,21 +93,17 @@ function actorName(req: Request): string {
 }
 
 async function audit(req: Request, action: string, description: string, entityId?: string, details?: Record<string, unknown>) {
-  try {
-    await db.insert(auditLogsTable).values({
-      userId: schoolIdOf(req),
-      actorId: req.user!.id,
-      actorName: actorName(req),
-      action,
-      description,
-      entity: "student_document",
-      entityId: entityId ?? null,
-      details: details ?? null,
-      ipAddress: req.ip ?? null,
-    });
-  } catch (error) {
-    logger.warn({ error, action }, "Audit log insert failed");
-  }
+  await logAudit({
+    userId: schoolIdOf(req),
+    actorId: req.memberContext?.memberId ?? req.user!.id,
+    actorName: actorName(req),
+    action,
+    description,
+    entity: "student_document",
+    entityId,
+    details,
+    req,
+  });
 }
 
 router.get("/documents/types", (req, res): void => {
