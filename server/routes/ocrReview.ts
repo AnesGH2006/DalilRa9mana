@@ -104,7 +104,7 @@ router.post("/ocr/match-students", async (req, res): Promise<void> => {
     return;
   }
 
-  const year = annee || "2025-2026";
+  const year = annee || "2026-2027";
 
   try {
     const mapping = await matchStudents(userId, year, names);
@@ -144,7 +144,7 @@ router.post("/ocr/review-commit", async (req, res): Promise<void> => {
     return;
   }
 
-  const year = annee || "2025-2026";
+  const year = annee || "2026-2027";
   let insertedCount = 0;
   let skipped = 0;
 

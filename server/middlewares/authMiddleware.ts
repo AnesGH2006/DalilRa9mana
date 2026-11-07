@@ -1,15 +1,18 @@
 import { type Request, type Response, type NextFunction } from "express";
 import { eq } from "drizzle-orm";
 import { getSession, getSessionId, type SessionData } from "../lib/auth.js";
-import { db, schoolMembersTable, usersTable } from "../../shared/db.js";
+import { db, schoolInfoTable, schoolMembersTable, usersTable } from "../../shared/db.js";
 import type { AuthUser, MemberContext, SchoolSubscriptionPlan } from "../../shared/types.js";
 import { DEFAULT_STAFF_PERMISSIONS, normalizeStaffPermissions } from "../../shared/member-permissions.js";
+import { SCHOOL_STAGE } from "../config/school-stage.js";
+import { isSchoolStage, type SchoolStage } from "../../shared/school-stage.js";
 
 declare global {
   namespace Express {
     interface Request {
       user?: AuthUser;
       memberContext?: MemberContext;
+      schoolStage?: SchoolStage;
       isAuthenticated(): boolean;
     }
   }
@@ -105,8 +108,20 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         }
       }
     }
+
+    const schoolUserId = req.memberContext?.schoolUserId ?? req.user!.id;
+    const [schoolInfo] = await db
+      .select({ stage: schoolInfoTable.stage })
+      .from(schoolInfoTable)
+      .where(eq(schoolInfoTable.userId, schoolUserId))
+      .limit(1);
+    const storedStage: unknown = schoolInfo?.stage;
+    if (storedStage !== undefined && !isSchoolStage(storedStage)) {
+      throw new Error(`Invalid stored school stage "${storedStage}" for school ${schoolUserId}`);
+    }
+    req.schoolStage = isSchoolStage(storedStage) ? storedStage : SCHOOL_STAGE;
   } catch (error) {
-    req.log.error({ error, userId: session.user.id }, "Unable to load school-member permissions");
+    req.log.error({ error, userId: session.user.id }, "Unable to load school-member permissions or school stage");
     res.set("Cache-Control", "private, no-store").status(503).json({ error: "Unable to verify account permissions" });
     return;
   }

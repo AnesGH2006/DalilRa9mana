@@ -46,7 +46,7 @@ async function migrate() {
       wilaya varchar(100) NOT NULL DEFAULT '',
       commune varchar(100) NOT NULL DEFAULT '',
       stage varchar(10) NOT NULL DEFAULT 'moyen',
-      annee varchar(20) NOT NULL DEFAULT '2025-2026',
+      annee varchar(20) NOT NULL DEFAULT '2026-2027',
       directeur varchar(255) DEFAULT '',
       phone varchar(30) DEFAULT '',
       sms_gateway_url varchar(500) DEFAULT '',
@@ -87,7 +87,7 @@ async function migrate() {
       sexe sexe NOT NULL,
       statut statut_eleve NOT NULL DEFAULT 'nouveau',
       resultat resultat_eleve,
-      annee varchar(20) NOT NULL DEFAULT '2025-2026',
+      annee varchar(20) NOT NULL DEFAULT '2026-2027',
       created_at timestamptz NOT NULL DEFAULT now()
     );
   `);
@@ -103,7 +103,7 @@ async function migrate() {
       id varchar(64) PRIMARY KEY,
       user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       student_id varchar(64) NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      annee varchar(20) NOT NULL DEFAULT '2025-2026',
+      annee varchar(20) NOT NULL DEFAULT '2026-2027',
       trimestre integer NOT NULL CHECK (trimestre IN (1,2,3)),
       subject varchar(50) NOT NULL,
       grade_type varchar(20) NOT NULL DEFAULT 'general',
@@ -141,7 +141,7 @@ async function migrate() {
       id varchar(64) PRIMARY KEY,
       user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       student_id varchar(64) NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      annee varchar(20) NOT NULL DEFAULT '2025-2026',
+      annee varchar(20) NOT NULL DEFAULT '2026-2027',
       trimestre integer NOT NULL,
       justified_hours integer NOT NULL DEFAULT 0,
       unjustified_hours integer NOT NULL DEFAULT 0,
@@ -155,7 +155,7 @@ async function migrate() {
       user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       student_id varchar(64) NOT NULL REFERENCES students(id) ON DELETE CASCADE,
       attendance_date varchar(10) NOT NULL,
-      annee varchar(20) NOT NULL DEFAULT '2025-2026',
+      annee varchar(20) NOT NULL DEFAULT '2026-2027',
       status varchar(100) NOT NULL,
       is_absent boolean NOT NULL,
       parent_absence_reason varchar(500),
@@ -168,9 +168,18 @@ async function migrate() {
       ON student_daily_attendance(user_id, attendance_date);
   `);
 
-  await db.execute(sql`ALTER TABLE student_daily_attendance ADD COLUMN IF NOT EXISTS annee varchar(20) NOT NULL DEFAULT '2025-2026'`);
+  await db.execute(sql`ALTER TABLE student_daily_attendance ADD COLUMN IF NOT EXISTS annee varchar(20) NOT NULL DEFAULT '2026-2027'`);
   await db.execute(sql`ALTER TABLE student_daily_attendance ADD COLUMN IF NOT EXISTS parent_absence_reason varchar(500)`);
   await db.execute(sql`ALTER TABLE student_daily_attendance ADD COLUMN IF NOT EXISTS parent_absence_reason_at timestamptz`);
+  await db.execute(sql`
+    ALTER TABLE IF EXISTS school_info ALTER COLUMN annee SET DEFAULT '2026-2027';
+    ALTER TABLE IF EXISTS students ALTER COLUMN annee SET DEFAULT '2026-2027';
+    ALTER TABLE IF EXISTS grades ALTER COLUMN annee SET DEFAULT '2026-2027';
+    ALTER TABLE IF EXISTS absences ALTER COLUMN annee SET DEFAULT '2026-2027';
+    ALTER TABLE IF EXISTS student_daily_attendance ALTER COLUMN annee SET DEFAULT '2026-2027';
+    ALTER TABLE IF EXISTS orientation_wishes ALTER COLUMN annee SET DEFAULT '2026-2027';
+    ALTER TABLE IF EXISTS timetable_slots ALTER COLUMN annee SET DEFAULT '2026-2027'
+  `);
 
   await db.execute(sql`DO $$ BEGIN CREATE TYPE payment_status AS ENUM ('pending','paid','failed','refunded'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
   await db.execute(sql`DO $$ BEGIN CREATE TYPE payment_provider AS ENUM ('chargily','activation_code'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);

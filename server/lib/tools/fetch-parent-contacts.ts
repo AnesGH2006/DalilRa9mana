@@ -11,18 +11,18 @@
  */
 
 import { db, studentsTable } from "../../../shared/db.js";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 import { sendDesktopCommand } from "../../socket/agentHandler.js";
 import { logger } from "../logger.js";
 import { randomUUID } from "crypto";
-import type { SchoolLevel } from "../../../shared/school-stage.js";
+import { SCHOOL_STAGE_LEVELS, type SchoolLevel, type SchoolStage } from "../../../shared/school-stage.js";
 
 export interface FetchParentContactsInput {
   /** Optionally restrict to a specific grade level */
   niveau?: SchoolLevel;
   /** Optionally restrict to a specific class */
   classe?: string;
-  /** School year, e.g. "2025-2026" */
+  /** School year, e.g. "2026-2027" */
   annee?: string;
   /** Digitalization platform URL — if provided, the agent will open it directly */
   platform_url?: string;
@@ -31,13 +31,15 @@ export interface FetchParentContactsInput {
 export async function fetchParentContactsTool(
   input: FetchParentContactsInput,
   userId: string,
+  stage: SchoolStage,
 ): Promise<unknown> {
-  const annee = input.annee ?? "2025-2026";
+  const annee = input.annee ?? "2026-2027";
 
   // ── 1. Find students with no parentPhone ───────────────────────────────────
   const conds = [
     eq(studentsTable.userId, userId),
     eq(studentsTable.annee, annee),
+    inArray(studentsTable.niveau, SCHOOL_STAGE_LEVELS[stage]),
     isNull(studentsTable.parentPhone),
   ];
   if (input.niveau) conds.push(eq(studentsTable.niveau, input.niveau));

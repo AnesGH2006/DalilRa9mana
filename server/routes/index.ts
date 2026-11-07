@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import healthRouter from "./health.js";
 import authRouter from "./auth.js";
 import schoolRouter from "./school.js";
+import schoolStageRouter from "./school-stage.js";
 import studentsRouter from "./students.js";
 import gradesRouter from "./grades.js";
 import bemRouter from "./bem.js";
@@ -37,6 +38,7 @@ router.use(healthRouter);
 
 router.use(authRouter);
 router.use(paymentsRouter);
+router.use(schoolStageRouter);
 // Parents must be able to find a school and link their account before purchasing a plan.
 router.use(parentLinkRouter);
 router.use(requirePaidPlan);

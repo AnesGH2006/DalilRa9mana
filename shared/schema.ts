@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, pgEnum, boolean, integer, numeric, doublePrecision, text } from "drizzle-orm/pg-core";
+import { CURRENT_ACADEMIC_YEAR } from "./academic-year.js";
 
 export const sessionsTable = pgTable(
   "sessions",
@@ -41,7 +42,7 @@ export const schoolInfoTable = pgTable("school_info", {
   wilaya: varchar("wilaya", { length: 100 }).notNull().default(""),
   commune: varchar("commune", { length: 100 }).notNull().default(""),
   stage: varchar("stage", { length: 10 }).notNull().default("moyen"),
-  annee: varchar("annee", { length: 20 }).notNull().default("2025-2026"),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
   directeur: varchar("directeur", { length: 255 }).default(""),
   phone: varchar("phone", { length: 30 }).default(""),
   smsGatewayUrl: varchar("sms_gateway_url", { length: 500 }).default(""),
@@ -106,7 +107,7 @@ export const studentsTable = pgTable("students", {
   sexe: sexeEnum("sexe").notNull(),
   statut: statutEnum("statut").notNull().default("nouveau"),
   resultat: resultatEnum("resultat"),
-  annee: varchar("annee", { length: 20 }).notNull().default("2025-2026"),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
   raqm: integer("raqm"),
   parentPhone: varchar("parent_phone", { length: 30 }),
   /** Hashed token embedded in printable student QR cards */
@@ -121,7 +122,7 @@ export const gradesTable = pgTable("grades", {
   id: varchar("id", { length: 64 }).primaryKey(),
   userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   studentId: varchar("student_id", { length: 64 }).notNull().references(() => studentsTable.id, { onDelete: "cascade" }),
-  annee: varchar("annee", { length: 20 }).notNull().default("2025-2026"),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
   trimestre: integer("trimestre").notNull(),
   subject: varchar("subject", { length: 50 }).notNull(),
   gradeType: varchar("grade_type", { length: 20 }).notNull().default("general"),
@@ -136,7 +137,7 @@ export const absencesTable = pgTable("absences", {
   id: varchar("id", { length: 64 }).primaryKey(),
   userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   studentId: varchar("student_id", { length: 64 }).notNull().references(() => studentsTable.id, { onDelete: "cascade" }),
-  annee: varchar("annee", { length: 20 }).notNull().default("2025-2026"),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
   trimestre: integer("trimestre").notNull(),
   justifiedHours: integer("justified_hours").notNull().default(0),
   unjustifiedHours: integer("unjustified_hours").notNull().default(0),
@@ -151,7 +152,7 @@ export const studentDailyAttendanceTable = pgTable("student_daily_attendance", {
   userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   studentId: varchar("student_id", { length: 64 }).notNull().references(() => studentsTable.id, { onDelete: "cascade" }),
   attendanceDate: varchar("attendance_date", { length: 10 }).notNull(),
-  annee: varchar("annee", { length: 20 }).notNull().default("2025-2026"),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
   status: varchar("status", { length: 100 }).notNull(),
   isAbsent: boolean("is_absent").notNull(),
   parentAbsenceReason: varchar("parent_absence_reason", { length: 500 }),
@@ -200,7 +201,7 @@ export type InsertDailyAbsenceReport = typeof dailyAbsenceReportsTable.$inferIns
 export const orientationWishesTable = pgTable("orientation_wishes", {
   id: varchar("id", { length: 64 }).primaryKey(),
   userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-  annee: varchar("annee", { length: 20 }).notNull().default("2025-2026"),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
   nationalId: varchar("national_id", { length: 40 }),
   lastName: varchar("last_name", { length: 255 }).notNull(),
   firstName: varchar("first_name", { length: 255 }).notNull(),
@@ -476,7 +477,7 @@ export type InsertTimetableRoom = typeof timetableRoomsTable.$inferInsert;
 export const timetableSlotsTable = pgTable("timetable_slots", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-  annee: varchar("annee", { length: 20 }).notNull().default("2025-2026"),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
   /** The class this slot belongs to, e.g. "1AM-أ" */
   classe: varchar("classe", { length: 30 }).notNull(),
   subject: varchar("subject", { length: 100 }).notNull(),

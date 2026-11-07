@@ -8,8 +8,9 @@
  *   4. Repeat  — Until final answer or max iterations
  */
 import OpenAI from "openai";
-import { toolDefinitions, executeTool } from "./tools/index.js";
+import { getToolDefinitions, executeTool } from "./tools/index.js";
 import { logger } from "./logger.js";
+import type { SchoolStage } from "../../shared/school-stage.js";
 
 export interface ReActStep {
   type: "thinking" | "tool_call" | "tool_result" | "final";
@@ -37,7 +38,7 @@ const TOOL_LABELS: Record<string, string> = {
   fetch_parent_contacts_tool: "📱 استخراج أرقام أولياء الأمور",
 };
 
-const SYSTEM_PROMPT = `أنت مساعد تنفيذي (Executive Assistant) محترف ومتفانٍ لمدير متوسطة جزائرية.
+const SYSTEM_PROMPT = `أنت مساعد تنفيذي (Executive Assistant) محترف ومتفانٍ لمدير مؤسسة تعليمية جزائرية.
 
 شخصيتك:
 • تتحدث بعربية فصحى راقية ومهنية دائماً
@@ -83,6 +84,7 @@ export async function runReActAgent(params: {
   userId: string;
   groqApiKey: string;
   schoolContext: string;
+  schoolStage: SchoolStage;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   onStep: StepCallback;
 }): Promise<string> {
@@ -97,7 +99,7 @@ export async function runReActAgent(params: {
     { role: "system", content: SYSTEM_PROMPT },
     {
       role: "system",
-      content: `## سياق المؤسسة الحالية:\n${params.schoolContext}\n\nالتاريخ الحالي: ${new Date().toLocaleDateString("ar-DZ", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`,
+      content: `## سياق المؤسسة الحالية:\n${params.schoolContext}\nالمرحلة: ${params.schoolStage === "lycee" ? "الثانوية" : "المتوسطة"}\n\nالتاريخ الحالي: ${new Date().toLocaleDateString("ar-DZ", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`,
     },
     ...params.messages.map(m => ({
       role: m.role as "user" | "assistant",
@@ -113,6 +115,7 @@ export async function runReActAgent(params: {
   const model = "openai/gpt-oss-120b"
 
   logger.info({ model, estTokens, userId: params.userId }, "ReAct agent starting");
+  const tools = getToolDefinitions(params.schoolStage);
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
     let completion: OpenAI.Chat.ChatCompletion;
@@ -121,7 +124,7 @@ export async function runReActAgent(params: {
         model,
         temperature: 0.2,
         max_tokens: 2048,
-        tools: toolDefinitions,
+        tools,
         tool_choice: "auto",
         messages: apiMessages,
       });
@@ -168,7 +171,7 @@ export async function runReActAgent(params: {
       let success = true;
 
       try {
-        toolOutput = await executeTool(toolName, toolInput, params.userId);
+        toolOutput = await executeTool(toolName, toolInput, params.userId, params.schoolStage);
         logger.info({ tool: toolName, userId: params.userId }, "Tool executed successfully");
       } catch (err: any) {
         toolOutput = { error: err.message || "خطأ في تنفيذ الأداة" };

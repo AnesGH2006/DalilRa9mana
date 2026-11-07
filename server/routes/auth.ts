@@ -152,7 +152,11 @@ router.get("/auth/user", (req: Request, res: Response) => {
     res.json(GetCurrentAuthUserResponse.parse({ user: null }));
     return;
   }
-  const userWithContext = { ...req.user, memberContext: req.memberContext ?? null };
+  const userWithContext = {
+    ...req.user,
+    memberContext: req.memberContext ?? null,
+    schoolStage: req.schoolStage,
+  };
   res.json(GetCurrentAuthUserResponse.parse({ user: userWithContext }));
 });
 

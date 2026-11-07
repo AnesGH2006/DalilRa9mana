@@ -32,7 +32,7 @@ function MiniTooltip({ active, payload }: any) {
 }
 
 export default function PreOrientFirstPage() {
-  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
+  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2026-2027");
   const [results, setResults] = useState<StudentResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTrack, setActiveTrack] = useState<string | null>(null);

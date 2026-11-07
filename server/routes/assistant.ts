@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schoolInfoTable, usersTable } from "../../shared/db.js";
 import { encryptGroqKey, encryptGeminiKey, getUserGroqKey } from "../lib/groq-key.js";
 import { runReActAgent } from "../lib/react-agent.js";
+import { getSchoolStageForRequest } from "../config/school-stage.js";
 
 const router = Router();
 const canUseAssistant = (req: Request) => !req.memberContext && (req.user?.role === "admin" || req.user?.subscriptionStatus === "active");
@@ -58,6 +59,7 @@ router.post("/assistant/run", async (req, res): Promise<void> => {
       userId: req.user.id,
       groqApiKey,
       schoolContext,
+      schoolStage: getSchoolStageForRequest(req),
       messages: rawMessages.map(message => ({ role: message.role as "user" | "assistant", content: message.content.trim() })),
       onStep: step => sendEvent("step", step),
     });

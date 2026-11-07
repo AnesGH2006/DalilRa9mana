@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { AuthUser } from "@shared/types";
+import { setSchoolStage } from "@/lib/deployment";
 
 export type { AuthUser };
 
@@ -34,6 +35,7 @@ export function useAuth(): AuthState {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json() as { user: AuthUser | null };
           if (!cancelled) {
+            if (data.user?.schoolStage) setSchoolStage(data.user.schoolStage);
             setUser(data.user ?? null);
             setIsLoading(false);
           }

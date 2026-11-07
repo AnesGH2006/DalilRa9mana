@@ -6,7 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Zap, Star, Crown, Calendar, Leaf, Building2 } from "lucide-react";
 import { FREE_STUDENT_LIMIT, PAID_PLAN_PRICES_DZD } from "@shared/subscription";
+import type { SchoolStage } from "@shared/school-stage";
 import { SCHOOL_STAGE } from "@/lib/deployment";
+import { useSchoolStage } from "@/hooks/use-school-stage";
 
 const pageVariants = {
   initial: { opacity: 0, y: 16 },
@@ -22,7 +24,9 @@ export default function SubscriptionPage() {
   const [trialBusy, setTrialBusy] = useState<string | null>(null);
   const [trialError, setTrialError] = useState("");
   const [trialMessage, setTrialMessage] = useState("");
+  const { stage, stageConfigured, stageLoading, stageSaving, stageError, chooseStage } = useSchoolStage();
   const [paymentInfo, setPaymentInfo] = useState<{
+    role: string;
     plan: string;
     status: string;
     active: boolean;
@@ -44,6 +48,10 @@ export default function SubscriptionPage() {
   }
 
   useEffect(() => { void loadPaymentInfo(); }, []);
+
+  async function chooseInstitutionStage(nextStage: SchoolStage) {
+    if (await chooseStage(nextStage)) await loadPaymentInfo();
+  }
 
   function isCurrentPlan(plan: string): boolean {
     if (paymentInfo) {
@@ -197,6 +205,8 @@ export default function SubscriptionPage() {
       popular: false,
     },
   ];
+  const stageRequired = paymentInfo?.role === "owner";
+  const stageReady = !stageRequired || stageConfigured;
 
   return (
     <motion.div
@@ -228,6 +238,31 @@ export default function SubscriptionPage() {
           اشتراك سنوي — وفّر أكثر مع الدفع السنوي
         </motion.div>
       </motion.div>
+
+      {paymentInfo?.role === "owner" ? (
+        <Card className="mx-auto max-w-2xl border-blue-500/30">
+          <CardContent className="space-y-3 p-5 text-right">
+            <h2 className="font-bold">ما مرحلة مؤسستك؟</h2>
+            <p className="text-sm text-muted-foreground">اختر المتوسطة (CEM) أو الثانوية (Lycée) قبل اعتماد الباقة. لا يمكن تغييرها بعد إضافة التلاميذ.</p>
+            <div className="grid grid-cols-2 gap-3" role="group" aria-label="اختر مرحلة المؤسسة">
+              <Button type="button" variant={stage === "moyen" ? "default" : "outline"} disabled={stageLoading || stageSaving} aria-pressed={stage === "moyen"} onClick={() => void chooseInstitutionStage("moyen")}>
+                المتوسطة (CEM)
+              </Button>
+              <Button type="button" variant={stage === "lycee" ? "default" : "outline"} disabled={stageLoading || stageSaving} aria-pressed={stage === "lycee"} onClick={() => void chooseInstitutionStage("lycee")}>
+                الثانوية (Lycée)
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground" role="status">
+              {stageLoading ? "جارٍ تحميل مرحلة المؤسسة…" : stageSaving ? "جارٍ حفظ الاختيار…" : stageConfigured ? `المرحلة المعتمدة: ${stage === "lycee" ? "الثانوية (Lycée)" : "المتوسطة (CEM)"}` : "احفظ المرحلة للمتابعة إلى الباقات."}
+            </p>
+            {stageError && <p className="text-sm text-red-600" role="alert">{stageError}</p>}
+          </CardContent>
+        </Card>
+      ) : paymentInfo && !stageLoading ? (
+        <p className="mx-auto max-w-2xl text-center text-sm text-muted-foreground">
+          مرحلة المؤسسة: {stage === "lycee" ? "الثانوية (Lycée)" : "المتوسطة (CEM)"} · يحددها صاحب المؤسسة.
+        </p>
+      ) : null}
 
       {/* Plans */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
@@ -319,7 +354,7 @@ export default function SubscriptionPage() {
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}>
                   <Button
                     variant={plan.ctaVariant}
-                    disabled={plan.current || checkoutBusy === plan.key}
+                    disabled={plan.current || checkoutBusy === plan.key || stageSaving || stageLoading || (stageRequired && !stageReady)}
                     onClick={() => {
                       if (plan.current) return;
                       if (plan.key === "basic") return startCheckout(plan.key, PAID_PLAN_PRICES_DZD.basic);
@@ -338,14 +373,14 @@ export default function SubscriptionPage() {
                               : ""
                     }`}
                   >
-                    {plan.current ? `✓ ${plan.cta}` : checkoutBusy === plan.key ? "جارٍ التحضير…" : plan.cta}
+                    {plan.current ? `✓ ${plan.cta}` : stageRequired && !stageReady ? "اختر المرحلة أولاً" : checkoutBusy === plan.key ? "جارٍ التحضير…" : plan.cta}
                   </Button>
                 </motion.div>
                 {(plan.key === "basic" || plan.key === "pro") && paymentInfo?.trialAvailable && !plan.current && (
                   <Button
                     variant="outline"
                     className="w-full rounded-xl border-emerald-600 font-bold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-                    disabled={trialBusy !== null}
+                    disabled={trialBusy !== null || stageSaving || stageLoading || (stageRequired && !stageReady)}
                     onClick={() => void startTrial(plan.key === "basic" ? "basic" : "pro")}
                   >
                     {trialBusy === plan.key ? "جارٍ تفعيل التجربة..." : "ابدأ تجربة مجانية لمدة شهر"}

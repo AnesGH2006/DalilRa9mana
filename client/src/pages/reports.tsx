@@ -105,7 +105,7 @@ interface AbsenceRow {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ReportsPage() {
   const { t } = useLanguage();
-  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
+  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2026-2027");
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [school, setSchool] = useState<SchoolInfo | null>(null);
   const [absences, setAbsences] = useState<AbsenceRow[]>([]);

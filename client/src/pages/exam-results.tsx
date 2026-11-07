@@ -9,9 +9,9 @@ import type { Niveau } from "@shared/types";
 import { SCHOOL_LEVELS } from "@/lib/deployment";
 
 const BASE = import.meta.env.BASE_URL;
-const LEVELS: Niveau[] = [...SCHOOL_LEVELS];
+const LEVELS: Niveau[] = SCHOOL_LEVELS;
 const ACADEMIC_YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024", "2022-2023"];
-const DEFAULT_YEAR  = "2025-2026";
+const DEFAULT_YEAR  = "2026-2027";
 
 const TRIMESTRE_COLORS = [
   { bar: "bg-blue-500",   text: "text-blue-600 dark:text-blue-400",   light: "bg-blue-100 dark:bg-blue-950/50",   label: "الفصل 1" },

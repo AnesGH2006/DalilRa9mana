@@ -33,6 +33,7 @@ export interface AuthUser {
   subscriptionStatus: SubscriptionStatus;
   subscriptionPlan?: SubscriptionPlan;
   subscriptionExpiresAt?: string | null;
+  schoolStage?: "moyen" | "lycee";
   /** Present when this user is a teacher or parent sub-account */
   memberContext?: MemberContext | null;
 }

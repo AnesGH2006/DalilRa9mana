@@ -9,9 +9,7 @@ import { calendarTaskTool } from "./calendar.js";
 import { browserAutomationWebhook } from "./webhook.js";
 import { desktopControlTool } from "./desktop-control.js";
 import { fetchParentContactsTool } from "./fetch-parent-contacts.js";
-import { SCHOOL_LEVELS, SCHOOL_STAGE } from "../../config/school-stage.js";
-
-const schoolTypeLabel = SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة";
+import { SCHOOL_STAGE_LEVELS, type SchoolStage } from "../../../shared/school-stage.js";
 
 export type ToolName =
   | "database_query_tool"
@@ -23,7 +21,10 @@ export type ToolName =
   | "fetch_parent_contacts_tool";
 
 // ── OpenAI-compatible tool definitions (sent to Groq) ────────────────────────
-export const toolDefinitions: OpenAI.Chat.ChatCompletionTool[] = [
+export function getToolDefinitions(stage: SchoolStage): OpenAI.Chat.ChatCompletionTool[] {
+  const schoolLevels = SCHOOL_STAGE_LEVELS[stage];
+  const schoolTypeLabel = stage === "lycee" ? "الثانوية" : "المتوسطة";
+  return [
   {
     type: "function",
     function: {
@@ -40,9 +41,9 @@ export const toolDefinitions: OpenAI.Chat.ChatCompletionTool[] = [
           filters: {
             type: "object",
             properties: {
-              niveau: { type: "string", enum: [...SCHOOL_LEVELS], description: "المستوى الدراسي" },
+              niveau: { type: "string", enum: [...schoolLevels], description: "المستوى الدراسي" },
               classe: { type: "string", description: "القسم مثل: أ، ب، 1" },
-              annee: { type: "string", description: "السنة الدراسية مثل: 2025-2026" },
+              annee: { type: "string", description: "السنة الدراسية مثل: 2026-2027" },
               name_search: { type: "string", description: "البحث عن تلميذ بالاسم" },
               resultat: { type: "string", enum: ["admis", "non_admis", "mustarrak"] },
               statut: { type: "string", enum: ["nouveau", "redoublant"] },
@@ -181,30 +182,32 @@ export const toolDefinitions: OpenAI.Chat.ChatCompletionTool[] = [
       parameters: {
         type: "object",
         properties: {
-          niveau: { type: "string", enum: [...SCHOOL_LEVELS], description: "تصفية حسب المستوى (اختياري)" },
+          niveau: { type: "string", enum: [...schoolLevels], description: "تصفية حسب المستوى (اختياري)" },
           classe: { type: "string", description: "تصفية حسب القسم مثل: A، B (اختياري)" },
-          annee: { type: "string", description: "السنة الدراسية (افتراضي: 2025-2026)" },
+          annee: { type: "string", description: "السنة الدراسية (افتراضي: 2026-2027)" },
           platform_url: { type: "string", description: "رابط منصة الرقمنة إذا كان مختلفاً عن الافتراضي" },
         },
         required: [],
       },
     },
   },
-];
+  ];
+}
 
 // ── Tool executor ─────────────────────────────────────────────────────────────
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
   userId: string,
+  stage: SchoolStage,
 ): Promise<unknown> {
   switch (name as ToolName) {
     case "database_query_tool":
-      return databaseQueryTool(input as any, userId);
+      return databaseQueryTool(input as any, userId, stage);
     case "document_drafting_tool":
-      return documentDraftingTool(input as any, userId);
+      return documentDraftingTool(input as any, userId, stage);
     case "messaging_dispatcher_tool":
-      return messagingDispatcherTool(input as any, userId);
+      return messagingDispatcherTool(input as any, userId, stage);
     case "calendar_task_tool":
       return calendarTaskTool(input as any, userId);
     case "browser_automation_webhook":
@@ -212,7 +215,7 @@ export async function executeTool(
     case "desktop_control_tool":
       return desktopControlTool(input as any, userId);
     case "fetch_parent_contacts_tool":
-      return fetchParentContactsTool(input as any, userId);
+      return fetchParentContactsTool(input as any, userId, stage);
     default:
       throw new Error(`أداة غير معروفة: ${name}`);
   }

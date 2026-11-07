@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 const BASE = import.meta.env.BASE_URL;
 
 const NIVEAUX = ["1AM", "2AM", "3AM", "4AM"];
-const YEARS   = ["2023-2024", "2024-2025", "2025-2026", "2026-2027"];
+const YEARS   = ["2023-2024", "2024-2025", "2026-2027", "2026-2027"];
 const CLASS_COLORS = [
   "from-blue-500 to-indigo-600",
   "from-violet-500 to-purple-600",
@@ -80,7 +80,7 @@ export default function ClassBalancerPage() {
 
   // Config
   const [niveau, setNiveau]     = useState("1AM");
-  const [annee, setAnnee]       = useState("2025-2026");
+  const [annee, setAnnee]       = useState("2026-2027");
   const [classCount, setClassCount] = useState(3);
   const [weightGrade, setWeightGrade]     = useState(60);
   const [weightGender, setWeightGender]   = useState(25);

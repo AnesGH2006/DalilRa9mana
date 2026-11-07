@@ -7,10 +7,7 @@ import { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, Bord
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
 import { randomUUID } from "crypto";
-import { SCHOOL_STAGE } from "../../config/school-stage.js";
-
-const schoolTypeLabel = SCHOOL_STAGE === "lycee" ? "ثانوية" : "متوسطة";
-const directorLabel = SCHOOL_STAGE === "lycee" ? "مدير الثانوية" : "مدير المتوسطة";
+import type { SchoolStage } from "../../../shared/school-stage.js";
 
 export interface DocumentDraftingInput {
   document_type: "letter" | "report" | "notice" | "warning" | "meeting_report" | "certificate" | "summary";
@@ -25,7 +22,7 @@ export interface DocumentDraftingInput {
 }
 
 // Arabic document header block
-function makeHeader(input: DocumentDraftingInput, date: string): Paragraph[] {
+function makeHeader(input: DocumentDraftingInput, date: string, schoolTypeLabel: string): Paragraph[] {
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -58,7 +55,9 @@ function makeHeader(input: DocumentDraftingInput, date: string): Paragraph[] {
   ];
 }
 
-export async function documentDraftingTool(input: DocumentDraftingInput, userId: string): Promise<unknown> {
+export async function documentDraftingTool(input: DocumentDraftingInput, userId: string, stage: SchoolStage): Promise<unknown> {
+  const schoolTypeLabel = stage === "lycee" ? "ثانوية" : "متوسطة";
+  const directorLabel = stage === "lycee" ? "مدير الثانوية" : "مدير المتوسطة";
   const date = input.date || new Date().toLocaleDateString("ar-DZ", {
     year: "numeric", month: "long", day: "numeric",
   });
@@ -80,7 +79,7 @@ export async function documentDraftingTool(input: DocumentDraftingInput, userId:
         },
       },
       children: [
-        ...makeHeader(input, date),
+        ...makeHeader(input, date, schoolTypeLabel),
         ...(input.recipient ? [
           new Paragraph({
             alignment: AlignmentType.RIGHT,

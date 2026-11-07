@@ -16,7 +16,7 @@ const BASE = import.meta.env.BASE_URL;
 const YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024"];
 
 export default function OrientationWishesPage() {
-  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
+  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2026-2027");
   const [wishes, setWishes] = useState<OrientationWish[]>([]);
   const [results, setResults] = useState<StudentResult[]>([]);
   const [loading, setLoading] = useState(true);

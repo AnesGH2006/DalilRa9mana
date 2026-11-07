@@ -13,7 +13,7 @@ import {
 } from "recharts";
 
 const BASE = import.meta.env.BASE_URL;
-const LEVELS: Niveau[] = [...SCHOOL_LEVELS];
+const LEVELS: Niveau[] = SCHOOL_LEVELS;
 const LEVEL_LABELS: Record<Niveau, string> = {
   "1AM": "1ère AM", "2AM": "2ème AM", "3AM": "3ème AM", "4AM": "4ème AM",
   "1AS": "1ère AS", "2AS": "2ème AS", "3AS": "3ème AS",

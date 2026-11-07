@@ -39,7 +39,7 @@ const YEARS = ["2023-2024", "2024-2025", "2025-2026", "2026-2027"];
 function BulkImportCard() {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [year, setYear] = useState("2025-2026");
+  const [year, setYear] = useState("2026-2027");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
 

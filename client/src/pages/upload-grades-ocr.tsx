@@ -121,7 +121,7 @@ export default function UploadGradesOcrPage() {
 
   const [mode, setMode] = useState<OcrMode>("grades");
 
-  const [annee,     setAnnee]     = useState("2025-2026");
+  const [annee,     setAnnee]     = useState("2026-2027");
   const [reportDate, setReportDate] = useState("");
   const [niveau,    setNiveau]    = useState("");
   const [classe,    setClasse]    = useState("");

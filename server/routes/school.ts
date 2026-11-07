@@ -17,11 +17,8 @@ const router: IRouter = Router();
 
 router.get("/school", async (req, res): Promise<void> => {
     if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const [existing] = await db.select().from(schoolInfoTable).where(eq(schoolInfoTable.userId, req.user!.id));
-  const info = existing
-    ? (await db.update(schoolInfoTable).set({ stage: getSchoolStageForRequest(req) })
-      .where(eq(schoolInfoTable.userId, req.user!.id)).returning())[0]
-    : undefined;
+    const [existing] = await db.select().from(schoolInfoTable).where(eq(schoolInfoTable.userId, req.user!.id));
+    const info = existing;
   if (!info) { res.json(null); return; }
   // Auto-assign a join code if none exists yet
   if (!info.joinCode) {

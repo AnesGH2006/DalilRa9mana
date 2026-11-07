@@ -79,7 +79,7 @@ export default function MyChildPage() {
   const [data, setData] = useState<StudentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [annee, setAnnee] = useState("2025-2026");
+  const [annee, setAnnee] = useState("2026-2027");
   const [leaving, setLeaving] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);

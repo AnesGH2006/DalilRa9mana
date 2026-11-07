@@ -1,7 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
+import { CURRENT_ACADEMIC_YEAR } from "@shared/academic-year";
 import "./index.css";
+
+if (localStorage.getItem("cem-selected-year") === "2025-2026") {
+  localStorage.setItem("cem-selected-year", CURRENT_ACADEMIC_YEAR);
+}
 
 // ── Service-worker lifecycle ──────────────────────────────────────────────────
 // In dev: aggressively unregister any stale SW so it never intercepts the

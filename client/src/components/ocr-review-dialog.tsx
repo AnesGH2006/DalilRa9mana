@@ -45,7 +45,7 @@ export function OcrReviewDialog() {
   // Form fields for grades
   const [trimestre, setTrimestre] = useState<number>(1);
   const [subject, setSubject] = useState<string>("");
-  const [annee, setAnnee] = useState("2025-2026");
+  const [annee, setAnnee] = useState("2026-2027");
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

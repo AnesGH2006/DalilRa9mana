@@ -123,7 +123,7 @@ router.post("/excel-injection/inspect", upload.single("template"), async (req, r
 // School data stays owner-only: it reads grades/absences of the whole school.
 router.get("/excel-injection/school-data", async (req, res): Promise<void> => {
   if (!req.isAuthenticated() || !req.user || req.memberContext) { res.status(403).json({ error: "مسؤول المؤسسة فقط" }); return; }
-  const annee = String(req.query.annee ?? "2025-2026");
+  const annee = String(req.query.annee ?? "2026-2027");
   const niveau = typeof req.query.niveau === "string" ? req.query.niveau : undefined;
   const classe = typeof req.query.classe === "string" ? req.query.classe : undefined;
   const kind = req.query.kind === "absences" ? "absences" : "grades";

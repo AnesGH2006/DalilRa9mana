@@ -22,7 +22,7 @@ export function AgentInstallPrompt() {
   const [copied, setCopied] = useState(false);
   const [, navigate] = useLocation();
 
-  const serverUrl = typeof window !== "undefined" ? window.location.origin : "https://dalilra9mana.onrender.com";
+  const serverUrl = typeof window !== "undefined" ? window.location.origin : "https://dalilrakmana.onrender.com";
 
   useEffect(() => {
     const until = localStorage.getItem(DISMISS_KEY);

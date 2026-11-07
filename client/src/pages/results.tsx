@@ -38,7 +38,7 @@ const LEVEL_LABELS: Record<Niveau, string> = {
 };
 const LEVEL_COLORS = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef"];
 const ACADEMIC_YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024", "2022-2023"];
-const DEFAULT_YEAR = "2025-2026";
+const DEFAULT_YEAR = "2026-2027";
 
 // ─── Animation presets ────────────────────────────────────────────────────────
 const pageVariants = {

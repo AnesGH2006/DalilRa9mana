@@ -10,7 +10,7 @@
  * {
  *   studentIds: string[],     // list of student IDs (must belong to authed user)
  *   classCount: number,       // 2–10
- *   annee?: string,           // filter grades by school year (default 2025-2026)
+ *   annee?: string,           // filter grades by school year (default 2026-2027)
  *   weights?: {
  *     grade?: number,
  *     gender?: number,
@@ -106,7 +106,7 @@ router.post("/class-balancer/balance", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
 
   const userId = req.user!.id;
-  const { studentIds, classCount, annee = "2025-2026", weights, rules } = req.body as {
+  const { studentIds, classCount, annee = "2026-2027", weights, rules } = req.body as {
     studentIds?: string[];
     classCount?: number;
     annee?: string;
@@ -138,7 +138,7 @@ router.post("/class-balancer/balance-niveau", async (req, res): Promise<void> =>
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
 
   const userId = req.user!.id;
-  const { niveau, classCount, annee = "2025-2026", weights, rules } = req.body as {
+  const { niveau, classCount, annee = "2026-2027", weights, rules } = req.body as {
     niveau?: string;
     classCount?: number;
     annee?: string;

@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { desc, eq } from "drizzle-orm";
 import { db, paymentsTable, schoolInfoTable, usersTable } from "../../shared/db.js";
+import { isSchoolStage } from "../../shared/school-stage.js";
 import { generateActivationBatch, redeemActivationCode } from "../services/activationCodeService.js";
 import { activateFreePlan, activatePaidPlanTrial, completeDemoPayment, createDemoCheckout, createChargilyCheckout, settleChargilyPayment, verifyChargilySignature, verifyChargilyCheckout } from "../services/paymentService.js";
 import { PAID_PLAN_PRICES_DZD } from "../../shared/subscription.js";
@@ -27,7 +28,7 @@ function requireAdmin(req: Request, res: Response): boolean {
 
 /** Public origin of this app, used for the page Chargily sends people back to after paying. */
 function appOrigin(req: Request): string {
-  const configured = process.env.PUBLIC_APP_URL?.replace(/\/$/, "");
+  const configured = (process.env.PUBLIC_APP_URL || process.env.APP_BASE_URL)?.replace(/\/$/, "");
   if (configured) return configured;
   const proto = req.get("x-forwarded-proto")?.split(",")[0]?.trim() || req.protocol;
   return `${proto}://${req.get("host")}`;
@@ -136,6 +137,14 @@ router.post("/payments/trial", async (req, res): Promise<void> => {
     return;
   }
   try {
+    const [school] = await db.select({ stage: schoolInfoTable.stage })
+      .from(schoolInfoTable)
+      .where(eq(schoolInfoTable.userId, req.user!.id))
+      .limit(1);
+    if (!school || !isSchoolStage(school.stage)) {
+      res.status(409).json({ error: "اختر مرحلة المؤسسة واحفظها قبل بدء التجربة المجانية." });
+      return;
+    }
     const expiresAt = await activatePaidPlanTrial(req.user!.id, plan);
     res.json({
       success: true,

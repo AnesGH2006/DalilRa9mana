@@ -28,6 +28,7 @@ export const GetCurrentAuthUserResponse = zod.object({
       subscriptionStatus: zod.enum(["pending", "active", "suspended"]),
       subscriptionPlan: zod.enum(["free", "basic", "pro", "staff", "parent"]).optional(),
       subscriptionExpiresAt: zod.string().nullable().optional(),
+      schoolStage: zod.enum(["moyen", "lycee"]).optional(),
       memberContext: MemberContextSchema.nullable().optional(),
     }),
     zod.null(),

@@ -101,7 +101,7 @@ async function sendSms(row: AlertRow, message: string, phone: string): Promise<S
 export default function SmsPage() {
   const { toast } = useToast();
 
-  const [annee, setAnnee] = useState("2025-2026");
+  const [annee, setAnnee] = useState("2026-2027");
   const [absThreshold, setAbsThreshold] = useState("10");
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");

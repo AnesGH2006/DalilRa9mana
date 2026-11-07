@@ -150,7 +150,7 @@ router.delete("/timetable/rooms/:id", async (req, res): Promise<void> => {
 
 router.get("/timetable/slots", async (req, res): Promise<void> => {
   if (!auth(req, res)) return;
-  const { annee = "2025-2026", classe } = req.query as Record<string, string>;
+  const { annee = "2026-2027", classe } = req.query as Record<string, string>;
   const conds = [
     eq(timetableSlotsTable.userId, req.user!.id),
     eq(timetableSlotsTable.annee, annee),
@@ -166,7 +166,7 @@ router.get("/timetable/slots", async (req, res): Promise<void> => {
 
 router.post("/timetable/slots", async (req, res): Promise<void> => {
   if (!auth(req, res)) return;
-  const { annee = "2025-2026", classe, subject, teacherId, roomId, day, period, notes } = req.body as {
+  const { annee = "2026-2027", classe, subject, teacherId, roomId, day, period, notes } = req.body as {
     annee?: string; classe?: string; subject?: string;
     teacherId?: string; roomId?: string;
     day?: number; period?: number; notes?: string;
@@ -193,7 +193,7 @@ router.post("/timetable/slots", async (req, res): Promise<void> => {
 
 router.post("/timetable/generate", async (req, res): Promise<void> => {
   if (!auth(req, res)) return;
-  const { annee = "2025-2026", classes, roomIds = [], replace = false, rules = {} } = req.body as {
+  const { annee = "2026-2027", classes, roomIds = [], replace = false, rules = {} } = req.body as {
     annee?: string;
     classes?: TimetableRequestClass[];
     roomIds?: string[];
@@ -275,7 +275,7 @@ router.delete("/timetable/slots/:id", async (req, res): Promise<void> => {
 
 router.get("/timetable/conflicts", async (req, res): Promise<void> => {
   if (!auth(req, res)) return;
-  const { annee = "2025-2026" } = req.query as Record<string, string>;
+  const { annee = "2026-2027" } = req.query as Record<string, string>;
 
   const allSlots = await db
     .select()
@@ -329,7 +329,7 @@ router.get("/timetable/conflicts", async (req, res): Promise<void> => {
 
 router.get("/timetable/classes", async (req, res): Promise<void> => {
   if (!auth(req, res)) return;
-  const { annee = "2025-2026" } = req.query as Record<string, string>;
+  const { annee = "2026-2027" } = req.query as Record<string, string>;
   // A timetable can be prepared before students are imported, so include
   // classes from both the student register and existing timetable slots.
   const studentRows = await db

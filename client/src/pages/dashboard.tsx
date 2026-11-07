@@ -31,7 +31,7 @@ const LEVEL_LABELS: Record<Niveau, string> = {
 
 function getAcademicYears(): string[] {
   const years: string[] = [];
-  for (let start = 2018; start <= 2025; start++) {
+  for (let start = 2018; start <= 2026; start++) {
     years.push(`${start}-${start + 1}`);
   }
   return years.reverse();
@@ -156,8 +156,8 @@ export default function Dashboard() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [viewYear, setViewYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
-  const [form, setForm] = useState({ nom: "", wilaya: "", commune: "", annee: "2025-2026", directeur: "", phone: "" });
+  const [viewYear, setViewYear] = useState(() => localStorage.getItem("cem-selected-year") || "2026-2027");
+  const [form, setForm] = useState({ nom: "", wilaya: "", commune: "", annee: "2026-2027", directeur: "", phone: "" });
 
   const fetchSchool = useCallback(async () => {
     setLoadingSchool(true);
@@ -266,7 +266,7 @@ export default function Dashboard() {
             onClick={() => {
               setForm(school
                 ? { nom: school.nom, wilaya: school.wilaya, commune: school.commune, annee: school.annee, directeur: school.directeur || "", phone: school.phone || "" }
-                : { nom: "", wilaya: "", commune: "", annee: "2025-2026", directeur: "", phone: "" }
+                : { nom: "", wilaya: "", commune: "", annee: "2026-2027", directeur: "", phone: "" }
               );
               setEditOpen(true);
             }}
@@ -701,7 +701,7 @@ export default function Dashboard() {
               { key: "nom", label: t("dashboard.schoolName") },
               { key: "wilaya", label: t("dashboard.wilaya") },
               { key: "commune", label: t("dashboard.commune") },
-              { key: "annee", label: t("dashboard.year"), placeholder: "2025-2026" },
+              { key: "annee", label: t("dashboard.year"), placeholder: "2026-2027" },
               { key: "directeur", label: t("settings.director") },
               { key: "phone", label: t("settings.phone") },
             ].map((f, i) => (

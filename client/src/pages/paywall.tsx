@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import type { SchoolStage } from "@shared/school-stage";
+import { SCHOOL_STAGE } from "@/lib/deployment";
+import { useSchoolStage } from "@/hooks/use-school-stage";
 
 const BASE: string = (import.meta as any).env?.BASE_URL ?? "/";
 
@@ -89,6 +92,13 @@ const STYLE = `
 .pw-hero p { color: #9aa6c4; margin: 0 auto; max-width: 620px; font-size: 15px; line-height: 1.7; }
 .pw-trust { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 10px; margin: 16px 0 6px; }
 .pw-trust span { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 999px; padding: 6px 13px; font-size: 12.5px; color: #cbd5e6; }
+.pw-stage { max-width: 620px; margin: 18px auto 0; padding: 16px; border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; background: rgba(255,255,255,0.04); text-align: right; }
+.pw-stage-title { margin: 0 0 5px; font-size: 15px; font-weight: 750; color: #f1f5f9; }
+.pw-stage-description, .pw-stage-status { margin: 0; color: #9aa6c4; font-size: 12.5px; line-height: 1.7; }
+.pw-stage-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0 8px; }
+.pw-stage-option { padding: 11px 12px; border: 1px solid rgba(255,255,255,0.14); border-radius: 11px; background: rgba(255,255,255,0.04); color: #cbd5e6; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.pw-stage-option[aria-pressed="true"] { border-color: #3b82f6; background: rgba(59,130,246,0.18); color: #fff; }
+.pw-stage-option:disabled { cursor: wait; opacity: .6; }
 .pw-persona { display: flex; justify-content: center; margin: 22px 0 30px; }
 .pw-persona-inner { display: inline-flex; gap: 4px; padding: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; max-width: 100%; overflow-x: auto; }
 .pw-persona button { border: 0; background: transparent; color: #aab4cf; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
@@ -185,6 +195,7 @@ export default function PaywallScreen() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [persona, setPersona] = useState<Persona>("school");
+  const { stage, stageConfigured, stageLoading, stageSaving, stageError, chooseStage } = useSchoolStage();
 
   const load = useCallback(async () => {
     try {
@@ -204,6 +215,10 @@ export default function PaywallScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function chooseInstitutionStage(nextStage: SchoolStage) {
+    if (await chooseStage(nextStage)) await load();
+  }
 
   async function pay(amountDzd: number) {
     setBusy(true);
@@ -280,6 +295,8 @@ export default function PaywallScreen() {
     ? schoolOptions.map(o => [o.plan, o.amountDzd] as const)
     : schoolPrices.map(([plan, amount]) => [plan, Number(amount)] as const);
   const canStartFree = me?.role === "owner";
+  const stageRequired = me?.role === "owner";
+  const stageReady = !stageRequired || stageConfigured;
   const parentPrice = me?.prices.parent ?? 1000;
   const staffPrice = me?.prices.staff ?? 2000;
 
@@ -298,6 +315,51 @@ export default function PaywallScreen() {
             {TRUST.map(item => <span key={item.text}>{item.icon} {item.text}</span>)}
           </div>
         </header>
+
+        {me?.role === "owner" && (
+          <section className="pw-stage" aria-label="مرحلة المؤسسة">
+            <h2 className="pw-stage-title">ما مرحلة مؤسستك؟</h2>
+            <p className="pw-stage-description">اختر المتوسطة (CEM) أو الثانوية (Lycée). سيُطبّق الاختيار على المستويات والميزات والتقارير.</p>
+            <div className="pw-stage-options" role="group" aria-label="اختر مرحلة المؤسسة">
+              <button
+                type="button"
+                className="pw-stage-option"
+                aria-pressed={stage === "moyen"}
+                disabled={stageLoading || stageSaving}
+                onClick={() => void chooseInstitutionStage("moyen")}
+              >
+                المتوسطة (CEM)
+              </button>
+              <button
+                type="button"
+                className="pw-stage-option"
+                aria-pressed={stage === "lycee"}
+                disabled={stageLoading || stageSaving}
+                onClick={() => void chooseInstitutionStage("lycee")}
+              >
+                الثانوية (Lycée)
+              </button>
+            </div>
+            <p className="pw-stage-status" role="status">
+              {stageLoading
+                ? "جارٍ تحميل مرحلة المؤسسة…"
+                : stageSaving
+                  ? "جارٍ حفظ الاختيار…"
+                  : stageConfigured
+                    ? `المرحلة المعتمدة: ${stage === "lycee" ? "الثانوية (Lycée)" : "المتوسطة (CEM)"}`
+                    : "احفظ اختيار المرحلة للمتابعة إلى الباقات."}
+            </p>
+            {stageError && <p className="pw-stage-status" role="alert">{stageError}</p>}
+          </section>
+        )}
+        {me && me.role !== "owner" && !stageLoading && (
+          <section className="pw-stage" aria-label="مرحلة المؤسسة">
+            <h2 className="pw-stage-title">مرحلة المؤسسة</h2>
+            <p className="pw-stage-description">
+              {stage === "lycee" ? "الثانوية (Lycée)" : "المتوسطة (CEM)"} · يحدد صاحب المؤسسة هذه المرحلة.
+            </p>
+          </section>
+        )}
 
         <div className="pw-persona">
           <div className="pw-persona-inner" role="group" aria-label="اختر دورك">
@@ -323,8 +385,8 @@ export default function PaywallScreen() {
               price={<><div className="pw-price">0</div><div className="pw-sub">تجربة أساسية</div></>}
               features={FEATURES.free}
               footer={
-                <button type="button" className="pw-btn pw-btn-outline" style={accentVars("#cbd5e1")} disabled={busy || !canStartFree} onClick={() => void startFree()}>
-                  ابدأ مجاناً
+                <button type="button" className="pw-btn pw-btn-outline" style={accentVars("#cbd5e1")} disabled={busy || !canStartFree || !stageReady || stageSaving} onClick={() => void startFree()}>
+                  {stageRequired && !stageReady ? "اختر المرحلة أولاً" : "ابدأ مجاناً"}
                 </button>
               }
             />
@@ -344,8 +406,8 @@ export default function PaywallScreen() {
               features={FEATURES.parent}
               footer={
                 <>
-                  <button type="button" className="pw-btn" disabled={busy || !parentOption} onClick={() => parentOption && void pay(parentOption.amountDzd)}>
-                    {busy ? "جارٍ التحويل…" : parentOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
+                  <button type="button" className="pw-btn" disabled={busy || !parentOption || !stageReady || stageSaving} onClick={() => parentOption && void pay(parentOption.amountDzd)}>
+                    {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : parentOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
                   </button>
                   {!parentOption && <div className="pw-note">غير متاحة لحساب يدير مؤسسة. يشترك الولي بحسابه الشخصي.</div>}
                   <div className="pw-note">لديك رمز المدرسة؟ <a className="pw-link" href={`${BASE}parent-register`}>سجّل كولي أمر</a></div>
@@ -368,8 +430,8 @@ export default function PaywallScreen() {
               features={FEATURES.staff}
               footer={
                 <>
-                  <button type="button" className="pw-btn" disabled={busy || !staffOption} onClick={() => staffOption && void pay(staffOption.amountDzd)}>
-                    {busy ? "جارٍ التحويل…" : staffOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
+                  <button type="button" className="pw-btn" disabled={busy || !staffOption || !stageReady || stageSaving} onClick={() => staffOption && void pay(staffOption.amountDzd)}>
+                    {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : staffOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
                   </button>
                   {!staffOption && <div className="pw-note">غير متاحة لحساب يدير مؤسسة. يشترك الأستاذ بحسابه الشخصي.</div>}
                 </>
@@ -380,7 +442,7 @@ export default function PaywallScreen() {
               accent={COLORS.school}
               active={persona === "school"}
               tag={persona === "school" ? "مناسبة لك" : undefined}
-              badge="🏫 المؤسسة (School) (Admin)"
+              badge={`🏫 المؤسسة · ${stage === "lycee" ? "الثانوية (Lycée)" : "المتوسطة (CEM)"}`}
               price={
                 <>
                   {schoolShown.map(([plan, amount]) => (
@@ -397,14 +459,14 @@ export default function PaywallScreen() {
                 schoolOptions.length > 0 ? (
                   schoolOptions.map(option => (
                     <div key={option.plan} style={{ display: "grid", gap: 8 }}>
-                      <button type="button" className="pw-btn" disabled={busy || trialBusy !== null} onClick={() => void pay(option.amountDzd)}>
-                        {busy ? "جارٍ التحويل…" : `الدفع عبر Chargily${schoolOptions.length > 1 ? ` · ${option.amountDzd.toLocaleString("en-US")} دج` : ""}`}
+                      <button type="button" className="pw-btn" disabled={busy || trialBusy !== null || !stageReady || stageSaving} onClick={() => void pay(option.amountDzd)}>
+                        {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : `الدفع عبر Chargily${schoolOptions.length > 1 ? ` · ${option.amountDzd.toLocaleString("en-US")} دج` : ""}`}
                       </button>
                       {me?.trialAvailable && (option.plan === "basic" || option.plan === "pro") && (
                         <button
                           type="button"
                           className="pw-btn pw-trial"
-                          disabled={busy || trialBusy !== null}
+                          disabled={busy || trialBusy !== null || !stageReady || stageSaving}
                           onClick={() => void startTrial(option.plan === "basic" ? "basic" : "pro")}
                         >
                           {trialBusy === option.plan ? "جارٍ تفعيل التجربة…" : `جرّب ${option.plan === "basic" ? "الأساسية" : "المتقدمة"} مجاناً لمدة شهر`}

@@ -50,7 +50,7 @@ function schoolIdForSms(req: Request, res: Response): string | null {
 router.get("/sms/alerts", async (req, res): Promise<void> => {
   const userId = schoolIdForSms(req, res);
   if (!userId) return;
-  const annee = (req.query.annee as string) || "2025-2026";
+  const annee = (req.query.annee as string) || "2026-2027";
   const absThreshold = parseInt((req.query.absThreshold as string) || "10");
 
   // ── 1. Fetch all students for this school/year ──────────────────────────────

@@ -22,7 +22,7 @@ function getTrack(stream: "science" | "arts" | undefined) {
 }
 
 export default function PreOrientTrackingPage() {
-  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
+  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2026-2027");
   const [results, setResults] = useState<StudentResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");

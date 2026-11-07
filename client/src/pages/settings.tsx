@@ -38,7 +38,7 @@ export default function Settings() {
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [savingGeminiKey, setSavingGeminiKey] = useState(false);
 
-  const [form, setForm] = useState({ nom: "", wilaya: "", commune: "", annee: "2025-2026", directeur: "", phone: "", supportPhone: "" });
+  const [form, setForm] = useState({ nom: "", wilaya: "", commune: "", annee: "2026-2027", directeur: "", phone: "", supportPhone: "" });
 
   const fetchSchool = useCallback(async () => {
     const res = await fetch(`${BASE}api/school`, { credentials: "include" });
@@ -91,7 +91,7 @@ export default function Settings() {
     { key: "nom",      label: t("dashboard.schoolName"), placeholder: SCHOOL_STAGE === "lycee" ? "ثانوية..." : "متوسطة..." },
     { key: "wilaya",   label: t("dashboard.wilaya"),     placeholder: "ولاية..." },
     { key: "commune",  label: t("dashboard.commune"),    placeholder: "بلدية..." },
-    { key: "annee",    label: t("dashboard.year"),       placeholder: "2025-2026" },
+    { key: "annee",    label: t("dashboard.year"),       placeholder: "2026-2027" },
     { key: "directeur",label: t("settings.director"),   placeholder: "اسم المدير..." },
     { key: "phone",        label: t("settings.phone"),           placeholder: "0xxx..." },
     { key: "supportPhone", label: "رقم واتساب للدعم التقني",     placeholder: "213XXXXXXXXX (بدون +)" },

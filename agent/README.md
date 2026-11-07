@@ -44,7 +44,7 @@ server/ (additions to the SaaS backend)
 Edit `agent/src/config.js` and set `SERVER_URL` to your deployed SaaS URL:
 
 ```js
-SERVER_URL: 'https://dalilra9mana.onrender.com',
+SERVER_URL: 'https://dalilrakmana.onrender.com',
 ```
 
 ### 2. Install agent dependencies

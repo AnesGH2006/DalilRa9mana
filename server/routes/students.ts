@@ -585,7 +585,7 @@ router.post("/students/import", upload.single("file"), async (req, res): Promise
   if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
 
   const userId = req.user!.id;
-  const annee  = (req.query.annee as string) || "2025-2026";
+  const annee  = (req.query.annee as string) || "2026-2027";
   const stage = getSchoolStageForRequest(req);
 
   let raw: unknown[][] = [];
@@ -709,7 +709,7 @@ router.delete("/students", async (req, res): Promise<void> => {
 });
 
 /**
- * POST /api/students/auto-detect-repeaters?annee=2025-2026
+ * POST /api/students/auto-detect-repeaters?annee=2026-2027
  *
  * Smart repeater detection: compares the target year's student list with the
  * previous year.  A student who appears in the SAME niveau in the previous

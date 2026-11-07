@@ -194,7 +194,7 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
   const { linkedStudentId, schoolUserId } = req.memberContext;
   if (!linkedStudentId) { res.json({ student: null }); return; }
 
-  const annee = String(req.query.annee ?? "2025-2026");
+  const annee = String(req.query.annee ?? "2026-2027");
   const cacheKey = `parent-feed:v5:${schoolUserId}:${linkedStudentId}:${annee}`;
   const cached = await getCachedJson<Record<string, unknown>>(cacheKey);
   if (cached) {
@@ -332,7 +332,7 @@ router.post("/my-child/absences/:id/reason", async (req: Request, res: Response)
     res.status(400).json({ error: "Enter an absence reason between 3 and 500 characters" });
     return;
   }
-  const annee = typeof req.body?.annee === "string" ? req.body.annee : "2025-2026";
+  const annee = typeof req.body?.annee === "string" ? req.body.annee : "2026-2027";
 
   const [updatedAbsence] = await db.update(studentDailyAttendanceTable)
     .set({ parentAbsenceReason: reason, parentAbsenceReasonAt: new Date() })
@@ -360,7 +360,7 @@ router.get("/teacher/students", async (req: Request, res: Response): Promise<voi
   if (req.memberContext?.role !== "teacher") { res.status(403).json({ error: "Teachers only" }); return; }
 
   const { assignedClasses, schoolUserId } = req.memberContext;
-  const annee = String(req.query.annee ?? "2025-2026");
+  const annee = String(req.query.annee ?? "2026-2027");
 
   if (!assignedClasses.length) { res.json([]); return; }
 

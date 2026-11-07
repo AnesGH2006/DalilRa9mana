@@ -520,7 +520,7 @@ export default function TimetablePage() {
   const [conflictIds, setConflictIds] = useState<Set<string>>(new Set());
 
   // Filters
-  const [annee,       setAnnee]       = useState("2025-2026");
+  const [annee,       setAnnee]       = useState("2026-2027");
   const [activeClasse, setActiveClasse] = useState("");
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [quickGenerating, setQuickGenerating] = useState(false);

@@ -312,10 +312,10 @@ export default function AnalyticsPage() {
   const { t } = useLanguage();
   const years = getAcademicYears();
 
-  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
+  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2026-2027");
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(() => {
-    const stored = localStorage.getItem("cem-selected-year") || "2025-2026";
+    const stored = localStorage.getItem("cem-selected-year") || "2026-2027";
     const idx = years.indexOf(stored);
     return years[idx + 1] || years[1] || stored;
   });

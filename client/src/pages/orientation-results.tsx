@@ -15,7 +15,7 @@ import {
 
 const BASE = import.meta.env.BASE_URL;
 const ACADEMIC_YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024"];
-const DEFAULT_YEAR = "2025-2026";
+const DEFAULT_YEAR = "2026-2027";
 
 // Track-specific subjects (Algerian curriculum)
 const SCIENCE_SUBJECTS = [

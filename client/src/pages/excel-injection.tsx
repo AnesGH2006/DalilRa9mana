@@ -43,7 +43,7 @@ export default function ExcelInjectionPage() {
   const [excelRows, setExcelRows] = useState<SourceRow[]>([]);
   const [excelFields, setExcelFields] = useState<Array<{ key: string; label: string }>>([]);
   const [term, setTerm] = useState("");
-  const [year, setYear] = useState("2025-2026");
+  const [year, setYear] = useState("2026-2027");
   const [level, setLevel] = useState("");
   const [className, setClassName] = useState("");
   const [systemClasses, setSystemClasses] = useState<string[]>([]);

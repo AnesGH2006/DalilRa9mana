@@ -4,6 +4,7 @@
  */
 import { db, studentsTable, gradesTable, absencesTable, schoolInfoTable } from "../../../shared/db.js";
 import { eq, and, like, or } from "drizzle-orm";
+import { SCHOOL_STAGE_LEVELS, type SchoolStage } from "../../../shared/school-stage.js";
 
 export interface DatabaseQueryInput {
   query_type: "students" | "grades" | "absences" | "stats" | "student_detail" | "failing_students" | "top_students" | "absent_students";
@@ -19,9 +20,9 @@ export interface DatabaseQueryInput {
   };
 }
 
-export async function databaseQueryTool(input: DatabaseQueryInput, userId: string): Promise<unknown> {
+export async function databaseQueryTool(input: DatabaseQueryInput, userId: string, stage: SchoolStage): Promise<unknown> {
   const filters = input.filters ?? {};
-  const annee = filters.annee ?? "2025-2026";
+  const annee = filters.annee ?? "2026-2027";
   const limit = Math.min(filters.limit ?? 50, 200);
 
   // Fetch all data for user (already filtered by userId)
@@ -76,7 +77,8 @@ export async function databaseQueryTool(input: DatabaseQueryInput, userId: strin
   });
 
   // Apply filters
-  let filtered = enriched.filter(s => s.annee === annee);
+  const allowedLevels = new Set<string>(SCHOOL_STAGE_LEVELS[stage]);
+  let filtered = enriched.filter(s => s.annee === annee && allowedLevels.has(s.niveau));
   if (filters.niveau) filtered = filtered.filter(s => s.niveau === filters.niveau);
   if (filters.classe) filtered = filtered.filter(s => s.classe === filters.classe);
   if (filters.resultat) filtered = filtered.filter(s => s.resultat === filters.resultat);

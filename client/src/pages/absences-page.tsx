@@ -18,7 +18,7 @@ import {
 
 const BASE = import.meta.env.BASE_URL;
 const ACADEMIC_YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024", "2022-2023"];
-const DEFAULT_YEAR  = "2025-2026";
+const DEFAULT_YEAR  = "2026-2027";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface AbsenceRow {

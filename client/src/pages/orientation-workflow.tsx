@@ -63,7 +63,7 @@ const emptyPlan = (annee: string): OrientationPlan => ({
 });
 
 function MiddleOrientationWorkflowPage() {
-  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
+  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2026-2027");
   const [results, setResults] = useState<StudentResult[]>([]);
   const [secondarySchools, setSecondarySchools] = useState<SecondarySchool[]>([]);
   const [plan, setPlan] = useState<OrientationPlan>(() => emptyPlan(year));
@@ -383,7 +383,7 @@ interface LinkedMiddleSchool {
 }
 
 function IncomingOrientationPage() {
-  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2025-2026");
+  const [year, setYear] = useState(() => localStorage.getItem("cem-selected-year") || "2026-2027");
   const [students, setStudents] = useState<IncomingStudent[]>([]);
   const [linkedSchools, setLinkedSchools] = useState<LinkedMiddleSchool[]>([]);
   const [loading, setLoading] = useState(true);

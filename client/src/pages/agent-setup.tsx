@@ -214,7 +214,7 @@ export default function AgentSetupPage() {
   const serverUrl =
     typeof window !== "undefined"
       ? window.location.origin
-      : "https://dalilra9mana.onrender.com";
+      : "https://dalilrakmana.onrender.com";
 
   const fetchTokens = useCallback(async () => {
     setLoadingTokens(true);

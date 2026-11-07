@@ -1,6 +1,6 @@
 # Dalil Ra9mana — دليل الرقمنة
 
-Algerian school management SaaS with separately deployed CEM and lycée instances. Full-stack Arabic-language web app.
+Algerian school management SaaS serving CEM and lycée institutions from one deployment. Full-stack Arabic-language web app.
 
 ## Stack
 
@@ -34,21 +34,18 @@ pnpm run db:studio
 
 Set `DATABASE_URL` to the PostgreSQL connection string for the environment.
 
-## Separate CEM and lycée deployments
+## CEM and lycée in one deployment
 
-CEM and lycée must run as separate deployments against separate PostgreSQL databases.
-Never configure the two deployments with the same `DATABASE_URL`.
+The selected school stage is stored per institution in `school_info.stage`. Owners
+choose CEM (`moyen`) or lycée (`lycee`) from the plan-selection page before adding
+students; staff accounts inherit their school's stage. The stage cannot be changed
+after students have been added.
 
-Set `SCHOOL_STAGE` to `moyen` for the CEM deployment or `lycee` for the lycée
-deployment. Set the same value for both the build and server runtime; the frontend
-uses it to fix the available levels, and the server uses it to validate and scope
-student data. The stage is fixed per deployment and cannot be switched from a
-browser setting. The default is `moyen` for existing CEM deployments.
-
-Each deployment must also use its own `SESSION_SECRET` and public `APP_BASE_URL`.
-Register the matching OAuth callback URL for each deployment. To prepare a
-lycée database, run the database migration (`pnpm tsx scripts/migrate.ts`) before
-starting the app so the `1AS`–`3AS` levels are available.
+`SCHOOL_STAGE` is only a fallback for accounts without saved school information.
+It does not select or isolate the deployment's database. If combining existing CEM
+and lycée deployments, migrate both sets of records into the shared database while
+preserving each institution's `school_info.stage`; this application does not merge
+separate production databases automatically.
 
 ## Subscription plans
 
@@ -64,11 +61,12 @@ and the selected plan is stored for each account.
 | Key | Required | Notes |
 |-----|----------|-------|
 | `DATABASE_URL` | ✅ | PostgreSQL connection string |
-| `SCHOOL_STAGE` | Optional | `moyen` for CEM or `lycee` for lycée; keep the same setting for build and runtime |
+| `SCHOOL_STAGE` | Optional | Fallback stage for accounts without a saved institution stage; defaults to `moyen` |
 | `SESSION_SECRET` | ✅ | Long random string for session cookies |
 | `GOOGLE_CLIENT_ID` | ✅ | Google OAuth web client ID |
 | `GOOGLE_CLIENT_SECRET` | ✅ | Google OAuth web client secret |
 | `APP_BASE_URL` | Production | Public application URL |
+| `PUBLIC_APP_URL` | Optional | Payment-return URL; when omitted, uses `APP_BASE_URL` |
 | `ADMIN_EMAILS` | Optional | Comma-separated Google accounts promoted to active admins |
 | `ALLOW_DEV_LOGIN` | Local/temporary only | Enables the test admin account at `/api/dev-login`; disable after testing |
 | `GROQ_API_KEY` | — | لا حاجة له؛ يضيف كل مشترك مفتاحه الشخصي من الإعدادات |
@@ -117,10 +115,11 @@ The Electron agent in `agent/` is Windows-only and connects to the deployed SaaS
 - `GOOGLE_CLIENT_ID`: معرّف عميل Google OAuth.
 - `GOOGLE_CLIENT_SECRET`: سر عميل Google OAuth.
 - `OIDC_ISSUER_URL`: اختياري، والإعداد الافتراضي هو `https://accounts.google.com`.
-- `APP_BASE_URL`: عنوان الخدمة العام: `https://dalilra9mana.onrender.com`.
+- `APP_BASE_URL`: عنوان الخدمة العام: `https://dalilrakmana.onrender.com`.
+- `PUBLIC_APP_URL`: إن تم ضبطه، استخدم القيمة نفسها لـ`APP_BASE_URL`: `https://dalilrakmana.onrender.com`.
 
 يجب أن يطابق عنوان callback المسجل في Google Cloud Console:
-`https://dalilra9mana.onrender.com/api/callback`
+`https://dalilrakmana.onrender.com/api/callback`
 
 ### الحصول على مفتاح Groq
 
@@ -139,4 +138,4 @@ The Electron agent in `agent/` is Windows-only and connects to the deployed SaaS
 للاختبار المؤقت بحساب المدير التجريبي، أضف `ALLOW_DEV_LOGIN=true` إلى متغيرات البيئة في Render ثم أعد النشر، وبعدها افتح `/api/dev-login`. هذا ينشئ جلسة المدير التجريبي `dev-test-user` مباشرة. احذف المتغير أو عيّنه إلى `false` بعد الاختبار، لأن الرابط يمنح صلاحيات المدير.
 
 في Render يجب إعداد `GOOGLE_CLIENT_ID` و`GOOGLE_CLIENT_SECRET` وضبط `APP_BASE_URL`، ثم إضافة رابط callback التالي إلى إعدادات Google OAuth:
-`https://dalilra9mana.onrender.com/api/callback`
+`https://dalilrakmana.onrender.com/api/callback`

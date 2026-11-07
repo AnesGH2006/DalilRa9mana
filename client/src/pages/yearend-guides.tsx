@@ -17,7 +17,7 @@ import type { StudentResult } from "@shared/types";
 
 const BASE = import.meta.env.BASE_URL;
 const YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024"];
-const DEFAULT_YEAR = "2025-2026";
+const DEFAULT_YEAR = "2026-2027";
 
 function trackFor(stream: "science" | "arts" | undefined): { label: string; color: string } | null {
   if (stream === "science") return { label: "جذع مشترك علوم وتكنولوجيا", color: "text-blue-500" };

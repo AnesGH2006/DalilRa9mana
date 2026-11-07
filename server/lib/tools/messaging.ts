@@ -7,9 +7,7 @@ import nodemailer from "nodemailer";
 import { db, notificationsTable } from "../../../shared/db.js";
 import { randomUUID } from "crypto";
 import { sendPushToUser } from "../../services/pushNotificationService.js";
-import { SCHOOL_STAGE } from "../../config/school-stage.js";
-
-const schoolTypeLabel = SCHOOL_STAGE === "lycee" ? "الثانوية" : "المتوسطة";
+import type { SchoolStage } from "../../../shared/school-stage.js";
 
 export interface MessagingInput {
   channel: "email" | "whatsapp" | "dashboard" | "all";
@@ -20,7 +18,7 @@ export interface MessagingInput {
   metadata?: Record<string, unknown>;
 }
 
-async function sendEmail(input: MessagingInput): Promise<{ sent: boolean; info?: string; error?: string }> {
+async function sendEmail(input: MessagingInput, stage: SchoolStage): Promise<{ sent: boolean; info?: string; error?: string }> {
   const smtpHost = process.env.SMTP_HOST;
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
@@ -33,6 +31,7 @@ async function sendEmail(input: MessagingInput): Promise<{ sent: boolean; info?:
     };
   }
 
+  const schoolTypeLabel = stage === "lycee" ? "الثانوية" : "المتوسطة";
   const transporter = nodemailer.createTransport({
     host: smtpHost,
     port: smtpPort,
@@ -101,7 +100,7 @@ async function storeNotification(input: MessagingInput, userId: string): Promise
   return { stored: true, id };
 }
 
-export async function messagingDispatcherTool(input: MessagingInput, userId: string): Promise<unknown> {
+export async function messagingDispatcherTool(input: MessagingInput, userId: string, stage: SchoolStage): Promise<unknown> {
   const results: Record<string, unknown> = {};
 
   const channels = input.channel === "all"
@@ -110,7 +109,7 @@ export async function messagingDispatcherTool(input: MessagingInput, userId: str
 
   await Promise.all(channels.map(async (ch) => {
     if (ch === "email") {
-      results.email = await sendEmail(input);
+      results.email = await sendEmail(input, stage);
     } else if (ch === "whatsapp") {
       results.whatsapp = await sendWhatsApp(input);
     } else if (ch === "dashboard") {
