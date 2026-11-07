@@ -266,6 +266,12 @@ export default function SubscriptionPage() {
                 </motion.div>
 
                 <h2 className="text-lg font-extrabold text-white mb-1">{plan.name}</h2>
+                {(plan.key === "basic" || plan.key === "pro") && paymentInfo?.trialAvailable && !plan.current && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold text-white ring-1 ring-white/40">
+                    <Calendar className="h-3 w-3" />
+                    تجربة مجانية 30 يوماً
+                  </span>
+                )}
 
                 {/* Price */}
                 <div className="flex items-end gap-1">
