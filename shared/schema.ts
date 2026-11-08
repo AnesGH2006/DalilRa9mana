@@ -481,7 +481,9 @@ export const timetableSlotsTable = pgTable("timetable_slots", {
   /** The class this slot belongs to, e.g. "1AM-أ" */
   classe: varchar("classe", { length: 30 }).notNull(),
   subject: varchar("subject", { length: 100 }).notNull(),
+  alternateSubject: varchar("alternate_subject", { length: 100 }),
   teacherId: varchar("teacher_id").references(() => timetableTeachersTable.id, { onDelete: "set null" }),
+  alternateTeacherId: varchar("alternate_teacher_id").references(() => timetableTeachersTable.id, { onDelete: "set null" }),
   roomId: varchar("room_id").references(() => timetableRoomsTable.id, { onDelete: "set null" }),
   /** 0 = Sunday, 1 = Monday … 4 = Thursday (Algerian school week) */
   day: integer("day").notNull(),

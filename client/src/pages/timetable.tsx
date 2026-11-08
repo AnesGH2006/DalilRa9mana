@@ -43,15 +43,16 @@ const ROOM_TYPES: Record<string, { label: string; icon: string; color: string }>
 const CEM_SUBJECTS = [
   "اللغة العربية", "اللغة الفرنسية", "الرياضيات", "العلوم الطبيعية",
   "التربية الإسلامية", "التاريخ والجغرافيا", "التربية البدنية",
+  "الاستدراك",
   "اللغة الأمازيغية", "الفنون", "الموسيقى", "التربية المدنية",
   "الفيزياء", "اللغة الإنجليزية",
 ];
 
 const DEFAULT_WEEKLY_PERIODS: Record<string, Record<string, number>> = {
-  "1AM": { "اللغة العربية": 5, "اللغة الفرنسية": 4, "اللغة الإنجليزية": 2, "الرياضيات": 4, "العلوم الطبيعية": 2, "التربية الإسلامية": 1, "التاريخ والجغرافيا": 2, "التربية البدنية": 2, "اللغة الأمازيغية": 1, "الفنون": 1, "الموسيقى": 1, "التربية المدنية": 1, "الفيزياء": 2 },
-  "2AM": { "اللغة العربية": 5, "اللغة الفرنسية": 4, "اللغة الإنجليزية": 2, "الرياضيات": 4, "العلوم الطبيعية": 2, "التربية الإسلامية": 1, "التاريخ والجغرافيا": 2, "التربية البدنية": 2, "اللغة الأمازيغية": 1, "الفنون": 1, "الموسيقى": 1, "التربية المدنية": 1, "الفيزياء": 2 },
-  "3AM": { "اللغة العربية": 5, "اللغة الفرنسية": 4, "اللغة الإنجليزية": 3, "الرياضيات": 4, "العلوم الطبيعية": 2, "التربية الإسلامية": 1, "التاريخ والجغرافيا": 2, "التربية البدنية": 2, "اللغة الأمازيغية": 1, "الفنون": 1, "الموسيقى": 1, "التربية المدنية": 1, "الفيزياء": 2 },
-  "4AM": { "اللغة العربية": 5, "اللغة الفرنسية": 3, "اللغة الإنجليزية": 3, "الرياضيات": 5, "العلوم الطبيعية": 3, "التربية الإسلامية": 2, "التاريخ والجغرافيا": 3, "التربية البدنية": 2, "اللغة الأمازيغية": 1, "التربية المدنية": 1, "الفيزياء": 2 },
+  "1AM": { "اللغة العربية": 5, "اللغة الفرنسية": 4, "اللغة الإنجليزية": 2, "الرياضيات": 4, "العلوم الطبيعية": 2, "التربية الإسلامية": 1, "التاريخ والجغرافيا": 2, "التربية البدنية": 2, "الاستدراك": 2, "اللغة الأمازيغية": 1, "الفنون": 1, "الموسيقى": 1, "التربية المدنية": 1, "الفيزياء": 2 },
+  "2AM": { "اللغة العربية": 5, "اللغة الفرنسية": 4, "اللغة الإنجليزية": 2, "الرياضيات": 4, "العلوم الطبيعية": 2, "التربية الإسلامية": 1, "التاريخ والجغرافيا": 2, "التربية البدنية": 2, "الاستدراك": 2, "اللغة الأمازيغية": 1, "الفنون": 1, "الموسيقى": 1, "التربية المدنية": 1, "الفيزياء": 2 },
+  "3AM": { "اللغة العربية": 5, "اللغة الفرنسية": 4, "اللغة الإنجليزية": 3, "الرياضيات": 4, "العلوم الطبيعية": 2, "التربية الإسلامية": 1, "التاريخ والجغرافيا": 2, "التربية البدنية": 2, "الاستدراك": 2, "اللغة الأمازيغية": 1, "الفنون": 1, "الموسيقى": 1, "التربية المدنية": 1, "الفيزياء": 2 },
+  "4AM": { "اللغة العربية": 5, "اللغة الفرنسية": 3, "اللغة الإنجليزية": 3, "الرياضيات": 5, "العلوم الطبيعية": 3, "التربية الإسلامية": 2, "التاريخ والجغرافيا": 3, "التربية البدنية": 2, "الاستدراك": 2, "اللغة الأمازيغية": 1, "التربية المدنية": 1, "الفيزياء": 2 },
 };
 
 const parseClassList = (raw: string): string[] => {
@@ -93,7 +94,9 @@ interface Slot {
   id: string;
   classe: string;
   subject: string;
+  alternateSubject?: string | null;
   teacherId: string | null;
+  alternateTeacherId?: string | null;
   roomId: string | null;
   day: number;
   period: number;
@@ -171,6 +174,7 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
 
   // Per-level curriculum: { level: { subject: periods/week } }
   const [levelTargets, setLevelTargets] = useState<Record<string, Record<string, number>>>({});
+  const [directedWorkPairs, setDirectedWorkPairs] = useState<Record<string, { subjectA: string; subjectB: string }>>({});
 
   useEffect(() => {
     setLevelTargets(current => {
@@ -257,7 +261,19 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
           periods: count,
           teacherId: teacherForSubject[subject] ?? null,
         }));
-      return { classe, subjects: activeSubjects };
+      const pair = directedWorkPairs[level];
+      return {
+        classe,
+        subjects: activeSubjects,
+        ...(pair?.subjectA && pair.subjectB && pair.subjectA !== pair.subjectB ? {
+          directedWork: {
+            subjectA: pair.subjectA,
+            teacherA: teacherForSubject[pair.subjectA] ?? null,
+            subjectB: pair.subjectB,
+            teacherB: teacherForSubject[pair.subjectB] ?? null,
+          },
+        } : {}),
+      };
     }).filter(entry => entry.subjects.length > 0);
 
     if (!classesPayload.length || !selectedDays.length) {
@@ -378,22 +394,49 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
             ))}
           </div>
           {activeLevelTab && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto border rounded-lg p-2">
-              {subjects.map(subject => {
-                const target = levelTargets[activeLevelTab]?.[subject] ?? 0;
-                const missingTeacher = target > 0 && !teacherForSubject[subject];
-                return (
-                  <label key={subject} className="text-xs flex items-center gap-2">
-                    <span className={`truncate flex-1 ${missingTeacher ? "text-amber-600 dark:text-amber-400" : ""}`} title={missingTeacher ? "لا يوجد أستاذ مطابق" : undefined}>
-                      {subject}{missingTeacher && " ⚠️"}
-                    </span>
-                    <input type="number" min="0" max="30" value={target}
-                      onChange={e => updateLevelTarget(activeLevelTab, subject, Number(e.target.value) || 0)}
-                      className="w-14 rounded border px-1.5 py-1 bg-background" />
-                  </label>
-                );
-              })}
-            </div>
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto border rounded-lg p-2">
+                {subjects.map(subject => {
+                  const target = levelTargets[activeLevelTab]?.[subject] ?? 0;
+                  const missingTeacher = target > 0 && !teacherForSubject[subject];
+                  return (
+                    <label key={subject} className="text-xs flex items-center gap-2">
+                      <span className={`truncate flex-1 ${missingTeacher ? "text-amber-600 dark:text-amber-400" : ""}`} title={missingTeacher ? "لا يوجد أستاذ مطابق" : undefined}>
+                        {subject}{missingTeacher && " ⚠️"}
+                      </span>
+                      <input type="number" min="0" max="30" value={target}
+                        onChange={e => updateLevelTarget(activeLevelTab, subject, Number(e.target.value) || 0)}
+                        className="w-14 rounded border px-1.5 py-1 bg-background" />
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border p-2">
+                <p className="sm:col-span-2 text-xs font-semibold">الأعمال الموجّهة: حصتان متتاليتان بالتناوب أسبوعاً بعد أسبوع</p>
+                {["subjectA", "subjectB"].map((key, index) => {
+                  const pair = directedWorkPairs[activeLevelTab] ?? { subjectA: "", subjectB: "" };
+                  const field = key as "subjectA" | "subjectB";
+                  const other = field === "subjectA" ? "subjectB" : "subjectA";
+                  return (
+                    <label key={key} className="text-xs">
+                      {index === 0 ? "مادة أسبوع أ" : "مادة أسبوع ب"}
+                      <select
+                        value={pair[field]}
+                        onChange={event => setDirectedWorkPairs(current => ({
+                          ...current,
+                          [activeLevelTab]: { ...pair, [field]: event.target.value },
+                        }))}
+                        className="mt-1 w-full rounded border px-2 py-1.5 bg-background"
+                      >
+                        <option value="">بدون أعمال موجّهة</option>
+                        {subjects.filter(subject => subject !== pair[other])
+                          .map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                      </select>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
           )}
           {levelsWithNoSubjects.length > 0 && (
             <p className="text-[11px] text-amber-600 dark:text-amber-400">مستويات بدون منهاج محدد بعد: {levelsWithNoSubjects.join("، ")} — لن تُولّد لها حصص</p>
@@ -817,6 +860,7 @@ export default function TimetablePage() {
                           const slot = getSlot(di, pi);
                           const hasConflict = slot ? conflictIds.has(slot.id) : false;
                           const teacher = slot?.teacherId ? teachers.find(t => t.id === slot.teacherId) : null;
+                          const alternateTeacher = slot?.alternateTeacherId ? teachers.find(t => t.id === slot.alternateTeacherId) : null;
                           const room    = slot?.roomId    ? rooms.find(r => r.id === slot.roomId) : null;
                           const cellKey = `${di}:${pi}`;
                           return (
@@ -849,9 +893,17 @@ export default function TimetablePage() {
                                     <AlertTriangle className="w-3 h-3 text-red-500 absolute top-1 end-1" />
                                   )}
                                   <p className="text-[11px] font-bold leading-tight truncate">{slot.subject}</p>
+                                  {slot.alternateSubject && (
+                                    <p className="text-[9px] font-semibold text-cyan-700 dark:text-cyan-300 truncate">أسبوع ب: {slot.alternateSubject}</p>
+                                  )}
                                   {teacher && (
                                     <p className="text-[9px] truncate mt-0.5" style={{ color: teacher.color }}>
                                       {teacher.name}
+                                    </p>
+                                  )}
+                                  {alternateTeacher && (
+                                    <p className="text-[9px] truncate mt-0.5" style={{ color: alternateTeacher.color }}>
+                                      {alternateTeacher.name} (أسبوع ب)
                                     </p>
                                   )}
                                   {room && (
@@ -1291,6 +1343,7 @@ function PrintPanel({ classes, annee, teachers, rooms, slots, activeClasse, onCl
                 {DAYS_AR.map((_, di) => {
                   const slot = slots.find(s => s.day === di && s.period === pi);
                   const teacher = slot?.teacherId ? teachers.find(t => t.id === slot.teacherId) : null;
+                  const alternateTeacher = slot?.alternateTeacherId ? teachers.find(t => t.id === slot.alternateTeacherId) : null;
                   const room    = slot?.roomId    ? rooms.find(r => r.id === slot.roomId) : null;
                   return (
                     <td key={di} className="border-s p-2 align-middle min-w-[110px]">
@@ -1298,6 +1351,8 @@ function PrintPanel({ classes, annee, teachers, rooms, slots, activeClasse, onCl
                         <div className="text-center">
                           <p className="text-xs font-bold leading-tight">{slot.subject}</p>
                           {teacher && <p className="text-[10px] text-muted-foreground">{teacher.name}</p>}
+                          {slot.alternateSubject && <p className="text-[10px] font-semibold text-cyan-700">أسبوع ب: {slot.alternateSubject}</p>}
+                          {alternateTeacher && <p className="text-[10px] text-muted-foreground">{alternateTeacher.name} (أسبوع ب)</p>}
                           {room && <p className="text-[10px] text-muted-foreground">{ROOM_TYPES[room.type]?.icon} {room.name}</p>}
                         </div>
                       ) : (

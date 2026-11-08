@@ -298,16 +298,29 @@ router.get("/timetable/conflicts", async (req, res): Promise<void> => {
   for (const [, slots] of byDayPeriod) {
     if (slots.length < 2) continue;
 
-    // Teacher conflicts
-    const teacherMap = new Map<string, string[]>();
-    for (const s of slots) {
-      if (!s.teacherId) continue;
-      if (!teacherMap.has(s.teacherId)) teacherMap.set(s.teacherId, []);
-      teacherMap.get(s.teacherId)!.push(s.id);
+    const classMap = new Map<string, string[]>();
+    for (const slot of slots) {
+      if (!classMap.has(slot.classe)) classMap.set(slot.classe, []);
+      classMap.get(slot.classe)!.push(slot.id);
     }
-    for (const [tid, ids] of teacherMap) {
-      if (ids.length > 1) conflicts.push({ slotIds: ids, reason: `teacher:${tid}` });
+    for (const [classe, ids] of classMap) {
+      if (ids.length > 1) conflicts.push({ slotIds: ids, reason: `class:${classe}` });
     }
+
+    const addTeacherConflicts = (week: "a" | "b", teacherForSlot: (slot: typeof slots[number]) => string | null) => {
+      const teacherMap = new Map<string, string[]>();
+      for (const slot of slots) {
+        const teacherId = teacherForSlot(slot);
+        if (!teacherId) continue;
+        if (!teacherMap.has(teacherId)) teacherMap.set(teacherId, []);
+        teacherMap.get(teacherId)!.push(slot.id);
+      }
+      for (const [teacherId, ids] of teacherMap) {
+        if (ids.length > 1) conflicts.push({ slotIds: ids, reason: `teacher-week-${week}:${teacherId}` });
+      }
+    };
+    addTeacherConflicts("a", slot => slot.teacherId);
+    addTeacherConflicts("b", slot => slot.alternateSubject ? slot.alternateTeacherId : slot.teacherId);
 
     // Room conflicts
     const roomMap = new Map<string, string[]>();
