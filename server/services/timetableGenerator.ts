@@ -3,6 +3,8 @@ export interface TimetableRequestSubject {
   teacherId?: string | null;
   periods?: number;
   roomId?: string | null;
+  requiredRoomType?: string;
+  consecutivePeriods?: number;
 }
 
 export interface TimetableRequestClass {
@@ -27,6 +29,9 @@ export interface TimetableGenerationRules {
   lightSubjects?: string[];
   avoidSameSubjectAdjacentDays?: boolean;
   minimizeTeacherGaps?: boolean;
+  preferHeavySubjectsEarly?: boolean;
+  avoidConsecutiveHeavySubjects?: boolean;
+  roomTypes?: Record<string, string>;
 }
 
 export interface GeneratedTimetableSlot {
@@ -74,6 +79,7 @@ interface PendingLesson {
   subject: string;
   teacherId: string | null;
   roomId: string | null;
+  requiredRoomType?: string;
   alternateSubject?: string;
   alternateTeacherId?: string | null;
   duration: number;
@@ -120,7 +126,10 @@ function buildLessonQueue(classes: TimetableRequestClass[]): PendingLesson[] {
       subject: subject.subject.trim(),
       teacherId: subject.teacherId ?? null,
       roomId: subject.roomId ?? null,
+      requiredRoomType: subject.requiredRoomType,
       remaining: Math.max(0, Math.min(30, Math.floor(subject.periods ?? (requiresConsecutivePair(subject.subject) ? 2 : 1)))),
+      consecutivePeriods: Math.max(1, Math.min(2, Math.floor(subject.consecutivePeriods ?? (requiresConsecutivePair(subject.subject) ? 2 : 1)))),
+      requiresFullPair: requiresConsecutivePair(subject.subject),
     }));
 
     let anyRemaining = queues.some((q) => q.remaining > 0);
@@ -128,20 +137,28 @@ function buildLessonQueue(classes: TimetableRequestClass[]): PendingLesson[] {
       anyRemaining = false;
       for (const q of queues) {
         if (q.remaining <= 0) continue;
-        const duration = requiresConsecutivePair(q.subject) ? 2 : 1;
-        if (q.remaining < duration) {
+        const duration = q.consecutivePeriods === 2 && q.remaining >= 2 ? 2 : 1;
+        if (q.requiresFullPair && q.remaining < 2) {
           lessons.push({
             classe,
             subject: q.subject,
             teacherId: q.teacherId,
             roomId: q.roomId,
+            requiredRoomType: q.requiredRoomType,
             duration,
             invalidReason: `${q.subject} must be scheduled in consecutive pairs`,
           });
           q.remaining = 0;
           continue;
         }
-        lessons.push({ classe, subject: q.subject, teacherId: q.teacherId, roomId: q.roomId, duration });
+        lessons.push({
+          classe,
+          subject: q.subject,
+          teacherId: q.teacherId,
+          roomId: q.roomId,
+          requiredRoomType: q.requiredRoomType,
+          duration,
+        });
         q.remaining -= duration;
         if (q.remaining > 0) anyRemaining = true;
       }
@@ -201,7 +218,9 @@ export function generateTimetable(
     if (Boolean(a.teacherId || a.alternateTeacherId) !== Boolean(b.teacherId || b.alternateTeacherId)) {
       return a.teacherId || a.alternateTeacherId ? -1 : 1;
     }
-    if (a.roomId !== b.roomId) return a.roomId ? -1 : 1;
+    const aNeedsRoom = Boolean(a.roomId || a.requiredRoomType);
+    const bNeedsRoom = Boolean(b.roomId || b.requiredRoomType);
+    if (aNeedsRoom !== bNeedsRoom) return aNeedsRoom ? -1 : 1;
     return a.classe.localeCompare(b.classe);
   });
 
@@ -236,11 +255,17 @@ export function generateTimetable(
             (subjectAt.get(`${lesson.classe}:${day}:${period - 1}`) === lesson.subject ||
              subjectAt.get(`${lesson.classe}:${day}:${period + 1}`) === lesson.subject)) continue;
 
-        const roomId = lesson.roomId ?? availableRoomIds.find(candidate =>
+        const classroomIds = availableRoomIds.filter(candidate => rules.roomTypes?.[candidate] === "classroom");
+        const roomCandidates = lesson.roomId
+          ? [lesson.roomId]
+          : lesson.requiredRoomType
+            ? availableRoomIds.filter(candidate => rules.roomTypes?.[candidate] === lesson.requiredRoomType)
+            : classroomIds.length > 0 ? classroomIds : availableRoomIds;
+        const roomId = roomCandidates.find(candidate =>
           block.every(blockPeriod => !roomBusy.has(`${candidate}:${slotKey(day, blockPeriod)}`)),
         ) ?? null;
-        if (lesson.roomId && block.some(blockPeriod => roomBusy.has(`${lesson.roomId}:${slotKey(day, blockPeriod)}`))) continue;
-        if (availableRoomIds.length > 0 && !roomId) continue;
+        if (lesson.requiredRoomType && roomCandidates.length === 0) continue;
+        if ((lesson.roomId || lesson.requiredRoomType || availableRoomIds.length > 0) && !roomId) continue;
 
         const subjectDayKey = `${lesson.classe}:${lesson.subject}:${day}`;
         const subjectDayCount = subjectDailyPeriods.get(subjectDayKey) ?? 0;
@@ -255,10 +280,11 @@ export function generateTimetable(
           [workingDays[workingDayIndex - 1], workingDays[workingDayIndex + 1]]
             .some(adjacentDay => adjacentDay !== undefined && scheduledDays.has(adjacentDay));
         let preferencePenalty = 0;
-        if (isHeavy) {
+        if (isHeavy && rules.preferHeavySubjectsEarly !== false) {
           preferencePenalty += period * 20;
-          if (matchesSubjectGroup(subjectAt.get(`${lesson.classe}:${day}:${period - 1}`) ?? "", heavySubjects) ||
-              matchesSubjectGroup(subjectAt.get(`${lesson.classe}:${day}:${period + lesson.duration}`) ?? "", heavySubjects)) {
+          if (rules.avoidConsecutiveHeavySubjects !== false &&
+              (matchesSubjectGroup(subjectAt.get(`${lesson.classe}:${day}:${period - 1}`) ?? "", heavySubjects) ||
+               matchesSubjectGroup(subjectAt.get(`${lesson.classe}:${day}:${period + lesson.duration}`) ?? "", heavySubjects))) {
             preferencePenalty += 500;
           }
         } else if (isLight) {

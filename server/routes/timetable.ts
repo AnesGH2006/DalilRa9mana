@@ -212,7 +212,11 @@ router.post("/timetable/generate", async (req, res): Promise<void> => {
 
   const generated = generateTimetable(classes, Array.isArray(roomIds) ? roomIds : [], rules ?? {});
   if (replace) {
-    const replaceClasses = classes.map(entry => entry.classe.trim()).filter(Boolean);
+    const replaceClasses = [...new Set(classes.flatMap(entry => {
+      const classe = entry.classe.trim();
+      const baseClass = classe.replace(/\s+\[[^\]]+\]$/, "").trim();
+      return [classe, ...(baseClass !== classe ? [baseClass] : [])].filter(Boolean);
+    }))];
     await db.delete(timetableSlotsTable).where(and(
       eq(timetableSlotsTable.userId, req.user!.id),
       eq(timetableSlotsTable.annee, annee),
@@ -346,7 +350,7 @@ router.get("/timetable/classes", async (req, res): Promise<void> => {
   // A timetable can be prepared before students are imported, so include
   // classes from both the student register and existing timetable slots.
   const studentRows = await db
-    .selectDistinct({ niveau: studentsTable.niveau, classe: studentsTable.classe })
+    .selectDistinct({ niveau: studentsTable.niveau, classe: studentsTable.classe, filiere: studentsTable.filiere })
     .from(studentsTable)
     .where(and(
       eq(studentsTable.userId, req.user!.id),
@@ -361,15 +365,32 @@ router.get("/timetable/classes", async (req, res): Promise<void> => {
       eq(timetableSlotsTable.annee, annee),
     ))
     .orderBy(timetableSlotsTable.classe);
-  const normalizeClass = (niveau: string, classe: string) =>
-    new RegExp(`^${niveau}(?:[-_ ]|$)`, "i").test(classe) ? classe : `${niveau}-${classe}`;
+  const normalizeClass = (niveau: string, classe: string, filiere: string | null) => {
+    const levelPrefix = new RegExp(`^${niveau}(?:[-_ ]|$)`, "i");
+    const classPart = classe.replace(levelPrefix, "");
+    const track = filiere?.trim();
+    return track ? `${niveau}-${track}-${classPart}` : levelPrefix.test(classe) ? classe : `${niveau}-${classe}`;
+  };
   const normalizedStudentClasses = studentRows
-    .map(row => ({ raw: row.classe?.trim(), normalized: row.classe?.trim() ? normalizeClass(row.niveau, row.classe.trim()) : "" }))
+    .map(row => ({
+      raw: row.classe?.trim(),
+      normalized: row.classe?.trim() ? normalizeClass(row.niveau, row.classe.trim(), row.filiere) : "",
+    }))
     .filter(row => row.raw && row.normalized);
-  const knownRawClassNames = new Set(normalizedStudentClasses.map(row => row.raw));
+  const knownClassNames = new Set(normalizedStudentClasses.map(row => row.normalized));
+  const savedClasses = slotRows
+    .map(row => row.classe?.trim())
+    .filter((classe): classe is string => Boolean(classe));
+  const classNamesWithProgram = new Set(
+    savedClasses
+      .map(classe => classe.replace(/\s+\[[^\]]+\]$/, "").trim())
+      .filter((classe, index) => classe !== savedClasses[index]),
+  );
   const classes = [...new Set([
-    ...normalizedStudentClasses.map(row => row.normalized),
-    ...slotRows.map(row => row.classe?.trim()).filter((classe): classe is string => Boolean(classe) && !knownRawClassNames.has(classe)),
+    ...normalizedStudentClasses.map(row => row.normalized).filter(classe => !classNamesWithProgram.has(classe)),
+    ...savedClasses.filter(classe =>
+      /\s+\[[^\]]+\]$/.test(classe) || (!knownClassNames.has(classe) && !classNamesWithProgram.has(classe)),
+    ),
   ])].sort();
   res.json(classes);
 });

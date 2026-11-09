@@ -10,6 +10,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DEFAULT_CONSECUTIVE_PERIODS,
+  DEFAULT_SUBJECT_ROOM_TYPES,
+  DEFAULT_WEEKLY_PERIODS,
+  LYCEE_PROGRAMS,
+  LYCEE_SUBJECTS,
+  MOYEN_SUBJECTS,
+} from "@shared/timetable-curriculum";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -35,25 +43,13 @@ const TEACHER_COLORS = [
 const ROOM_TYPES: Record<string, { label: string; icon: string; color: string }> = {
   classroom: { label: "قاعة دراسية", icon: "🏫", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
   lab:       { label: "مخبر",       icon: "🔬", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" },
+  computer:  { label: "قاعة إعلام آلي", icon: "💻", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" },
   sports:    { label: "قاعة رياضة", icon: "⚽", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" },
   library:   { label: "مكتبة",      icon: "📚", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
   other:     { label: "أخرى",       icon: "🏢", color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
 };
 
-const CEM_SUBJECTS = [
-  "اللغة العربية", "اللغة الفرنسية", "الرياضيات", "العلوم الطبيعية",
-  "التربية الإسلامية", "التاريخ والجغرافيا", "التربية البدنية",
-  "الاستدراك",
-  "اللغة الأمازيغية", "الفنون", "الموسيقى", "التربية المدنية",
-  "الفيزياء", "اللغة الإنجليزية",
-];
-
-const DEFAULT_WEEKLY_PERIODS: Record<string, Record<string, number>> = {
-  "1AM": { "اللغة العربية": 5, "اللغة الفرنسية": 4, "اللغة الإنجليزية": 2, "الرياضيات": 4, "العلوم الطبيعية": 2, "التربية الإسلامية": 1, "التاريخ والجغرافيا": 2, "التربية البدنية": 2, "الاستدراك": 2, "اللغة الأمازيغية": 1, "الفنون": 1, "الموسيقى": 1, "التربية المدنية": 1, "الفيزياء": 2 },
-  "2AM": { "اللغة العربية": 5, "اللغة الفرنسية": 4, "اللغة الإنجليزية": 2, "الرياضيات": 4, "العلوم الطبيعية": 2, "التربية الإسلامية": 1, "التاريخ والجغرافيا": 2, "التربية البدنية": 2, "الاستدراك": 2, "اللغة الأمازيغية": 1, "الفنون": 1, "الموسيقى": 1, "التربية المدنية": 1, "الفيزياء": 2 },
-  "3AM": { "اللغة العربية": 5, "اللغة الفرنسية": 4, "اللغة الإنجليزية": 3, "الرياضيات": 4, "العلوم الطبيعية": 2, "التربية الإسلامية": 1, "التاريخ والجغرافيا": 2, "التربية البدنية": 2, "الاستدراك": 2, "اللغة الأمازيغية": 1, "الفنون": 1, "الموسيقى": 1, "التربية المدنية": 1, "الفيزياء": 2 },
-  "4AM": { "اللغة العربية": 5, "اللغة الفرنسية": 3, "اللغة الإنجليزية": 3, "الرياضيات": 5, "العلوم الطبيعية": 3, "التربية الإسلامية": 2, "التاريخ والجغرافيا": 3, "التربية البدنية": 2, "الاستدراك": 2, "اللغة الأمازيغية": 1, "التربية المدنية": 1, "الفيزياء": 2 },
-};
+const DEFAULT_SUBJECTS = [...MOYEN_SUBJECTS, ...LYCEE_SUBJECTS];
 
 const parseClassList = (raw: string): string[] => {
   const cleaned = raw
@@ -142,10 +138,36 @@ const getLevel = (classe: string): string => {
   return match ? match[1]!.toUpperCase() : classe;
 };
 
-function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, onClose, onDone }: {
+const getProgramSubjects = (programId: string, knownSubjects: string[]): string[] => {
+  const program = LYCEE_PROGRAMS.find(item => item.id === programId);
+  const standardSubjects = program?.subjects ?? MOYEN_SUBJECTS;
+  const customSubjects = knownSubjects.filter(subject => !DEFAULT_SUBJECTS.includes(subject));
+  return [...new Set([...standardSubjects, ...customSubjects])];
+};
+
+const inferProgramId = (classe: string): string => {
+  const level = getLevel(classe);
+  const normalizedClass = classe.trim().toLocaleLowerCase();
+  return LYCEE_PROGRAMS.find(program =>
+    program.level === level && (
+      normalizedClass.includes(program.id.toLocaleLowerCase()) ||
+      normalizedClass.includes(program.label.toLocaleLowerCase()) ||
+      program.aliases.some(alias => normalizedClass.includes(alias.toLocaleLowerCase()))
+    ),
+  )?.id ?? "";
+};
+
+const getProgrammedClassName = (classe: string, programId: string): string => {
+  const program = LYCEE_PROGRAMS.find(item => item.id === programId);
+  if (!program || inferProgramId(classe) === programId) return classe;
+  return `${classe} [${program.label}]`;
+};
+
+function TimetableGeneratorPanel({ classes, subjects, roomIds, rooms, teachers, annee, onClose, onDone }: {
   classes: string[];
   subjects: string[];
   roomIds: string[];
+  rooms: Room[];
   teachers: Teacher[];
   annee: string;
   onClose: () => void;
@@ -157,36 +179,84 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
     () => Array.from(new Set(classes.map(getLevel))).sort(),
     [classes],
   );
+  const programs = useMemo(() => levels.flatMap(level =>
+    level.endsWith("AM")
+      ? [{ id: level, level, label: level }]
+      : LYCEE_PROGRAMS.filter(program => program.level === level),
+  ), [levels]);
   const [selectedLevels, setSelectedLevels] = useState<string[]>(levels);
-  const [activeLevelTab, setActiveLevelTab] = useState<string>(levels[0] ?? "");
+  const [activeProgramId, setActiveProgramId] = useState("");
+  const [classPrograms, setClassPrograms] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setSelectedLevels(levels);
-    if (!levels.includes(activeLevelTab)) setActiveLevelTab(levels[0] ?? "");
-  }, [levels]);
+    setSelectedLevels(current => current.filter(level => levels.includes(level)));
+    setClassPrograms(current => Object.fromEntries(classes.map(classe => [
+      classe,
+      current[classe] ?? (getLevel(classe).endsWith("AM") ? getLevel(classe) : inferProgramId(classe)),
+    ])));
+  }, [classes, levels]);
+
+  useEffect(() => {
+    if (!programs.some(program => program.id === activeProgramId)) {
+      setActiveProgramId(programs[0]?.id ?? "");
+    }
+  }, [programs, activeProgramId]);
 
   const [periods, setPeriods] = useState(6);
   const [maxDaily, setMaxDaily] = useState(6);
   const [selectedDays, setSelectedDays] = useState([0, 1, 2, 3, 4]);
   const [blocked, setBlocked] = useState("");
   const [spread, setSpread] = useState(true);
+  const [spreadAcrossDays, setSpreadAcrossDays] = useState(true);
+  const [preferHeavyEarly, setPreferHeavyEarly] = useState(true);
+  const [avoidHeavyConsecutive, setAvoidHeavyConsecutive] = useState(true);
+  const [minimizeGaps, setMinimizeGaps] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  // Per-level curriculum: { level: { subject: periods/week } }
-  const [levelTargets, setLevelTargets] = useState<Record<string, Record<string, number>>>({});
+  const [programTargets, setProgramTargets] = useState<Record<string, Record<string, number>>>({});
+  const [programConsecutivePeriods, setProgramConsecutivePeriods] = useState<Record<string, Record<string, number>>>({});
+  const [programRoomIds, setProgramRoomIds] = useState<Record<string, Record<string, string>>>({});
   const [directedWorkPairs, setDirectedWorkPairs] = useState<Record<string, { subjectA: string; subjectB: string }>>({});
 
   useEffect(() => {
-    setLevelTargets(current => {
+    setProgramTargets(current => {
       const next = { ...current };
-      for (const level of levels) {
-        const existing = next[level] ?? {};
-        const curriculum = DEFAULT_WEEKLY_PERIODS[level] ?? {};
-        next[level] = Object.fromEntries(subjects.map(s => [s, existing[s] ?? curriculum[s] ?? 0]));
+      for (const program of programs) {
+        const existing = next[program.id] ?? {};
+        const curriculum = DEFAULT_WEEKLY_PERIODS[program.id] ?? {};
+        next[program.id] = Object.fromEntries(
+          getProgramSubjects(program.id, subjects).map(subject => [
+            subject,
+            existing[subject] ?? curriculum[subject] ?? 0,
+          ]),
+        );
       }
       return next;
     });
-  }, [levels, subjects]);
+    setProgramConsecutivePeriods(current => {
+      const next = { ...current };
+      for (const program of programs) {
+        const existing = next[program.id] ?? {};
+        const defaults = DEFAULT_CONSECUTIVE_PERIODS[program.id] ?? {};
+        next[program.id] = Object.fromEntries(getProgramSubjects(program.id, subjects).map(subject => [
+          subject,
+          existing[subject] ?? defaults[subject] ?? 1,
+        ]));
+      }
+      return next;
+    });
+    setProgramRoomIds(current => {
+      const next = { ...current };
+      for (const program of programs) {
+        const existing = next[program.id] ?? {};
+        next[program.id] = Object.fromEntries(getProgramSubjects(program.id, subjects).map(subject => [
+          subject,
+          existing[subject] ?? "",
+        ]));
+      }
+      return next;
+    });
+  }, [programs, subjects]);
 
   const toggleLevel = (level: string) => setSelectedLevels(current =>
     current.includes(level) ? current.filter(l => l !== level) : [...current, level],
@@ -195,10 +265,10 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
     current.includes(day) ? current.filter(item => item !== day) : [...current, day].sort(),
   );
 
-  const updateLevelTarget = (level: string, subject: string, value: number) =>
-    setLevelTargets(current => ({
+  const updateProgramTarget = (programId: string, subject: string, value: number) =>
+    setProgramTargets(current => ({
       ...current,
-      [level]: { ...current[level], [subject]: Math.max(0, value) },
+      [programId]: { ...current[programId], [subject]: Math.max(0, value) },
     }));
 
   // ── Teacher availability ────────────────────────────────────────────────
@@ -229,41 +299,63 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
 
   const subjectsWithoutTeacher = useMemo(() => {
     const set = new Set<string>();
-    for (const level of selectedLevels) {
-      for (const [subject, count] of Object.entries(levelTargets[level] ?? {})) {
+    const activeProgramIds = new Set(classes
+      .filter(classe => selectedLevels.includes(getLevel(classe)))
+      .map(classe => classPrograms[classe])
+      .filter(Boolean));
+    for (const programId of activeProgramIds) {
+      for (const [subject, count] of Object.entries(programTargets[programId] ?? {})) {
         if (count > 0 && !teacherForSubject[subject]) set.add(subject);
       }
     }
     return [...set];
-  }, [levelTargets, selectedLevels, teacherForSubject]);
+  }, [classes, classPrograms, programTargets, selectedLevels, teacherForSubject]);
 
-  const levelsWithNoSubjects = useMemo(
-    () => selectedLevels.filter(level =>
-      !Object.values(levelTargets[level] ?? {}).some(count => count > 0)),
-    [levelTargets, selectedLevels],
+  const selectedClasses = classes.filter(classe => selectedLevels.includes(getLevel(classe)));
+  const classesWithoutProgram = selectedClasses.filter(classe => !classPrograms[classe]);
+  const selectedProgramIds = [...new Set(selectedClasses.map(classe => classPrograms[classe]).filter(Boolean))];
+  const programsWithNoSubjects = selectedProgramIds.filter(programId =>
+    !Object.values(programTargets[programId] ?? {}).some(count => count > 0),
+  );
+  const activeProgramWeeklyTotal = Object.values(programTargets[activeProgramId] ?? {})
+    .reduce((total, count) => total + count, 0);
+  const overCapacityPrograms = selectedProgramIds.filter(programId =>
+    Object.values(programTargets[programId] ?? {}).reduce((total, count) => total + count, 0) >
+      selectedDays.length * Math.min(periods, maxDaily),
   );
 
   // Validation checks
   const hasEmptyFormFields = !selectedLevels.length || !selectedDays.length;
-  const hasInvalidHourly = selectedLevels.some(level =>
-    !Object.values(levelTargets[level] ?? {}).some(count => count > 0)
-  );
-  const canGenerate = !hasEmptyFormFields && !hasInvalidHourly;
+  const hasInvalidHourly = programsWithNoSubjects.length > 0 || overCapacityPrograms.length > 0;
+  const canGenerate = !hasEmptyFormFields && !hasInvalidHourly && classesWithoutProgram.length === 0;
 
   const generate = async () => {
     const includedClasses = classes.filter(c => selectedLevels.includes(getLevel(c)));
+    if (includedClasses.some(classe => !classPrograms[classe])) {
+      toast({
+        title: "حدد الشعبة لكل قسم",
+        description: `اختر البرنامج الدراسي للأقسام: ${includedClasses.filter(classe => !classPrograms[classe]).join("، ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
     const classesPayload = includedClasses.map(classe => {
-      const level = getLevel(classe);
-      const activeSubjects = Object.entries(levelTargets[level] ?? {})
+      const programId = classPrograms[classe]!;
+      const activeSubjects = Object.entries(programTargets[programId] ?? {})
         .filter(([, count]) => count > 0)
         .map(([subject, count]) => ({
           subject,
           periods: count,
           teacherId: teacherForSubject[subject] ?? null,
+          consecutivePeriods: programConsecutivePeriods[programId]?.[subject] ?? 1,
+          roomId: programRoomIds[programId]?.[subject] || null,
+          requiredRoomType: programRoomIds[programId]?.[subject]
+            ? undefined
+            : DEFAULT_SUBJECT_ROOM_TYPES[programId]?.[subject],
         }));
-      const pair = directedWorkPairs[level];
+      const pair = directedWorkPairs[programId];
       return {
-        classe,
+        classe: getProgrammedClassName(classe, programId),
         subjects: activeSubjects,
         ...(pair?.subjectA && pair.subjectB && pair.subjectA !== pair.subjectB ? {
           directedWork: {
@@ -276,7 +368,7 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
       };
     }).filter(entry => entry.subjects.length > 0);
 
-    if (!classesPayload.length || !selectedDays.length) {
+    if (!classesPayload.length || !selectedDays.length || programsWithNoSubjects.length > 0 || overCapacityPrograms.length > 0) {
       toast({ title: "شروط ناقصة", description: "حدد حجماً ساعياً لمادة واحدة على الأقل في مستوى واحد على الأقل، ويوماً واحداً على الأقل", variant: "destructive" });
       return;
     }
@@ -318,6 +410,11 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
             periodsPerDay: periods,
             maxDailyPeriodsPerClass: maxDaily,
             avoidConsecutiveSameSubject: spread,
+            avoidSameSubjectAdjacentDays: spreadAcrossDays,
+            preferHeavySubjectsEarly: preferHeavyEarly,
+            avoidConsecutiveHeavySubjects: avoidHeavyConsecutive,
+            minimizeTeacherGaps: minimizeGaps,
+            roomTypes: Object.fromEntries(rooms.map(room => [room.id, room.type])),
             blockedSlots,
             ...(Object.keys(teacherAvailability).length > 0 ? { teacherAvailability } : {}),
           },
@@ -379,42 +476,110 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
           {["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"].map((day, index) => <label key={day} className="flex items-center gap-1"><input type="checkbox" checked={selectedDays.includes(index)} onChange={() => toggleDay(index)} />{day}</label>)}
           <label className="flex items-center gap-1 ms-auto"><input type="checkbox" checked={spread} onChange={e => setSpread(e.target.checked)} />تجنب تكرار المادة متتالياً</label>
         </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
+          <label className="flex items-center gap-1"><input type="checkbox" checked={preferHeavyEarly} onChange={e => setPreferHeavyEarly(e.target.checked)} />تفضيل المواد الثقيلة صباحاً</label>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={avoidHeavyConsecutive} onChange={e => setAvoidHeavyConsecutive(e.target.checked)} />تجنب مادتين ثقيلتين متتاليتين</label>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={spreadAcrossDays} onChange={e => setSpreadAcrossDays(e.target.checked)} />توزيع المادة على أيام متباعدة</label>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={minimizeGaps} onChange={e => setMinimizeGaps(e.target.checked)} />تقليل فراغات الأساتذة</label>
+        </div>
 
-        {/* Per-level curriculum */}
+        {selectedClasses.some(classe => !getLevel(classe).endsWith("AM")) && (
+          <div className="space-y-2 rounded-lg border p-3">
+            <label className="block text-xs font-semibold text-muted-foreground">الشعبة لكل قسم ثانوي</label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {selectedClasses.filter(classe => !getLevel(classe).endsWith("AM")).map(classe => (
+                <label key={classe} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate" title={classe}>{classe}</span>
+                  <select
+                    value={classPrograms[classe] ?? ""}
+                    onChange={event => setClassPrograms(current => ({ ...current, [classe]: event.target.value }))}
+                    className="max-w-56 rounded border px-2 py-1.5 bg-background"
+                  >
+                    <option value="">اختر الشعبة</option>
+                    {programs.filter(program => program.level === getLevel(classe)).map(program => (
+                      <option key={program.id} value={program.id}>{program.label}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+            {classesWithoutProgram.length > 0 && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                اختر الشعبة للأقسام: {classesWithoutProgram.join("، ")}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Per-program curriculum */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold text-muted-foreground">المنهاج (حصة/أسبوع) لكل مستوى</label>
+          <label className="block text-xs font-semibold text-muted-foreground">المنهاج حسب المستوى والشعبة (حصة/أسبوع)</label>
           <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit flex-wrap">
-            {levels.map(level => (
-              <button key={level} onClick={() => setActiveLevelTab(level)}
+            {programs.map(program => (
+              <button key={program.id} onClick={() => setActiveProgramId(program.id)}
                 className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  activeLevelTab === level ? "bg-background shadow-sm" : "text-muted-foreground"
-                } ${levelsWithNoSubjects.includes(level) && selectedLevels.includes(level) ? "ring-1 ring-amber-400" : ""}`}>
-                {level}
+                  activeProgramId === program.id ? "bg-background shadow-sm" : "text-muted-foreground"
+                } ${programsWithNoSubjects.includes(program.id) ? "ring-1 ring-amber-400" : ""}`}>
+                {program.label}
               </button>
             ))}
           </div>
-          {activeLevelTab && (
+          {activeProgramId && (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto border rounded-lg p-2">
-                {subjects.map(subject => {
-                  const target = levelTargets[activeLevelTab]?.[subject] ?? 0;
+                {getProgramSubjects(activeProgramId, subjects).map(subject => {
+                  const target = programTargets[activeProgramId]?.[subject] ?? 0;
                   const missingTeacher = target > 0 && !teacherForSubject[subject];
+                  const defaultRoomType = DEFAULT_SUBJECT_ROOM_TYPES[activeProgramId]?.[subject];
+                  const requiresConsecutivePair = subject.includes("الاستدراك") || subject.includes("البدنية");
                   return (
-                    <label key={subject} className="text-xs flex items-center gap-2">
+                    <div key={subject} className="text-xs flex items-center gap-2 min-w-0">
                       <span className={`truncate flex-1 ${missingTeacher ? "text-amber-600 dark:text-amber-400" : ""}`} title={missingTeacher ? "لا يوجد أستاذ مطابق" : undefined}>
                         {subject}{missingTeacher && " ⚠️"}
                       </span>
                       <input type="number" min="0" max="30" value={target}
-                        onChange={e => updateLevelTarget(activeLevelTab, subject, Number(e.target.value) || 0)}
+                        onChange={e => updateProgramTarget(activeProgramId, subject, Number(e.target.value) || 0)}
                         className="w-14 rounded border px-1.5 py-1 bg-background" />
-                    </label>
+                      <select
+                        aria-label={`قاعة ${subject}`}
+                        value={programRoomIds[activeProgramId]?.[subject] ?? ""}
+                        onChange={event => setProgramRoomIds(current => ({
+                          ...current,
+                          [activeProgramId]: { ...current[activeProgramId], [subject]: event.target.value },
+                        }))}
+                        className="max-w-24 rounded border px-1 py-1 bg-background"
+                        title="تحديد قاعة المادة أو ترك الاختيار تلقائياً"
+                      >
+                        <option value="">{defaultRoomType ? `تلقائي (${ROOM_TYPES[defaultRoomType]?.label ?? defaultRoomType})` : "قاعة تلقائية"}</option>
+                        {rooms.map(room => (
+                          <option key={room.id} value={room.id}>{room.name} ({ROOM_TYPES[room.type]?.label ?? room.type})</option>
+                        ))}
+                      </select>
+                      <select
+                        aria-label={`مدة حصة ${subject}`}
+                        value={requiresConsecutivePair ? 2 : programConsecutivePeriods[activeProgramId]?.[subject] ?? 1}
+                        onChange={event => setProgramConsecutivePeriods(current => ({
+                          ...current,
+                          [activeProgramId]: { ...current[activeProgramId], [subject]: Number(event.target.value) },
+                        }))}
+                        className="w-16 rounded border px-1 py-1 bg-background"
+                        title="عدد الحصص المتتالية عند تجميع هذه المادة"
+                      >
+                        <option value={1} disabled={requiresConsecutivePair}>مفردة</option>
+                        <option value={2}>مزدوجة</option>
+                      </select>
+                    </div>
                   );
                 })}
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                مجموع {programs.find(program => program.id === activeProgramId)?.label}: {activeProgramWeeklyTotal} حصة أسبوعياً من أصل {selectedDays.length * Math.min(periods, maxDaily)} متاحة.
+                القوالب مبنية على مواد ملفات التحليل، وساعات الشعب التي لم يحدد لها حجم ساعي موثوق تبدأ بصفر؛ أدخل الحجم الرسمي قبل التوليد.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border p-2">
-                <p className="sm:col-span-2 text-xs font-semibold">الأعمال الموجّهة: حصتان متتاليتان بالتناوب أسبوعاً بعد أسبوع</p>
+                <p className="sm:col-span-2 text-xs font-semibold">الأعمال الموجّهة: حصتان متتاليتان بالتناوب أسبوعاً بعد أسبوع (اختياري)</p>
                 {["subjectA", "subjectB"].map((key, index) => {
-                  const pair = directedWorkPairs[activeLevelTab] ?? { subjectA: "", subjectB: "" };
+                  const pair = directedWorkPairs[activeProgramId] ?? { subjectA: "", subjectB: "" };
                   const field = key as "subjectA" | "subjectB";
                   const other = field === "subjectA" ? "subjectB" : "subjectA";
                   return (
@@ -424,12 +589,12 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
                         value={pair[field]}
                         onChange={event => setDirectedWorkPairs(current => ({
                           ...current,
-                          [activeLevelTab]: { ...pair, [field]: event.target.value },
+                          [activeProgramId]: { ...pair, [field]: event.target.value },
                         }))}
                         className="mt-1 w-full rounded border px-2 py-1.5 bg-background"
                       >
                         <option value="">بدون أعمال موجّهة</option>
-                        {subjects.filter(subject => subject !== pair[other])
+                        {getProgramSubjects(activeProgramId, subjects).filter(subject => subject !== pair[other])
                           .map(subject => <option key={subject} value={subject}>{subject}</option>)}
                       </select>
                     </label>
@@ -438,8 +603,10 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
               </div>
             </>
           )}
-          {levelsWithNoSubjects.length > 0 && (
-            <p className="text-[11px] text-amber-600 dark:text-amber-400">مستويات بدون منهاج محدد بعد: {levelsWithNoSubjects.join("، ")} — لن تُولّد لها حصص</p>
+          {programsWithNoSubjects.length > 0 && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              أدخل الحجم الساعي للشعب المختارة قبل التوليد: {programsWithNoSubjects.map(id => programs.find(program => program.id === id)?.label ?? id).join("، ")}
+            </p>
           )}
         </div>
 
@@ -518,7 +685,9 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, teachers, annee, 
         {hasInvalidHourly && (
           <div className="text-[12px] text-amber-600 dark:text-amber-400 flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200/50">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            <span>كل مستوى مختار يجب أن يحتوي على مادة واحدة على الأقل مع حصص</span>
+            <span>{overCapacityPrograms.length
+              ? `الحجم الساعي يتجاوز السعة المتاحة للشعب: ${overCapacityPrograms.map(id => programs.find(program => program.id === id)?.label ?? id).join("، ")}`
+              : "كل شعبة مختارة يجب أن تحتوي على مادة واحدة على الأقل مع حصص"}</span>
           </div>
         )}
 
@@ -559,7 +728,7 @@ export default function TimetablePage() {
   const [rooms,    setRooms]    = useState<Room[]>([]);
   const [slots,    setSlots]    = useState<Slot[]>([]);
   const [classes,  setClasses]  = useState<string[]>([]);
-  const [availableSubjects, setAvailableSubjects] = useState<string[]>(CEM_SUBJECTS);
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>(DEFAULT_SUBJECTS);
   const [conflictIds, setConflictIds] = useState<Set<string>>(new Set());
 
   // Filters
@@ -583,7 +752,15 @@ export default function TimetablePage() {
     setLoadingTeachers(true);
     try {
       const res = await fetch(`${BASE}api/timetable/teachers`, { credentials: "include" });
-      if (res.ok) setTeachers(await res.json());
+      if (res.ok) {
+        const loadedTeachers: Teacher[] = await res.json();
+        setTeachers(loadedTeachers);
+        setAvailableSubjects(current => [...new Set([
+          ...DEFAULT_SUBJECTS,
+          ...current,
+          ...loadedTeachers.flatMap(teacher => teacher.subjects).filter(Boolean),
+        ])]);
+      }
     } finally { setLoadingTeachers(false); }
   }, []);
 
@@ -613,7 +790,7 @@ export default function TimetablePage() {
         const loadedSlots: Slot[] = await res.json();
         setSlots(loadedSlots);
         setAvailableSubjects(current => [...new Set([
-          ...CEM_SUBJECTS,
+          ...DEFAULT_SUBJECTS,
           ...current,
           ...loadedSlots.map(slot => slot.subject).filter(Boolean),
         ])]);
@@ -633,7 +810,7 @@ export default function TimetablePage() {
     if (unsupportedClasses.length > 0) {
       toast({
         title: "تحتاج هذه الأقسام إلى منهاج مخصص",
-        description: `التوليد السريع يدعم 1AM إلى 4AM فقط. استخدم تخصيص التوليد للأقسام: ${unsupportedClasses.join("، ")}`,
+        description: `التوليد السريع مخصص للمتوسط (1AM إلى 4AM). اختر الشعبة واضبط حجمها الساعي من تخصيص التوليد: ${unsupportedClasses.join("، ")}`,
         variant: "destructive",
       });
       return;
@@ -652,6 +829,8 @@ export default function TimetablePage() {
             subject,
             periods,
             teacherId: teachers.find(teacher => teacher.subjects.includes(subject))?.id ?? null,
+            consecutivePeriods: DEFAULT_CONSECUTIVE_PERIODS[level]?.[subject] ?? 1,
+            requiredRoomType: DEFAULT_SUBJECT_ROOM_TYPES[level]?.[subject],
           })),
         };
       });
@@ -669,7 +848,16 @@ export default function TimetablePage() {
           classes: classesPayload,
           roomIds: rooms.map(room => room.id),
           replace: true,
-          rules: { workingDays: [0, 1, 2, 3, 4], periodsPerDay: 6, maxDailyPeriodsPerClass: 6, avoidConsecutiveSameSubject: true },
+          rules: {
+            workingDays: [0, 1, 2, 3, 4],
+            periodsPerDay: 6,
+            maxDailyPeriodsPerClass: 6,
+            avoidConsecutiveSameSubject: true,
+            preferHeavySubjectsEarly: true,
+            avoidConsecutiveHeavySubjects: true,
+            minimizeTeacherGaps: true,
+            roomTypes: Object.fromEntries(rooms.map(room => [room.id, room.type])),
+          },
         }),
       });
       const result = await response.json().catch(() => ({})) as { error?: string; generated?: Slot[]; unscheduled?: unknown[] };
@@ -790,10 +978,12 @@ export default function TimetablePage() {
                 </motion.button>
               ))}
               <div className="ms-auto flex flex-wrap gap-2">
-                <Button size="sm" onClick={generateAllTimetables} disabled={quickGenerating || loadingTeachers || loadingRooms} className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0">
-                  {quickGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                  {quickGenerating ? "جارٍ توليد كل الأقسام…" : "توليد كل الجداول بضغطة"}
-                </Button>
+                {classes.every(classe => getLevel(classe).endsWith("AM")) && (
+                  <Button size="sm" onClick={generateAllTimetables} disabled={quickGenerating || loadingTeachers || loadingRooms} className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0">
+                    {quickGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                    {quickGenerating ? "جارٍ توليد كل الأقسام…" : "توليد كل الجداول بضغطة"}
+                  </Button>
+                )}
                 <Button size="sm" variant="outline" onClick={() => setGeneratorOpen(true)} className="gap-2">
                   <Calendar className="w-4 h-4" /> تخصيص التوليد
                 </Button>
@@ -811,6 +1001,7 @@ export default function TimetablePage() {
               classes={classes}
               subjects={availableSubjects}
               roomIds={rooms.map(room => room.id)}
+              rooms={rooms}
               teachers={teachers}
               annee={annee}
               onClose={() => setGeneratorOpen(false)}
@@ -1425,7 +1616,7 @@ function SlotModal({ day, period, slot, classe, annee, teachers, rooms, subjects
               <option value="">— اختر أو اكتب —</option>
               {subjects.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            {!CEM_SUBJECTS.includes(subject) && (
+            {!DEFAULT_SUBJECTS.includes(subject) && (
               <input value={subject} onChange={e => setSubject(e.target.value)}
                 placeholder="أو أدخل اسم المادة مباشرة"
                 className="w-full text-sm px-3 py-1.5 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-cyan-500/30 mt-1" />
