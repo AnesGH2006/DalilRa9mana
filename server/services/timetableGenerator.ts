@@ -23,6 +23,10 @@ export interface TimetableGenerationRules {
   maxDailyPeriodsPerClass?: number;
   avoidConsecutiveSameSubject?: boolean;
   teacherAvailability?: Record<string, Array<{ day: number; period: number }>>;
+  heavySubjects?: string[];
+  lightSubjects?: string[];
+  avoidSameSubjectAdjacentDays?: boolean;
+  minimizeTeacherGaps?: boolean;
 }
 
 export interface GeneratedTimetableSlot {
@@ -51,6 +55,15 @@ export interface TimetableGenerationResult {
 
 const SCHOOL_DAYS = 5;
 const PERIODS_PER_DAY = 6;
+const DEFAULT_HEAVY_SUBJECTS = [
+  "الرياضيات", "رياضيات", "math", "الفيزياء", "العلوم الفيزيائية", "physics",
+  "العلوم الطبيعية", "علوم الطبيعة والحياة", "science", "اللغة العربية", "العربية",
+  "arabic", "اللغة الفرنسية", "الفرنسية", "french", "اللغة الإنجليزية", "الإنجليزية", "english",
+];
+const DEFAULT_LIGHT_SUBJECTS = [
+  "التربية الإسلامية", "الإسلامية", "islamic", "التاريخ", "الجغرافيا", "history", "geography",
+  "التربية المدنية", "المدنية", "civics", "التربية البدنية", "البدنية", "sport", "الفنون", "الموسيقى",
+];
 
 function slotKey(day: number, period: number): string {
   return `${day}:${period}`;
@@ -69,6 +82,22 @@ interface PendingLesson {
 
 function requiresConsecutivePair(subject: string): boolean {
   return subject.includes("الاستدراك") || subject.includes("البدنية");
+}
+
+function matchesSubjectGroup(subject: string, group: string[]): boolean {
+  const normalized = subject.trim().toLocaleLowerCase();
+  return group.some(item => normalized.includes(item.trim().toLocaleLowerCase()));
+}
+
+function teacherGaps(teacherId: string | null | undefined, day: number, busy: Set<string>, periodsPerDay: number, extraPeriods: number[] = []): number {
+  if (!teacherId) return 0;
+  const occupied = new Set(extraPeriods);
+  for (let period = 0; period < periodsPerDay; period += 1) {
+    if (busy.has(`${teacherId}:${slotKey(day, period)}`)) occupied.add(period);
+  }
+  if (occupied.size < 2) return 0;
+  const ordered = [...occupied].sort((a, b) => a - b);
+  return ordered[ordered.length - 1]! - ordered[0]! + 1 - occupied.size;
 }
 
 /**
@@ -158,6 +187,7 @@ export function generateTimetable(
   const dailyPeriods = new Map<string, number>();
   const subjectAt = new Map<string, string>();
   const subjectDailyPeriods = new Map<string, number>();
+  const classSubjectDays = new Map<string, Set<number>>();
 
   const teacherCanTeach = (teacherId: string | null | undefined, day: number, period: number) => {
     if (!teacherId || !rules.teacherAvailability?.[teacherId]) return true;
@@ -215,7 +245,35 @@ export function generateTimetable(
         const subjectDayKey = `${lesson.classe}:${lesson.subject}:${day}`;
         const subjectDayCount = subjectDailyPeriods.get(subjectDayKey) ?? 0;
         const dayLoad = dailyPeriods.get(classDayKey) ?? 0;
-        const score = subjectDayCount * 1000 + dayLoad * 10 + period;
+        const heavySubjects = rules.heavySubjects ?? DEFAULT_HEAVY_SUBJECTS;
+        const lightSubjects = rules.lightSubjects ?? DEFAULT_LIGHT_SUBJECTS;
+        const isHeavy = matchesSubjectGroup(lesson.subject, heavySubjects);
+        const isLight = matchesSubjectGroup(lesson.subject, lightSubjects);
+        const workingDayIndex = workingDays.indexOf(day);
+        const scheduledDays = classSubjectDays.get(`${lesson.classe}:${lesson.subject}`);
+        const repeatsAdjacentDay = rules.avoidSameSubjectAdjacentDays !== false && scheduledDays &&
+          [workingDays[workingDayIndex - 1], workingDays[workingDayIndex + 1]]
+            .some(adjacentDay => adjacentDay !== undefined && scheduledDays.has(adjacentDay));
+        let preferencePenalty = 0;
+        if (isHeavy) {
+          preferencePenalty += period * 20;
+          if (matchesSubjectGroup(subjectAt.get(`${lesson.classe}:${day}:${period - 1}`) ?? "", heavySubjects) ||
+              matchesSubjectGroup(subjectAt.get(`${lesson.classe}:${day}:${period + lesson.duration}`) ?? "", heavySubjects)) {
+            preferencePenalty += 500;
+          }
+        } else if (isLight) {
+          preferencePenalty += Math.max(0, Math.floor(periodsPerDay / 2) - period) * 10;
+        }
+        if (repeatsAdjacentDay) preferencePenalty += 250;
+        if (rules.minimizeTeacherGaps !== false) {
+          const blockPeriods = block;
+          preferencePenalty += (teacherGaps(lesson.teacherId, day, teacherBusyWeekA, periodsPerDay, block) -
+            teacherGaps(lesson.teacherId, day, teacherBusyWeekA, periodsPerDay)) * 40;
+          const teacherB = lesson.alternateSubject ? lesson.alternateTeacherId : lesson.teacherId;
+          preferencePenalty += (teacherGaps(teacherB, day, teacherBusyWeekB, periodsPerDay, block) -
+            teacherGaps(teacherB, day, teacherBusyWeekB, periodsPerDay)) * 40;
+        }
+        const score = subjectDayCount * 1000 + dayLoad * 10 + period + preferencePenalty;
         if (!bestCandidate || score < bestCandidate.score) {
           bestCandidate = { day, period, roomId, score };
         }
@@ -249,6 +307,9 @@ export function generateTimetable(
       }
       dailyPeriods.set(classDayKey, (dailyPeriods.get(classDayKey) ?? 0) + lesson.duration);
       subjectDailyPeriods.set(subjectDayKey, (subjectDailyPeriods.get(subjectDayKey) ?? 0) + lesson.duration);
+      const subjectDays = classSubjectDays.get(`${lesson.classe}:${lesson.subject}`) ?? new Set<number>();
+      subjectDays.add(day);
+      classSubjectDays.set(`${lesson.classe}:${lesson.subject}`, subjectDays);
       placed = true;
     }
 
