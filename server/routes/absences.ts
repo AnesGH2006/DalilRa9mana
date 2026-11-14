@@ -1,10 +1,13 @@
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import { Router, type IRouter } from "express";
 import multer from "multer";
 import XLSX from "xlsx";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, asc, desc, inArray, like } from "drizzle-orm";
 import { db, dailyAbsenceReportsTable, studentDailyAttendanceTable, studentsTable } from "../../shared/db.js";
 import { notifyParentOfAbsence } from "../services/absenceAlerts.js";
+import { buildMonthlyAbsenceWorkbook } from "../lib/absenceMonthlyExport.js";
 import { logger } from "../lib/logger.js";
 import { getSchoolLevelsForRequest } from "../config/school-stage.js";
 
@@ -138,6 +141,47 @@ router.post("/absences/daily-students", async (req, res): Promise<void> => {
     logger.error({ err: error, attendanceDate, rowCount: studentIds.length }, "Daily student attendance save failed");
     res.status(500).json({ error: "فشل حفظ سجل الحضور اليومي. أعد تشغيل الخادم لتحديث قاعدة البيانات ثم أعد المحاولة." });
   }
+});
+
+router.get("/absences/export-monthly", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { annee = "2026-2027", month, classe, niveau } = req.query as Record<string, string>;
+  if (!/^\d{4}-\d{2}$/.test(month ?? "")) { res.status(400).json({ error: "month must be YYYY-MM" }); return; }
+  const userId = req.memberContext?.schoolUserId ?? req.user!.id;
+  const conditions = [
+    eq(studentDailyAttendanceTable.userId, userId),
+    eq(studentDailyAttendanceTable.annee, annee),
+    eq(studentDailyAttendanceTable.isAbsent, true),
+    like(studentDailyAttendanceTable.attendanceDate, `${month}-%`),
+    eq(studentsTable.userId, userId),
+  ];
+  if (classe) conditions.push(eq(studentsTable.classe, classe));
+  if (niveau) conditions.push(eq(studentsTable.niveau, niveau as never));
+  const rows = await db.select({
+    attendanceDate: studentDailyAttendanceTable.attendanceDate,
+    status: studentDailyAttendanceTable.status,
+    studentName: studentsTable.nomPrenom,
+    dateNaissance: studentsTable.dateNaissance,
+    raqm: studentsTable.raqm,
+    classe: studentsTable.classe,
+    niveau: studentsTable.niveau,
+  })
+    .from(studentDailyAttendanceTable)
+    .innerJoin(studentsTable, eq(studentDailyAttendanceTable.studentId, studentsTable.id))
+    .where(and(...conditions))
+    .orderBy(asc(studentDailyAttendanceTable.attendanceDate), asc(studentsTable.nomPrenom));
+
+  let template: Buffer | undefined;
+  try {
+    template = fs.readFileSync(path.resolve(process.cwd(), "server", "assets", "absence-monthly-template.xltx"));
+  } catch { template = undefined; }
+  const buffer = await buildMonthlyAbsenceWorkbook(rows, template);
+  res.set({
+    "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Disposition": `attachment; filename="ghiab-${annee}-${month}.xlsx"`,
+    "X-Absence-Rows": String(rows.length),
+  });
+  res.send(buffer);
 });
 
 router.delete("/absences/daily-students/:id", async (req, res): Promise<void> => {

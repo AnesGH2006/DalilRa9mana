@@ -8,8 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { connectAttendanceUpdates } from "@/lib/attendance-socket";
 import { StudentHealthDialog } from "@/components/student-health-dialog";
 import {
-  CalendarOff, AlertTriangle, CheckCircle, Printer, Upload, FileSpreadsheet,
-  Users, BookOpen, Briefcase, Hammer, UtensilsCrossed, Trash2, TrendingUp, ChevronDown, ChevronUp,
+  CalendarOff, AlertTriangle, CheckCircle, Printer, Upload, FileSpreadsheet, Download,
+  Users, BookOpen, Briefcase, Hammer, UtensilsCrossed, Trash2, TrendingUp, ChevronDown, ChevronUp, Loader2,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -246,12 +246,15 @@ function DailyTrendChart({ reports }: { reports: DailyReport[] }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AbsencesPage() {
+  const { toast } = useToast();
   const [absences, setAbsences]   = useState<AbsenceRow[]>([]);
   const [students, setStudents]   = useState<StudentRow[]>([]);
   const [dailyReports, setDailyReports] = useState<DailyReport[]>([]);
   const [dailyStudentAttendance, setDailyStudentAttendance] = useState<DailyStudentAttendance[]>([]);
   const [annee, setAnnee]         = useState(DEFAULT_YEAR);
   const [trimestre, setTrimestre] = useState<string>("");
+  const [exportMonth, setExportMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [exportingMonthly, setExportingMonthly] = useState(false);
   const [loading, setLoading]     = useState(true);
 
   const fetchAll = useCallback(async () => {
@@ -271,6 +274,31 @@ export default function AbsencesPage() {
   }, [annee]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const downloadMonthlyAbsences = async () => {
+    if (!/^\d{4}-\d{2}$/.test(exportMonth)) {
+      toast({ variant: "destructive", title: "خطأ", description: "اختر شهراً بصيغة YYYY-MM" });
+      return;
+    }
+    setExportingMonthly(true);
+    try {
+      const res = await fetch(`${BASE}api/absences/export-monthly?annee=${encodeURIComponent(annee)}&month=${encodeURIComponent(exportMonth)}`, { credentials: "include" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as any)?.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `ghiab-${annee}-${exportMonth}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "تم التصدير", description: "قائمة الغيابات الشهرية جاهزة" });
+    } catch (error) {
+      toast({ variant: "destructive", title: "فشل التصدير", description: error instanceof Error ? error.message : "تعذر إنشاء الملف" });
+    } finally { setExportingMonthly(false); }
+  };
 
   useEffect(() => {
     let active = true;
@@ -349,7 +377,13 @@ export default function AbsencesPage() {
           <p className="text-sm text-muted-foreground mt-0.5 ms-11">التقارير اليومية الرسمية وسجل غيابات التلاميذ</p>
         </motion.div>
         <div className="flex items-center gap-2">
+          <input type="month" value={exportMonth} onChange={e => setExportMonth(e.target.value)} className="h-9 rounded-lg border bg-background px-2 text-xs" />
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+            <Button variant="outline" size="sm" className="gap-2 h-9 text-xs font-semibold no-print" onClick={downloadMonthlyAbsences} disabled={exportingMonthly} data-testid="button-export-monthly-absences">
+              {exportingMonthly ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} تصدير قائمة الغيابات
+            </Button>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
             <Button variant="outline" size="sm" className="gap-2 h-9 text-xs font-semibold no-print" onClick={() => window.print()} data-testid="button-print-absences">
               <Printer className="w-3.5 h-3.5" /> طباعة PDF
             </Button>
