@@ -296,6 +296,76 @@ async function probeDb(attempt = 1): Promise<void> {
     `);
 
     await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS exam_sessions (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        annee varchar NOT NULL,
+        title varchar NOT NULL,
+        kind varchar(30) DEFAULT 'exam',
+        classe varchar(80),
+        subject varchar(120),
+        exam_date date NOT NULL,
+        start_time varchar(5),
+        end_time varchar(5),
+        duration_minutes integer,
+        status varchar(20) DEFAULT 'draft',
+        notes text,
+        created_at timestamptz DEFAULT now(),
+        updated_at timestamptz DEFAULT now()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_exam_sessions_user_annee ON exam_sessions(user_id, annee, exam_date)`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS exam_halls (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        annee varchar NOT NULL,
+        name varchar NOT NULL,
+        capacity integer NOT NULL,
+        building varchar(120),
+        floor varchar(80),
+        room_type varchar(40) DEFAULT 'classroom',
+        is_active boolean DEFAULT true,
+        created_at timestamptz DEFAULT now(),
+        updated_at timestamptz DEFAULT now()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_exam_halls_user_annee ON exam_halls(user_id, annee, is_active)`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS exam_invigilators (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        annee varchar NOT NULL,
+        session_id varchar NOT NULL REFERENCES exam_sessions(id) ON DELETE CASCADE,
+        teacher_id varchar REFERENCES timetable_teachers(id) ON DELETE SET NULL,
+        member_id varchar REFERENCES school_members(id) ON DELETE SET NULL,
+        name varchar NOT NULL,
+        subject varchar(120),
+        role varchar(30) DEFAULT 'invigilator',
+        created_at timestamptz DEFAULT now()
+      )
+    `);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_exam_invigilators_session_name ON exam_invigilators(session_id, name)`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS exam_seating_assignments (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        annee varchar NOT NULL,
+        session_id varchar NOT NULL REFERENCES exam_sessions(id) ON DELETE CASCADE,
+        student_id varchar NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        hall_id varchar NOT NULL REFERENCES exam_halls(id) ON DELETE CASCADE,
+        seat_number integer NOT NULL,
+        organization_number varchar(60) NOT NULL,
+        row_number integer,
+        column_number integer,
+        created_at timestamptz DEFAULT now()
+      )
+    `);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_exam_seating_student_session ON exam_seating_assignments(session_id, student_id)`);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_exam_seating_hall_seat ON exam_seating_assignments(session_id, hall_id, seat_number)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_exam_seating_session_org ON exam_seating_assignments(session_id, organization_number)`);
+
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS student_documents (
         id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,

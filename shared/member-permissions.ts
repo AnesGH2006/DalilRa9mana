@@ -53,9 +53,9 @@ export function permissionForAppPath(path: string): StaffPermission | undefined 
   if (["/orientation-results", "/transfer-results", "/councils", "/orientation"].includes(path)
     || path.startsWith("/preorient/")) return "orientation";
   if (path === "/analytics") return "analytics";
-  if (path === "/reports") return "reports";
+  if (["/reports", "/exam-reports"].includes(path)) return "reports";
   if (["/import", "/excel-injection", "/upload-grades-ocr", "/archive"].includes(path)) return "imports";
-  if (["/class-balancer", "/timetable"].includes(path)) return "planning";
+  if (["/class-balancer", "/timetable", "/exams"].includes(path)) return "planning";
   if (["/pedagogy-center", "/pedagogy"].includes(path)) return "pedagogy";
   return undefined;
 }

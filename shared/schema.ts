@@ -516,6 +516,84 @@ export const assessmentEventsTable = pgTable("assessment_events", {
 export type AssessmentEvent = typeof assessmentEventsTable.$inferSelect;
 export type InsertAssessmentEvent = typeof assessmentEventsTable.$inferInsert;
 
+// ─── Exam Operations: sessions, invigilation, halls and seating ───────────────
+export const examSessionsTable = pgTable("exam_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
+  title: varchar("title", { length: 255 }).notNull(),
+  kind: varchar("kind", { length: 30 }).notNull().default("exam"),
+  classe: varchar("classe", { length: 80 }),
+  subject: varchar("subject", { length: 120 }),
+  examDate: varchar("exam_date", { length: 10 }).notNull(),
+  startTime: varchar("start_time", { length: 5 }),
+  endTime: varchar("end_time", { length: 5 }),
+  durationMinutes: integer("duration_minutes"),
+  status: varchar("status", { length: 20 }).notNull().default("draft"),
+  notes: varchar("notes", { length: 500 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type ExamSession = typeof examSessionsTable.$inferSelect;
+export type InsertExamSession = typeof examSessionsTable.$inferInsert;
+
+export const examHallsTable = pgTable("exam_halls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
+  name: varchar("name", { length: 120 }).notNull(),
+  capacity: integer("capacity").notNull(),
+  building: varchar("building", { length: 120 }),
+  floor: varchar("floor", { length: 80 }),
+  roomType: varchar("room_type", { length: 40 }).notNull().default("classroom"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ExamHall = typeof examHallsTable.$inferSelect;
+export type InsertExamHall = typeof examHallsTable.$inferInsert;
+
+export const examInvigilatorsTable = pgTable("exam_invigilators", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
+  sessionId: varchar("session_id").notNull().references(() => examSessionsTable.id, { onDelete: "cascade" }),
+  teacherId: varchar("teacher_id").references(() => timetableTeachersTable.id, { onDelete: "set null" }),
+  memberId: varchar("member_id").references(() => schoolMembersTable.id, { onDelete: "set null" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  subject: varchar("subject", { length: 120 }),
+  role: varchar("role", { length: 20 }).notNull().default("invigilator"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("IDX_exam_invigilators_session").on(table.sessionId),
+  index("IDX_exam_invigilators_user_annee").on(table.userId, table.annee),
+]);
+
+export type ExamInvigilator = typeof examInvigilatorsTable.$inferSelect;
+export type InsertExamInvigilator = typeof examInvigilatorsTable.$inferInsert;
+
+export const examSeatingAssignmentsTable = pgTable("exam_seating_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
+  sessionId: varchar("session_id").notNull().references(() => examSessionsTable.id, { onDelete: "cascade" }),
+  studentId: varchar("student_id", { length: 64 }).notNull().references(() => studentsTable.id, { onDelete: "cascade" }),
+  hallId: varchar("hall_id").notNull().references(() => examHallsTable.id, { onDelete: "cascade" }),
+  seatNumber: integer("seat_number").notNull(),
+  organizationNumber: varchar("organization_number", { length: 40 }).notNull(),
+  rowNumber: integer("row_number"),
+  columnNumber: integer("column_number"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("IDX_exam_seating_session").on(table.sessionId),
+  index("IDX_exam_seating_hall").on(table.hallId),
+  index("IDX_exam_seating_student").on(table.studentId),
+]);
+
+export type ExamSeatingAssignment = typeof examSeatingAssignmentsTable.$inferSelect;
+export type InsertExamSeatingAssignment = typeof examSeatingAssignmentsTable.$inferInsert;
+
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 // Records every critical action performed by the head-admin or any sub-account member.
 export const auditLogsTable = pgTable("audit_logs", {

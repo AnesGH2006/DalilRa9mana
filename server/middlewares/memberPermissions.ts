@@ -14,9 +14,9 @@ const PATH_PERMISSIONS: Array<[RegExp, StaffPermission]> = [
   [/^\/(?:yearend|repeaters)(?:\/|$)/, "yearend"],
   [/^\/(?:orientation|preorient|transfer-results|orientation-results|councils)(?:\/|$)/, "orientation"],
   [/^\/(?:stats|analytics)(?:\/|$)/, "analytics"],
-  [/^\/(?:reports|documents)(?:\/|$)/, "reports"],
+  [/^\/(?:reports|documents|exam-reports)(?:\/|$)/, "reports"],
   [/^\/(?:import|excel-injection|ocr)(?:\/|$)/, "imports"],
-  [/^\/(?:timetable|class-balancer|substitution)(?:\/|$)/, "planning"],
+  [/^\/(?:timetable|class-balancer|substitution|exams)(?:\/|$)/, "planning"],
   [/^\/v1\/(?:pedagogy|ai|notifications\/disciplinary)(?:\/|$)/, "pedagogy"],
 ];
 
