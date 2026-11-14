@@ -69,6 +69,7 @@ import ClassBalancerPage from "@/pages/class-balancer";
 import TimetablePage from "@/pages/timetable";
 import ExamOperationsPage from "@/pages/exam-operations";
 import ExamReportsPage from "@/pages/exam-reports";
+import AssessmentsPage from "@/pages/assessments";
 import ExcelInjectionPage from "@/pages/excel-injection";
 import {
   DEFAULT_STAFF_PERMISSIONS,
@@ -969,6 +970,7 @@ function AppLayout() {
               <Route path="/timetable"           component={TimetablePage} />
               <Route path="/exams"               component={ExamOperationsPage} />
               <Route path="/exam-reports"        component={ExamReportsPage} />
+              <Route path="/assessments"         component={AssessmentsPage} />
               <Route component={NotFound} />
               </Switch>
             </AnimatePresence>
