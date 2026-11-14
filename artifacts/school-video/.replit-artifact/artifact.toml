@@ -1,0 +1,17 @@
+kind = "web"
+previewPath = "/school-video"
+title = "School Manager Promo Video"
+version = "1.0.0"
+id = "artifacts/school-video"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/school-video" ]
+localPort = 5000
+
+[services.development]
+run = "pnpm --filter school-video run dev"
+
+[services.env]
+PORT = "5000"

@@ -1,0 +1,137 @@
+Build a comprehensive BEM Results Analytics Dashboard with ALL the following tabs:
+
+### TAB 1: تحليل عام (General Analysis)
+- Total students, pass count, fail count, pass rate
+- Class average
+- Highest/lowest score
+- Grade distribution bar chart (18-20, 16-18, 14-16, 12-14, 10-12, <10)
+- Pass/fail donut chart
+- Score frequency area chart (bell curve style)
+- Spotlight cards for top 3 students and bottom student
+
+### TAB 2: تحليل المواد (Subject Analysis)
+- For each detected subject: average score, pass rate, pass count/total
+- Horizontal bar chart sorted by average
+- Horizontal bar chart sorted by pass rate
+- Weighted contribution chart (score × coefficient)
+- Radar chart comparing top student vs class average per subject
+- Subject performance table with mini progress bars
+
+### TAB 3: مقارنة الأفواج (Class/Group Comparison)
+- Group students by their "فوج" (class group number)
+- For each group: total, pass count, fail count, average, pass rate
+- Grouped bar chart comparing all classes
+- Table with rankings of classes by pass rate
+- Best and worst performing class spotlight
+
+### TAB 4: مقارنة مع المعدل السنوي (vs Annual Average)
+- Scatter plot: X axis = annual average, Y axis = BEM average, each dot is a student
+- Color dots: green if both high, red if BEM < annual, orange if improved
+- Students who improved most (BEM > annual average by most)
+- Students who dropped most (annual > BEM by most)
+- Overall correlation analysis
+
+### TAB 5: الناجحون بالشهادة (Passed with Certificate)
+- List of all passed students sorted by rank
+- With: name, gender icon, BEM average, annual average, grade label (ممتاز/جيد جداً/جيد/مقبول)
+- Searchable and filterable by grade
+- Export to print
+
+### TAB 6: الراسبون في الشهادة (Failed BEM)
+- List of failed students
+- Show how many points they need to pass (10 - average)
+- Sort by closest to passing first
+- Gender breakdown of failures
+
+### TAB 7: الناجحون بالإنتقال (Passed by Transfer/Transition)
+- Students who passed overall even if BEM < 10 (passed by annual average rule)
+- Explain the Algerian promotion rule
+
+### TAB 8: نتائج المعيدين (Repeaters Results)
+- If "statut" = "redoublant", show their results separately
+- Compare repeaters vs new students pass rates
+- Did repeating help? (comparison chart)
+
+### TAB 9: قائمة الراسبين (Failed Students List)
+- Complete list of all failed students
+- Printable format for the school
+- With rank, name, gender, average, closest subject to passing
+
+### TAB 10: قائمة الموجهين (Orientation List)
+- Top students eligible for orientation to specific tracks
+- Based on Algerian education rules:
+  - علوم (Sciences): math >= 14 AND average >= 14
+  - آداب (Literature): arabic >= 14 AND average >= 12  
+  - تقني رياضي (Technical Math): math >= 13 AND physics >= 13
+- Show which track each top student qualifies for
+
+## Data Structure
+The server already returns this from POST /api/bem/analyze:
+```typescript
+interface BEMResult {
+  students: {
+    name: string;
+    gender: "male" | "female" | "unknown";
+    scores: Record<string, number | null>; // math, arabic, french, english, islamic, civic, history, science, physics, pe
+    average: number | null; // BEM average
+    passed: boolean | null;
+    rank: number;
+  }[];
+  summary: {
+    total: number; passCount: number; failCount: number;
+    passRate: number; classAvg: number | null;
+    first: Student | null; last: Student | null;
+  };
+  genderStats: {
+    males: number; females: number;
+    malePass: number; maleFail: number;
+    femalePass: number; femaleFail: number;
+    malePassRate: number; femalePassRate: number;
+  };
+  subjectStats: {
+    key: string; arLabel: string; coef: number;
+    avg: number | null; passCount: number; total: number; passRate: number;
+  }[];
+  scoreDistribution: { range: string; count: number }[];
+  detectedSubjects: { key: string; arLabel: string; coef: number }[];
+  fileName: string;
+}
+```
+
+## UI Requirements
+- RTL Arabic interface (dir="rtl")
+- Framer motion animations (spring animations, stagger children, fade up)
+- recharts for all charts (already installed)
+- shadcn/ui components (Card, Badge, Button, Input, etc.)
+- Tailwind CSS
+- Dark mode support
+- Smooth tab transitions with AnimatePresence
+- Print support with @media print styles
+- Tooltip cursor MUST be transparent (not black): cursor: { fill: "transparent" }
+- Chart cards should have: rounded-2xl border bg-card shadow-sm
+- All text in Arabic
+
+## Style Reference
+The project uses this animation pattern:
+```typescript
+const cardAnim = {
+  initial: { opacity: 0, y: 20, scale: 0.96 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 260, damping: 22 } },
+};
+```
+
+Colors:
+- Pass/success: #16a34a (emerald)
+- Fail: #ef4444 (red)  
+- Male: #3b82f6 (blue)
+- Female: #ec4899 (pink)
+- Primary: #2563eb (blue)
+
+## File to create
+Create/replace: src/pages/bem.tsx
+
+Make it a single file with all 10 tabs. The upload zone stays as is (POST to /api/bem/analyze). After upload, show the full analytics dashboard with all tabs.
+
+For tabs 4 (annual average comparison) and 7 (transition passing), if the data doesn't have annual averages in the current API response, show a placeholder saying the feature requires annual average data in the Excel file, and still show what data is available.
+
+Make the code production-ready, clean, and well-organized.

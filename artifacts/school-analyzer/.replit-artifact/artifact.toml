@@ -1,0 +1,30 @@
+kind = "web"
+previewPath = "/"
+title = "School Grade Analyzer"
+version = "1.0.0"
+id = "artifacts/school-analyzer"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20053
+
+[services.development]
+run = "pnpm -w run dev:client"
+
+[services.production]
+build = [ "pnpm", "-w", "run", "build:client" ]
+publicDir = "dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20053"

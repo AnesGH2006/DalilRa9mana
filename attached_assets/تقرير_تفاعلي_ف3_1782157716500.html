@@ -1,0 +1,21 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+<title>تقرير الفصل الثالث</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<style>*{font-family:'Segoe UI',sans-serif;box-sizing:border-box;}body{background:#f1f5f9;padding:20px;direction:rtl;}
+.box{background:white;border-radius:16px;padding:25px;margin-bottom:20px;box-shadow:0 4px 15px rgba(0,0,0,0.08);}
+h1{background:linear-gradient(135deg,#0f2027,#2c5364);color:white;padding:30px;border-radius:16px;margin-bottom:20px;text-align:center;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:700px){.grid{grid-template-columns:1fr;}}</style></head>
+<body>
+<h1><div style="font-size:1.8em;font-weight:900;">📊 تقرير تحليل النتائج</div>
+<div style="color:rgba(255,255,255,0.7);margin-top:8px;">الفصل الثالث | 19‏/6‏/2026</div></h1>
+<div class="grid">
+  <div class="box"><h3>📈 نسب النجاح حسب الأقسام</h3><canvas id="c1" height="350"></canvas></div>
+  <div class="box"><h3>📚 نسب النجاح حسب المواد</h3><canvas id="c2" height="350"></canvas></div>
+</div>
+<script>
+const labels1=["ثالثة متوسط 03","رابعة متوسط 03","ثالثة متوسط 02","رابعة متوسط 05","رابعة متوسط 02","رابعة متوسط 04","ثانية متوسط 02","رابعة متوسط 01","ثالثة متوسط 04","ثالثة متوسط 05","ثانية متوسط 01","أولى متوسط 03","ثانية متوسط 03","ثالثة متوسط 01","أولى متوسط 01","أولى متوسط 02","ثانية متوسط 04"],rates1=["94.74","94.44","90.24","90.00","87.50","85.29","85.00","85.00","80.49","79.49","78.26","77.27","76.09","75.61","75.56","73.91","71.74"];
+const labels2=["التربية الموسيقية","التربية المدنية","المعلوماتية","التربية الإسلامية","اللغة العربية","التاريخ والجغرافيا","علوم الطبيعة والحياة","العلوم الفيزيائية","اللغة الفرنسية","اللغة الإنجليزية","الرياضيات"],rates2=["100.0","92.8","91.5","88.6","83.7","82.7","67.5","65.4","55.5","48.0","42.5"];
+new Chart(document.getElementById('c1'),{type:'bar',data:{labels:labels1,datasets:[{label:'نسبة النجاح %',data:rates1,backgroundColor:rates1.map(v=>v>=70?'#10b981':v>=50?'#f59e0b':'#ef4444'),borderRadius:8}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{max:100,ticks:{callback:v=>v+'%'}}}}});
+new Chart(document.getElementById('c2'),{type:'bar',data:{labels:labels2,datasets:[{label:'نسبة النجاح %',data:rates2,backgroundColor:rates2.map(v=>v>=70?'#10b981':v>=50?'#f59e0b':'#ef4444'),borderRadius:8}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{max:100,ticks:{callback:v=>v+'%'}}}}});
+</script></body></html>

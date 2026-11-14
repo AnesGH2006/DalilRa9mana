@@ -1,0 +1,23 @@
+# The format of this file is identical to `.dockerignore`.
+# It is used to reduce the size of deployed images to make the process of publishing faster.
+
+# No need to store the pnpm store twice.
+.local
+
+# Dependencies — installed fresh during the build step (was causing 413 Too Large)
+node_modules
+**/node_modules
+
+# Dev assets uploaded during development (not needed in production)
+attached_assets
+
+# Logs & temp files
+logs
+*.log
+/tmp
+
+# Desktop agent (client-side tool, not part of the server)
+desktop_agent
+
+# Git history
+.git

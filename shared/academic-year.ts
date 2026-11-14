@@ -1,0 +1,1 @@
+export const CURRENT_ACADEMIC_YEAR = "2026-2027";

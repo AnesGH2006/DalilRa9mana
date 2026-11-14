@@ -1,0 +1,42 @@
+🚀 Comprehensive Development Prompt for Replit Agent
+"Please update the entire platform according to these technical requirements, UI fixes, access control rules, and AI feature additions:
+
+1. Dashboard UI & Bar Chart Layout Fixes
+Chart Expansion: Increase the minimum height of all dashboard charts (especially توزيع المعدلات السنوية and منحنى توزيع التكرار) to 450px - 500px so they properly fill their containers without awkward empty margins.
+
+Bar Visuals & Typography: Increase the thickness and spacing of the bar chart columns. Make X/Y-axis label font sizes larger (14px, fontWeight: bold) for high visibility on all screen resolutions.
+
+2. Multi-School QR Code Routing & Student Grade View
+School-Scoped QR Links: Scope student QR codes dynamically under each school's route (e.g., /schools/:schoolId/students/:studentId/qr).
+
+QR Output Profile: Scanning a student’s QR code must display the complete student profile containing:
+
+Quiz & Homework scores (الفروض).
+
+Exam scores (الاختبارات).
+
+Trimester and Annual Averages (المعدلات الفصلية والسنوية).
+
+3. Role-Based Access Control (RBAC) & Parent Self-Registration
+Head-Admin (المدير): Full system administrator. Manages and creates staff accounts ONLY (Teachers, Supervisors/المشرفين, Counselors/المستشارين).
+
+Parent Self-Registration:
+
+Admins do NOT manually register parents. Create a /parent/register page where parents can sign up using their Name, Email/Phone, Password, and Student Registration/National ID (رقم التسجيل للتلميذ).
+
+Verify the Student ID against the school database. If valid, assign Role: Parent and link the parent account STRICTLY to that specific student.
+
+Parent Dashboard Permissions: Parents can ONLY view academic scores (Frouda, Exams, Averages, Attendance) of their own linked child. Block parent access to school analytics, staff menus, or other students' records.
+
+Teacher Permissions: Teachers are restricted to entering/editing grades (إدخال النقاط) and managing subject scores for their assigned classes.
+
+4. AI Assistant Module (المساعد الذكي - رفيق)
+Add a floating AI Assistant widget accessible from the dashboard header in Arabic.
+
+Role-Based Context:
+
+For Head-Admin: Analyzes school-wide grade trends, highlights dropping pass rates, identifies high absenteeism, and generates printable summary reports.
+
+For Parents: Answers questions strictly about their child's scores, offers study recommendations, and compares progress across trimesters.
+
+For Teachers: Helps generate personalized pedagogical notes (الملاحظات التربوية) and quiz ideas."**

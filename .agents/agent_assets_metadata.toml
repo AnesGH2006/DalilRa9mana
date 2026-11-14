@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "lPQ1jWH_5M0jmWlJ6ZM_-"
+uri = "file://artifacts/school-video/public/images/problem-paper.png"
+type = "image"
+title = "chaotic paper school records"
+
+[[generated]]
+id = "9U5YfmrR7WvOPyAP7E5nV"
+uri = "file://artifacts/school-video/public/images/solution-digital.png"
+type = "image"
+title = "digital school dashboard solution"

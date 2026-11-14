@@ -1,0 +1,6 @@
+pyautogui>=0.9.54
+Pillow>=10.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+pywin32>=306; sys_platform=="win32"
+# The Linux clipboard helper is optional and not available on pip; install it with the OS package manager when needed.

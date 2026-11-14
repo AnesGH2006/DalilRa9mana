@@ -1,0 +1,101 @@
+Build a full-stack Arabic school management web application (RTL layout, Arabic UI) for CEM and secondary schools in Algeria. Use React + TypeScript for the frontend, Node.js + Express for the backend, and PostgreSQL (or SQLite for simplicity) as the database.
+
+=== TECH STACK ===
+- Frontend: React + TypeScript + Tailwind CSS (RTL support)
+- Backend: Node.js + Express.js
+- Database: PostgreSQL or SQLite
+- Charts: Recharts or Chart.js
+- Export: xlsx or exceljs (for Excel export), jsPDF (for PDF)
+- Auth: JWT-based login
+
+=== UI REQUIREMENTS ===
+- Dark sidebar navigation (like the screenshots)
+- Full RTL (right-to-left) Arabic layout
+- Responsive design
+- The app has 5 main sections in the sidebar:
+  1. التلاميذ (Students)
+  2. النتائج (Results)
+  3. أعمال نهاية السنة (End of Year)
+  4. التوجيه المسبق (Pre-orientation)
+  5. البيانات (Data)
+  6. المزيد (More / Settings)
+
+=== PAGES TO BUILD ===
+
+── 1. التلاميذ (Students) ──
+- لوحة التحكم: Dashboard with stats (total students, pass rate, failure rate, average score)
+- قائمة التلاميذ: Full student list table with search, filter by class/section, add/edit/delete student
+- أعمار التلاميذ: Age distribution chart and table
+
+── 2. النتائج (Results) ──
+- نتائج التلاميذ: Student results table — show trimester scores, averages, pass/fail status (ناجح/راسب)
+- نتائج المواد: Results per subject — average per subject, best/worst subject
+- نتائج الاختبار والفرض والمراقبة: Breakdown of exam types (اختبار, فرض, مراقبة مستمرة) with weights
+- نتائج شهادة التعليم المتوسط (BEM): Special page for BEM exam results with national average comparison
+- إجازات التلاميذ: Student absences tracker (justified/unjustified hours)
+- التلاميذ المعيدين: List of repeating students (flagged automatically if failed)
+- التلاميذ الراسبين: Failed students list with their averages
+- نتائج الذين سيوجهون: Students eligible for orientation with their academic profile
+- المنتقلون بالاستدراك: Students who passed conditionally (makeup exam passers)
+- مجالس الأقسام: Class council page — generate class council report per section
+
+── 3. أعمال نهاية السنة (End of Year) ──
+- نتائج التلاميذ السنوية: Final annual results for all students
+- قوائم الناجحين: Printable list of passed students
+- قوائم الراسبين: Printable list of failed students
+- قوائم المستدركين: Conditional pass list
+- قوائم الموجهين: Orientation list
+- قوائم التلاميذ النهائية: Final combined list (all statuses)
+
+── 4. التوجيه المسبق (Pre-orientation) ──
+- سجل المتابعة والتوجيه: Tracking log per student with counselor notes
+- التوجيه المسبق الأول: First pre-orientation round — preferred streams input
+- التوجيه المسبق الثاني: Second pre-orientation round — updated preferences
+- التوجيه النهائي: Final orientation decision per student (علوم / آداب / تقني رياضي etc.)
+- تقارير إعلامية: Informational reports for parents/students about orientation
+
+── 5. البيانات (Data) ──
+- استيراد البيانات: Import students and grades from Excel (.xlsx) file upload
+- أرشفة البيانات: Archive current year data, start new school year
+
+── 6. المزيد (More) ──
+- معلومات المؤسسة: School info (name, wilaya, commune, principal name, phone)
+- معلومات الحساب: Admin account settings
+- مفاتيح الذكاء الاصطناعي: API key input field for AI features (Anthropic/OpenAI)
+- إدارة الاشتراكات: Subscription management (free/premium plan display)
+- تحميل إضافة كروم: Link to install Chrome extension
+
+=== GRADE SYSTEM (Algerian) ===
+- Grades out of 20
+- Pass mark: 10/20
+- Three trimesters per year
+- Subjects vary by level:
+  - CEM: Arabic, French, Math, Science, History/Geography, Islamic Education, Civic Education, English, PE, Art
+  - Lycée: Varies by stream (Sciences, Letters, Technical Math, etc.)
+- Final average = weighted average of subjects per trimester
+- Annual average = average of 3 trimesters
+- BEM exam: combines school average (40%) + national exam (60%)
+
+=== KEY FEATURES ===
+1. Auto-calculate averages, ranks, pass/fail status
+2. Export any table to Excel (.xlsx) or PDF
+3. Print-ready layouts for official lists
+4. Charts: bar chart (subject averages), pie chart (pass/fail ratio), line chart (trimester progression)
+5. Search and filter everywhere
+6. Bulk import from Excel
+7. Multi-class/section support
+8. School year selector
+
+=== DATABASE SCHEMA (minimum) ===
+Tables: schools, users, students, classes, subjects, grades, trimesters, orientations, absences, settings
+
+=== SAMPLE DATA ===
+Pre-populate with 30 fake Algerian student names, 3 classes (4AM, 3AM, 2AS), realistic grades so the UI looks full from the start.
+
+=== DESIGN ===
+- Dark sidebar: #1a1a2e background
+- Accent color: cyan/teal (#00d4aa)
+- Cards with subtle borders
+- Arabic font: Cairo or Tajawal (Google Fonts)
+- Status badges: ناجح (green), راسب (red), مستدرك (orange), موجه (blue)
+

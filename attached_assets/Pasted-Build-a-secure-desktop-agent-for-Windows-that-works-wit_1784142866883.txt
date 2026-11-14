@@ -1,0 +1,87 @@
+Build a secure desktop agent for Windows that works with my School Management SaaS.
+
+Requirements:
+
+Technology:
+- Node.js
+- Express
+- Socket.IO (WebSocket)
+- Electron for the desktop application
+
+Purpose:
+The desktop agent is installed by the school administrator and only works after the administrator logs in and grants permission.
+
+Features:
+
+1. Secure Authentication
+- Login with email and password.
+- Connect only to my backend server.
+- Use HTTPS and secure WebSocket (WSS).
+- Store authentication token securely.
+
+2. Remote Tasks (authorized only)
+- Open a selected Excel file.
+- Monitor a chosen folder for new Excel files.
+- Upload Excel files to the server.
+- Print PDF reports.
+- Open a selected folder.
+- Open a selected application chosen by the administrator.
+- Create backup copies of exported reports.
+- Return task status (Success / Failed).
+
+3. Dashboard
+- Connection status
+- Logged-in school
+- Task history
+- Last synchronization time
+- Start automatically with Windows (optional setting)
+
+4. Security
+- Only accept commands from authenticated users.
+- Validate every command.
+- Log every executed action with timestamp.
+- Never execute arbitrary shell commands.
+- Only allow predefined safe actions.
+
+5. Folder Permissions
+Allow the administrator to choose which folders the agent can access.
+Do not access any other folders.
+
+6. Backend API
+Create REST endpoints and Socket.IO events for:
+- uploadExcel
+- printReport
+- openFolder
+- backupReports
+- getAgentStatus
+- syncData
+
+7. UI
+Create a clean Electron interface showing:
+- Online/Offline
+- Connected account
+- Recent tasks
+- Settings
+- Folder permissions
+
+8. Code Structure
+Use a clean architecture:
+
+/agent
+/server
+/routes
+/controllers
+/services
+/socket
+/utils
+/config
+
+9. Documentation
+Generate a README explaining:
+- Installation
+- Configuration
+- Running the agent
+- Security model
+- Communication flow
+
+The application should be production-ready, modular, secure, and easy to maintain.

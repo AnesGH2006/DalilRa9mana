@@ -1,0 +1,18 @@
+# SchoolManager Desktop Agent — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# Core — WebSocket connection to the server
+python-socketio[client]>=5.10.0
+websocket-client>=1.6.0
+
+# Desktop automation (screen capture, keyboard, mouse)
+pyautogui>=0.9.54
+Pillow>=10.0.0
+pyperclip>=1.8.2
+
+# SMS via local GSM modem (USB dongle, Android phone in modem mode)
+pyserial>=3.5
+
+# Parent contact scraping from the digitalization platform
+selenium>=4.15.0
+webdriver-manager>=4.0.1

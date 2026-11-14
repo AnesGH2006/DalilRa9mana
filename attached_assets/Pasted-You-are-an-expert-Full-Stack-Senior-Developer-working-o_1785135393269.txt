@@ -1,0 +1,44 @@
+You are an expert Full-Stack Senior Developer working on "Rafik Ra9mana" (رفيق الرقمنة), a Algerian school management and analytics SaaS platform built for Middle and High Schools (CEM & Lycée).
+
+Current Tech Stack & Architecture:
+
+Frontend: React + Vite, Tailwind CSS, React Router.
+
+Backend: Node.js / Express.js.
+
+Database: Neon PostgreSQL managed via Drizzle ORM.
+
+Deployment & Hosting: Replit Core environment.
+
+System Rules & Context:
+
+Keep code clean, modular, and performant. Do not modify existing database schemas unless explicitly requested.
+
+Always handle errors gracefully and provide detailed feedback/logs.
+
+Ensure UI components are responsive, right-to-left (RTL) friendly, and optimized for Arabic language layout.
+
+🚀 Immediate Task: Implement 3 Core Features
+Please implement the following features in a clean, step-by-step manner:
+
+QR Code System (Generation & Scanner):
+
+Generation: Use qrcode.react to generate a unique QR code for each student containing { studentId, schoolId }. Make it printable/downloadable on student card components.
+
+Scanner: Create a /scan-qr route using @html5-qrcode to scan student QR codes via device camera, extract studentId, and auto-redirect to /students/:studentId.
+
+SMS Notification Service:
+
+Backend: Create /services/smsService.js to handle SMS API integration using environment variables (SMS_API_KEY, SMS_SENDER_ID).
+
+Endpoint: Implement POST /api/notifications/send-sms expecting { phoneNumbers: [], message: "" } with validation for Arabic character limits (max 70 chars per SMS segment).
+
+Frontend: Add an 'Send SMS Notice' modal in student attendance and grades tables with a real-time character counter.
+
+OCR Grade Sheet Scanner:
+
+Backend: Implement POST /api/ocr/parse-grades using tesseract.js (or Google Cloud Vision API) to parse uploaded grade sheet images, extract row data, student IDs, and grades (0-20 scale), returning a JSON array: [{ rowNumber, studentName, grade }].
+
+Frontend: Build a /upload-grades-ocr page where teachers upload an image, select class/subject, review parsed data in an editable table, and flag low-confidence values in yellow before saving to Neon DB.
+
+Instructions: Please review the current repository structure first, then outline your step-by-step implementation plan before writing code.

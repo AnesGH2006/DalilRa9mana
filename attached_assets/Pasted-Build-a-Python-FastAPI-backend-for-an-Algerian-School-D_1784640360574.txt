@@ -1,0 +1,26 @@
+Build a Python FastAPI backend for an Algerian School Director's Executive Assistant AI Agent named "Rafik Ra9mana Agent".
+
+Requirements & Features:
+1. Environment & Setup:
+   - Use FastAPI with CORS enabled so mobile apps/web browsers can connect.
+   - Use Google Gemini API (google-genai) with Function Calling enabled for intelligence.
+   - Store API keys (GEMINI_API_KEY, SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD) in environment variables.
+
+2. Function Calling / Tools for the AI Agent:
+   Create modular Python functions that the Gemini model can invoke automatically based on the Director's request:
+   - generate_official_letter(recipient_name: str, subject: str, reason: str, letter_type: str): Generates an official administrative PDF document in Arabic with a formal header, timestamp, and signature line using ReportLab or pdfkit. Returns a downloadable file link.
+   - send_email_notification(to_email: str, subject: str, body: str): Sends an official email via SMTP to teachers or parents.
+   - send_whatsapp_alert(phone_number: str, message: str): Simulates sending a WhatsApp notification (or logs/calls a Webhook URL).
+   - calculate_orientation_score(math_grade: float, science_grade: float, physics_grade: float, arabic_grade: float): Calculates high school stream recommendations (Scientific vs Literary) based on Algerian curriculum weights.
+
+3. Core API Endpoint:
+   - Create a `POST /api/v1/agent/command` endpoint that accepts a JSON payload: `{"command": "string", "director_id": "string"}`.
+   - The endpoint sends the prompt to Gemini with system instructions:
+     "You are an executive assistant AI for an Algerian school director. You understand Algerian educational terminology (BEM, الرقمنة, كشف النقاط, مجالس الأقسام, استدعاء ولي أمر). Convert spoken or typed commands into specific function calls. Always reply in clear Arabic."
+   - Process any function calls triggered by Gemini, execute the tool, and return a JSON response containing:
+     - `reply`: The conversational Arabic answer for the Director.
+     - `action_taken`: Summary of the tool executed (e.g., "PDF Generated", "Email Sent").
+     - `file_url`: URL to download any generated PDF if applicable.
+
+4. Testing UI:
+   - Include a simple, dark-mode single-page HTML frontend (served at GET `/`) with a text input and a microphone button (Web Speech API for Arabic voice input) to let me test commands directly in the browser.

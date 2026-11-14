@@ -1,0 +1,56 @@
+{
+  "name": "دليل الرقمنة — Dalil Ra9mana",
+  "short_name": "دليل الرقمنة",
+  "description": "منصة جزائرية لإدارة المؤسسات التعليمية ومتابعة التلاميذ والنتائج",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "background_color": "#0f1117",
+  "theme_color": "#2DD4BF",
+  "orientation": "portrait-primary",
+  "lang": "ar",
+  "dir": "rtl",
+  "id": "dalil-ra9mana-dz",
+  "categories": ["education"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "الطلاب",
+      "short_name": "الطلاب",
+      "description": "قائمة الطلاب",
+      "url": "/students",
+      "icons": [{ "src": "/logo-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "النتائج",
+      "short_name": "النتائج",
+      "description": "نتائج الطلاب",
+      "url": "/results",
+      "icons": [{ "src": "/logo-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/opengraph.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "الصفحة الرئيسية لدليل الرقمنة"
+    }
+  ]
+}
