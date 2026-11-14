@@ -82,7 +82,7 @@ export default function ExamOperationsPage() {
   const [invigilationResult, setInvigilationResult] = useState<{ generated: number; unassigned: any[] } | null>(null);
 
   const [seatingSessionId, setSeatingSessionId] = useState("");
-  const [seatingOptions, setSeatingOptions] = useState({ columnsPerRow: "8", keepClassesTogether: true });
+  const [seatingOptions, setSeatingOptions] = useState({ columnsPerRow: "8", separateSameClass: true, keepClassesTogether: false });
   const [seatingResult, setSeatingResult] = useState<{ generated: number; unassigned: any[]; halls: any[]; assignments: SeatingAssignment[] } | null>(null);
   const [seatingAssignments, setSeatingAssignments] = useState<SeatingAssignment[]>([]);
 
@@ -182,6 +182,7 @@ export default function ExamOperationsPage() {
           sessionId: seatingSessionId,
           columnsPerRow: Number(seatingOptions.columnsPerRow) || 8,
           keepClassesTogether: seatingOptions.keepClassesTogether,
+          separateSameClass: seatingOptions.separateSameClass,
         }),
       });
       setSeatingResult(result); toast({ title: "تم التفويج", description: `تم تفويج ${result.generated} تلميذاً` }); loadSeating(seatingSessionId);
@@ -352,7 +353,7 @@ export default function ExamOperationsPage() {
                 <SelectContent>{sessions.map(s => <SelectItem key={s.id} value={s.id}>{s.title} — {s.examDate}</SelectItem>)}</SelectContent>
               </Select>
               <Input type="number" placeholder="أعمدة لكل سطر" value={seatingOptions.columnsPerRow} onChange={e => setSeatingOptions(o => ({ ...o, columnsPerRow: e.target.value }))} />
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={seatingOptions.keepClassesTogether} onChange={e => setSeatingOptions(o => ({ ...o, keepClassesTogether: e.target.checked }))} /> تجميع الأقسام</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={seatingOptions.separateSameClass} onChange={e => setSeatingOptions(o => ({ ...o, separateSameClass: e.target.checked }))} /> منع تجاور نفس القسم</label>
               <Button onClick={generateSeating}><Wand2 className="h-4 w-4" /> توليد التفويج</Button>
             </CardContent></Card>
 

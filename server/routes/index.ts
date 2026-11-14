@@ -32,6 +32,7 @@ import assessmentsRouter from "./assessments.js";
 import { requirePaidPlan } from "../middlewares/planAccess.js";
 import { memberPermissionMiddleware } from "../middlewares/memberPermissions.js";
 import smsRouter from "./sms.js";
+import whatsappRouter from "./whatsapp.js";
 import parentLinkRouter from "./Parent-link.js";
 const router: IRouter = Router();
 
@@ -45,6 +46,7 @@ router.use(schoolStageRouter);
 router.use(parentLinkRouter);
 router.use(requirePaidPlan);
   router.use(smsRouter);
+  router.use(whatsappRouter);
 router.use(schoolRouter);
 router.use(studentsRouter);
 router.use(gradesRouter);

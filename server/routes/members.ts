@@ -25,6 +25,7 @@ import {
 } from "../../shared/member-permissions.js";
 import { normalizeTimetableClassName, TIMETABLE_DAY_LABELS, TIMETABLE_PERIODS } from "../../shared/timetable-curriculum.js";
 import { PARENT_PLAN } from "../middlewares/staffAccess.js";
+import { notifyParentOfGrades } from "../services/gradeAlerts.js";
 
 const router = Router();
 
@@ -519,11 +520,12 @@ router.post("/teacher/grades", async (req: Request, res: Response): Promise<void
   if (req.memberContext?.role !== "teacher") { res.status(403).json({ error: "Teachers only" }); return; }
 
   const { assignedClasses, schoolUserId } = req.memberContext;
-  const { studentId, annee, trimestre, grades: gradeMap } = req.body as {
+  const { studentId, annee, trimestre, grades: gradeMap, gradeType } = req.body as {
     studentId: string;
     annee: string;
     trimestre: number;
     grades: Record<string, number>;
+    gradeType?: string;
   };
 
   if (!studentId || !annee || !trimestre || !gradeMap) {
@@ -552,6 +554,7 @@ router.post("/teacher/grades", async (req: Request, res: Response): Promise<void
     annee,
     trimestre,
     subject,
+    gradeType: gradeType === "test" || gradeType === "exam" ? gradeType : "general",
     score: String(Math.min(Math.max(Number(score), 0), 20)),
   }));
 
@@ -559,6 +562,16 @@ router.post("/teacher/grades", async (req: Request, res: Response): Promise<void
     for (const row of upserts) {
       await db.insert(gradesTable).values(row as any).onConflictDoNothing();
     }
+  }
+
+  if (gradeType === "test" || gradeType === "exam") {
+    void notifyParentOfGrades({
+      schoolUserId,
+      studentId,
+      annee,
+      trimestre,
+      grades: Object.entries(gradeMap).map(([subject, score]) => ({ subject, score: Number(score), gradeType })),
+    }).catch(() => {});
   }
 
   res.json({ success: true, count: upserts.length });

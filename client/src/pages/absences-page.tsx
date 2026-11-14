@@ -302,7 +302,7 @@ export default function AbsencesPage() {
 
   useEffect(() => {
     let active = true;
-    let disconnect = () => undefined;
+    let disconnect: () => void = () => undefined;
     void connectAttendanceUpdates(() => { void fetchAll(); }).then(cleanup => {
       if (active) disconnect = cleanup;
       else cleanup();

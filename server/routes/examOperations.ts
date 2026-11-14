@@ -326,7 +326,8 @@ router.post("/exams/seating/generate", async (req, res): Promise<void> => {
     options: {
       columnsPerRow: Number(body.columnsPerRow) || 8,
       organizationPrefix: strOrNull(body.organizationPrefix, 20) ?? undefined,
-      keepClassesTogether: body.keepClassesTogether !== false,
+      keepClassesTogether: body.keepClassesTogether === true,
+      separateSameClass: body.separateSameClass !== false,
     },
   });
 
@@ -398,7 +399,7 @@ router.get("/exam-reports/:type", async (req, res): Promise<void> => {
     const classe = typeof req.query.classe === "string" ? req.query.classe : "";
     const niveau = typeof req.query.niveau === "string" ? req.query.niveau : "";
     if (classe) conditions.push(eq(studentsTable.classe, classe));
-    if (niveau) conditions.push(eq(studentsTable.niveau, niveau));
+    if (niveau) conditions.push(eq(studentsTable.niveau, niveau as any));
     const students = await db.select().from(studentsTable).where(and(...conditions));
     report = buildOfficialReport(type, { schoolName: name, annee, students });
   } else if (type === "monthly") {

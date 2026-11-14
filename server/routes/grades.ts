@@ -10,6 +10,7 @@ import type { Niveau } from "../../shared/types.js";
 import { FREE_STUDENT_LIMIT } from "../../shared/subscription.js";
 import { notifyParentOfAbsence } from "../services/absenceAlerts.js";
 import { enqueueAbsenceAlert } from "../services/notificationQueue.js";
+import { notifyParentOfGrades } from "../services/gradeAlerts.js";
 import { getSchoolLevelsForRequest } from "../config/school-stage.js";
 
 const router: IRouter = Router();
@@ -54,12 +55,13 @@ router.post("/grades", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const userId = req.user!.id;
 
-  const { studentId, annee, trimestre, subject, score } = req.body as {
+  const { studentId, annee, trimestre, subject, score, gradeType } = req.body as {
     studentId?: string;
     annee?: string;
     trimestre?: number;
     subject?: string;
     score?: number;
+    gradeType?: string;
   };
 
   if (
@@ -93,8 +95,19 @@ router.post("/grades", async (req, res): Promise<void> => {
     annee,
     trimestre,
     subject,
+    gradeType: gradeType === "test" || gradeType === "exam" ? gradeType : "general",
     score: String(Math.max(0, Math.min(20, score))),
   }).returning();
+
+  if (gradeType === "test" || gradeType === "exam") {
+    void notifyParentOfGrades({
+      schoolUserId: userId,
+      studentId,
+      annee,
+      trimestre,
+      grades: [{ subject, score, gradeType }],
+    }).catch(error => req.log?.error?.({ error, studentId }, "Grade parent alert failed"));
+  }
 
   logAudit({
     userId,
@@ -119,12 +132,13 @@ router.post("/grades/bulk", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const userId = req.user!.id;
 
-  const { studentId, studentName, annee, trimestre, grades } = req.body as {
+  const { studentId, studentName, annee, trimestre, grades, gradeType } = req.body as {
     studentId?: string;
     studentName?: string;
     annee: string;
     trimestre: number;
     grades: Record<string, number>;
+    gradeType?: string;
   };
 
   if (!annee || !trimestre || !grades || typeof grades !== "object") {
@@ -198,11 +212,22 @@ router.post("/grades/bulk", async (req, res): Promise<void> => {
           annee,
           trimestre,
           subject,
+          gradeType: gradeType === "test" || gradeType === "exam" ? gradeType : "general",
           score: String(Math.max(0, Math.min(20, score))),
         }))
       );
     }
   });
+
+  if (gradeType === "test" || gradeType === "exam") {
+    void notifyParentOfGrades({
+      schoolUserId: userId,
+      studentId: student.id,
+      annee,
+      trimestre,
+      grades: validGrades.map(([subject, score]) => ({ subject, score, gradeType })),
+    }).catch(error => req.log?.error?.({ error, studentId: student.id }, "Bulk grade parent alert failed"));
+  }
 
   req.log.info(
     { studentId: student.id, studentName: student.nomPrenom, trimestre, count: validGrades.length },

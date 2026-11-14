@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
-import { db, schoolMembersTable, studentsTable } from "../../shared/db.js";
+import { db, studentsTable } from "../../shared/db.js";
 import { notifyParentAccount } from "./parentNotifications.js";
+import { getParentContacts, sendParentWhatsAppMessage } from "./parentMessaging.js";
 import { logger } from "../lib/logger.js";
 
 export async function notifyParentOfAbsence(input: {
@@ -8,7 +9,7 @@ export async function notifyParentOfAbsence(input: {
   studentId: string;
   annee: string;
   date?: string;
-}): Promise<{ pushSent: number }> {
+}): Promise<{ pushSent: number; whatsappSent: number }> {
   const [student] = await db.select({
     id: studentsTable.id,
     nomPrenom: studentsTable.nomPrenom,
@@ -17,20 +18,28 @@ export async function notifyParentOfAbsence(input: {
     eq(studentsTable.userId, input.schoolUserId),
   )).limit(1);
 
-  if (!student) return { pushSent: 0 };
+  if (!student) return { pushSent: 0, whatsappSent: 0 };
 
   const absenceDate = input.date ?? new Date().toISOString().slice(0, 10);
   const message = `السيد/السيدة ولي أمر ${student.nomPrenom}: نُبلّغكم بغياب ابنكم/ابنتكم بتاريخ ${absenceDate}. يرجى التواصل مع إدارة المؤسسة.`;
-  const parents = await db.select({ memberUserId: schoolMembersTable.memberUserId })
-    .from(schoolMembersTable)
-    .where(and(
-      eq(schoolMembersTable.schoolUserId, input.schoolUserId),
-      eq(schoolMembersTable.linkedStudentId, input.studentId),
-      eq(schoolMembersTable.role, "parent"),
-    ));
+  const contacts = await getParentContacts(input.schoolUserId, input.studentId);
+
+  let whatsappSent = 0;
+  try {
+    const wa = await sendParentWhatsAppMessage({
+      schoolUserId: input.schoolUserId,
+      studentId: input.studentId,
+      message,
+      eventType: "ABSENCE_ALERT",
+      phones: contacts.phones,
+    });
+    whatsappSent = wa.sent;
+  } catch (error) {
+    logger.error({ error, studentId: student.id }, "Parent WhatsApp absence alert failed");
+  }
 
   let pushSent = 0;
-  for (const parentUserId of new Set(parents.flatMap(parent => parent.memberUserId ? [parent.memberUserId] : []))) {
+  for (const parentUserId of contacts.parentUserIds) {
     try {
       const notification = await notifyParentAccount({
         userId: parentUserId,
@@ -46,6 +55,6 @@ export async function notifyParentOfAbsence(input: {
     }
   }
 
-  logger.info({ studentId: student.id, pushSent }, "Absence parent portal alert dispatched");
-  return { pushSent };
+  logger.info({ studentId: student.id, pushSent, whatsappSent }, "Absence parent alerts dispatched");
+  return { pushSent, whatsappSent };
 }
