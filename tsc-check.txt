@@ -2,3 +2,24 @@ npm warn Unknown project config "auto-install-peers". This will stop working in 
 npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
 npm notice run dalil-ra9mana@1.0.0 npx
 npm notice run tsc --noEmit --pretty false
+client/src/lib/4am-stream-allocation.test.ts(15,10): error TS2352: Conversion of type '{ student: { id: string; }; annualAvg: number; passed: true; scores: { "1": { maths: number; physique: number; svt: number; arabe: number; francais: number; anglais: number; }; "2": { maths: number; physique: number; svt: number; arabe: number; francais: number; anglais: number; }; "3": { maths: number; physique: nu...' to type 'StudentResult' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ student: { id: string; }; annualAvg: number; passed: true; scores: { "1": { maths: number; physique: number; svt: number; arabe: number; francais: number; anglais: number; }; "2": { maths: number; physique: number; svt: number; arabe: number; francais: number; anglais: number; }; "3": { ...; }; }; }' is missing the following properties from type 'StudentResult': t1Avg, t2Avg, t3Avg, bemAvg, and 5 more.
+client/src/pages/absences-page.tsx(279,19): error TS2322: Type '() => void' is not assignable to type '() => undefined'.
+  Type 'void' is not assignable to type 'undefined'.
+client/src/pages/analytics.tsx(360,5): error TS2365: Operator '>' cannot be applied to types 'string | number' and 'number'.
+client/src/pages/analytics.tsx(360,52): error TS2365: Operator '>' cannot be applied to types 'string | number' and 'number'.
+server/lib/excel-injection.test.ts(27,28): error TS2345: Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'Buffer'.
+  The types of 'slice(...)[Symbol.toStringTag]' are incompatible between these types.
+    Type '"Uint8Array"' is not assignable to type '"ArrayBuffer"'.
+server/lib/excel-injection.test.ts(42,26): error TS2345: Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'Buffer'.
+  The types of 'slice(...)[Symbol.toStringTag]' are incompatible between these types.
+    Type '"Uint8Array"' is not assignable to type '"ArrayBuffer"'.
+server/lib/excel-injection.test.ts(62,35): error TS2345: Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'Buffer'.
+  The types of 'slice(...)[Symbol.toStringTag]' are incompatible between these types.
+    Type '"Uint8Array"' is not assignable to type '"ArrayBuffer"'.
+server/lib/excel-injection.ts(118,28): error TS2345: Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'Buffer'.
+  The types of 'slice(...)[Symbol.toStringTag]' are incompatible between these types.
+    Type '"Uint8Array"' is not assignable to type '"ArrayBuffer"'.
+server/lib/excel-injection.ts(234,28): error TS2345: Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'Buffer'.
+  The types of 'slice(...)[Symbol.toStringTag]' are incompatible between these types.
+    Type '"Uint8Array"' is not assignable to type '"ArrayBuffer"'.
