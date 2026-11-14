@@ -13,7 +13,7 @@
  */
 import { Router, type Request, type Response } from "express";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { assessmentEventsTable, db, schoolMembersTable, studentsTable, gradesTable, absencesTable, studentDailyAttendanceTable, schoolInfoTable, timetableTeachersTable, timetableRoomsTable, timetableSlotsTable } from "../../shared/db.js";
+import { assessmentEventsTable, db, schoolMembersTable, studentsTable, gradesTable, absencesTable, studentDailyAttendanceTable, schoolInfoTable, timetableTeachersTable, timetableRoomsTable, timetableSlotsTable, type AssessmentEvent, type TimetableSlot } from "../../shared/db.js";
 import { deleteCachedJson, getCachedJson, setCachedJson } from "../services/redisCache.js";
 import { calcAnnualAvg, calcWeightedAvg, getSubjectsForLevel } from "../../shared/subjects.js";
 import {
@@ -337,8 +337,15 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
 
   const scheduleYears = [...new Set([annee, fallbackYear, selectedYear].filter(Boolean))];
   const classKeys = parentTimetableClassKeys(student);
-  const [timetableSlots, timetableTeachers, timetableRooms, assessmentEvents] = classKeys.size
-    ? await Promise.all([
+  let timetableSlots: TimetableSlot[] = [];
+  let timetableTeachers: Array<{ id: string; name: string; color: string | null }> = [];
+  let timetableRooms: Array<{ id: string; name: string; type: string | null }> = [];
+  let assessmentEvents: AssessmentEvent[] = [];
+  let supplementaryLookupFailed = false;
+
+  try {
+    if (classKeys.size) {
+      [timetableSlots, timetableTeachers, timetableRooms] = await Promise.all([
         db.select().from(timetableSlotsTable).where(and(
           eq(timetableSlotsTable.userId, schoolUserId),
           inArray(timetableSlotsTable.annee, scheduleYears),
@@ -349,21 +356,28 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
         db.select({ id: timetableRoomsTable.id, name: timetableRoomsTable.name, type: timetableRoomsTable.type })
           .from(timetableRoomsTable)
           .where(eq(timetableRoomsTable.userId, schoolUserId)),
-        db.select().from(assessmentEventsTable).where(and(
-          eq(assessmentEventsTable.userId, schoolUserId),
-          inArray(assessmentEventsTable.annee, scheduleYears),
-        )).orderBy(asc(assessmentEventsTable.eventDate), asc(assessmentEventsTable.startTime)),
-      ])
-    : [[], [], [], await db.select().from(assessmentEventsTable).where(and(
-        eq(assessmentEventsTable.userId, schoolUserId),
-        inArray(assessmentEventsTable.annee, scheduleYears),
-      )).orderBy(asc(assessmentEventsTable.eventDate), asc(assessmentEventsTable.startTime))];
+      ]);
+    }
+  } catch (error) {
+    supplementaryLookupFailed = true;
+    req.log?.warn?.({ error }, "Parent timetable lookup failed; returning child data without schedule");
+  }
+
+  try {
+    assessmentEvents = await db.select().from(assessmentEventsTable).where(and(
+      eq(assessmentEventsTable.userId, schoolUserId),
+      inArray(assessmentEventsTable.annee, scheduleYears),
+    )).orderBy(asc(assessmentEventsTable.eventDate), asc(assessmentEventsTable.startTime));
+  } catch (error) {
+    supplementaryLookupFailed = true;
+    req.log?.warn?.({ error }, "Parent assessment lookup failed; returning child data without assessment calendar");
+  }
 
   const childAssessments = assessmentEvents.filter(event =>
     event.annee === selectedYear && (!event.classe || classKeys.has(timetableClassKey(event.classe))),
   );
 
-  const childSlots = timetableSlots.filter(slot => classKeys.has(timetableClassKey(slot.classe)));
+  const childSlots = timetableSlots.filter(slot => slot.annee === selectedYear && classKeys.has(timetableClassKey(slot.classe)));
   const periodByNumber = new Map<number, (typeof TIMETABLE_PERIODS)[number]>(
     TIMETABLE_PERIODS.map(period => [period.period, period]),
   );
@@ -428,7 +442,9 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
     schedule,
     assessments: childAssessments,
   };
-  await setCachedJson(cacheKey, payload, 600);
+  if (!supplementaryLookupFailed) {
+    await setCachedJson(cacheKey, payload, 600);
+  }
   res.set("Cache-Control", "private, max-age=60");
   res.json(payload);
 });

@@ -135,6 +135,9 @@ async function probeDb(attempt = 1): Promise<void> {
       )
     `);
     await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS filiere varchar(30)`);
+    await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS raqm integer`);
+    await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS parent_phone varchar(30)`);
+    await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS qr_token varchar(64)`);
     
     // 4. Create grades table (references users and students)
     await db.execute(sql`
@@ -174,7 +177,20 @@ async function probeDb(attempt = 1): Promise<void> {
         'تربية تشكيلية','تربية موسيقية','تربية بدنية'
       )
     `);
-    
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS absences (
+        id varchar(64) PRIMARY KEY,
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        student_id varchar(64) NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        annee varchar(20) NOT NULL DEFAULT '2026-2027',
+        trimestre integer NOT NULL,
+        justified_hours integer NOT NULL DEFAULT 0,
+        unjustified_hours integer NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
     // 5. Create student_daily_attendance table (references users and students)
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS student_daily_attendance (
@@ -228,6 +244,55 @@ async function probeDb(attempt = 1): Promise<void> {
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS "IDX_assessment_events_user_date"
       ON assessment_events(user_id, event_date)
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS timetable_teachers (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name varchar(255) NOT NULL,
+        subjects jsonb DEFAULT '[]'::jsonb,
+        phone varchar(30),
+        color varchar(20) NOT NULL DEFAULT '#3b82f6',
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS timetable_rooms (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name varchar(100) NOT NULL,
+        type varchar(30) NOT NULL DEFAULT 'classroom',
+        capacity integer,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS timetable_slots (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        annee varchar(20) NOT NULL DEFAULT '2026-2027',
+        classe varchar(30) NOT NULL,
+        subject varchar(100) NOT NULL,
+        alternate_subject varchar(100),
+        teacher_id varchar REFERENCES timetable_teachers(id) ON DELETE SET NULL,
+        alternate_teacher_id varchar REFERENCES timetable_teachers(id) ON DELETE SET NULL,
+        room_id varchar REFERENCES timetable_rooms(id) ON DELETE SET NULL,
+        day integer NOT NULL,
+        period integer NOT NULL,
+        notes varchar(500),
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      ALTER TABLE timetable_teachers ADD COLUMN IF NOT EXISTS subjects jsonb DEFAULT '[]'::jsonb;
+      ALTER TABLE timetable_teachers ADD COLUMN IF NOT EXISTS phone varchar(30);
+      ALTER TABLE timetable_teachers ADD COLUMN IF NOT EXISTS color varchar(20) NOT NULL DEFAULT '#3b82f6';
+      ALTER TABLE timetable_rooms ADD COLUMN IF NOT EXISTS type varchar(30) NOT NULL DEFAULT 'classroom';
+      ALTER TABLE timetable_rooms ADD COLUMN IF NOT EXISTS capacity integer;
+      ALTER TABLE timetable_slots ADD COLUMN IF NOT EXISTS annee varchar(20) NOT NULL DEFAULT '2026-2027';
+      ALTER TABLE timetable_slots ADD COLUMN IF NOT EXISTS alternate_subject varchar(100);
+      ALTER TABLE timetable_slots ADD COLUMN IF NOT EXISTS alternate_teacher_id varchar;
+      ALTER TABLE timetable_slots ADD COLUMN IF NOT EXISTS notes varchar(500);
+      ALTER TABLE timetable_slots ALTER COLUMN annee SET DEFAULT '2026-2027'
     `);
 
     await db.execute(sql`
