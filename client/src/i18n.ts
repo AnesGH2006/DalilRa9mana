@@ -258,6 +258,8 @@ export const translations: TranslationMap = {
   "nav.class_balancer": { en: "Class Balancing", ar: "توزيع الأقسام (المعيدون)", fr: "Répartition des classes" },
   "nav.timetable":      { en: "Timetable Manager",  ar: "جدول الأوقات والأساتذة", fr: "Emploi du temps" },
   "nav.assessments":    { en: "Tests & Exams",      ar: "الفروض والاختبارات",     fr: "Devoirs et examens" },
+  "nav.exams":          { en: "Exam Operations",    ar: "تنظيم الاختبارات",       fr: "Organisation des examens" },
+  "nav.exam_reports":   { en: "Official Exam Reports", ar: "التقارير الرسمية للاختبارات", fr: "Rapports officiels examens" },
 
   toggleTheme: { en: "Toggle Theme", ar: "تبديل المظهر", fr: "Changer de thème" },
 

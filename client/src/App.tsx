@@ -67,6 +67,8 @@ import PaymentDemoPage from "@/pages/payment-demo";
 import AuditLogPage from "@/pages/audit-log";
 import ClassBalancerPage from "@/pages/class-balancer";
 import TimetablePage from "@/pages/timetable";
+import ExamOperationsPage from "@/pages/exam-operations";
+import ExamReportsPage from "@/pages/exam-reports";
 import ExcelInjectionPage from "@/pages/excel-injection";
 import {
   DEFAULT_STAFF_PERMISSIONS,
@@ -161,6 +163,7 @@ const SECTIONS: SectionDef[] = [
     items: [
       { href: "/analytics", icon: BarChart3, labelKey: "nav.analytics", accent: "text-cyan-400" },
       { href: "/reports",   icon: FileText,  labelKey: "nav.reports",   accent: "text-cyan-400" },
+      { href: "/exam-reports", icon: FileText, labelKey: "nav.exam_reports", accent: "text-cyan-400" },
     ],
   },
   {
@@ -183,6 +186,7 @@ const SECTIONS: SectionDef[] = [
       { href: "/class-balancer", icon: Shuffle,  labelKey: "nav.class_balancer" },
       { href: "/timetable",      icon: Calendar, labelKey: "nav.timetable"      },
       { href: "/assessments",    icon: CalendarDays, labelKey: "nav.assessments" },
+      { href: "/exams",          icon: Shield,      labelKey: "nav.exams"       },
     ],
   },
   {
@@ -963,6 +967,8 @@ function AppLayout() {
               <Route path="/audit-log"           component={AuditLogPage} />
               <Route path="/class-balancer"      component={ClassBalancerPage} />
               <Route path="/timetable"           component={TimetablePage} />
+              <Route path="/exams"               component={ExamOperationsPage} />
+              <Route path="/exam-reports"        component={ExamReportsPage} />
               <Route component={NotFound} />
               </Switch>
             </AnimatePresence>
