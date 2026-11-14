@@ -16,6 +16,7 @@ export const translations: TranslationMap = {
   // Nav items
   "nav.dashboard":    { en: "Dashboard",       ar: "لوحة التحكم",       fr: "Tableau de bord" },
   "nav.students":     { en: "Student List",    ar: "قائمة التلاميذ",    fr: "Liste des élèves" },
+  "nav.whatsapp":     { en: "WhatsApp & Parents", ar: "واتساب وأولياء الأمور", fr: "WhatsApp et parents" },
   "nav.ages":         { en: "Age Distribution",ar: "أعمار التلاميذ",    fr: "Répartition par âge" },
   "nav.results":      { en: "Student Results", ar: "نتائج التلاميذ",    fr: "Résultats des élèves" },
   "nav.subjects":     { en: "Subject Results", ar: "نتائج المواد",      fr: "Résultats par matière" },

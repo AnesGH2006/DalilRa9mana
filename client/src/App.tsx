@@ -10,7 +10,7 @@ import {
   ChevronDown, FileSpreadsheet, BarChart3, UserX, List, CheckSquare,
   User, BarChart2, CalendarOff, UserCheck, RefreshCw, AlertCircle,
   TrendingUp, Star, CreditCard, Upload, FileText, Archive,
-  CircleArrowRight, MessageSquare, CircleDot, Trophy, FileBarChart, Bot, Download, Send,
+  CircleArrowRight, MessageSquare, MessageCircle, CircleDot, Trophy, FileBarChart, Bot, Download, Send,
   ScanLine, Shield, Calendar, CalendarDays, Shuffle,
 } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
@@ -63,6 +63,7 @@ import MembersPage from "@/pages/members";
 import MyChildPage from "@/pages/my-child";
 import ParentRegisterPage from "@/pages/parent-register";
 import SmsPage from "@/pages/sms";
+import WhatsAppPage from "@/pages/whatsapp";
 import PaymentDemoPage from "@/pages/payment-demo";
 import AuditLogPage from "@/pages/audit-log";
 import ClassBalancerPage from "@/pages/class-balancer";
@@ -127,6 +128,7 @@ const SECTIONS: SectionDef[] = [
       { href: "/",         icon: LayoutDashboard, labelKey: "nav.dashboard" },
       { href: "/students", icon: List,            labelKey: "nav.students"  },
       { href: "/sms", icon: MessageSquare, labelKey: "nav.sms", label: "الرسائل SMS" },
+      { href: "/whatsapp", icon: MessageCircle, labelKey: "nav.whatsapp", label: "واتساب وأولياء الأمور" },
     ],
   },
   {
@@ -922,6 +924,7 @@ function AppLayout() {
               <Route path="/"                    component={Dashboard} />
               <Route path="/students"            component={Students} />
               <Route path="/sms"                 component={SmsPage} />
+              <Route path="/whatsapp"            component={WhatsAppPage} />
               <Route path="/results"             component={Results} />
               <Route path="/subjects"            component={SubjectsPage} />
               <Route path="/exam-results"        component={ExamResultsPage} />
