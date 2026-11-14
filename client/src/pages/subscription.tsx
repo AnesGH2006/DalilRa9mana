@@ -148,8 +148,8 @@ export default function SubscriptionPage() {
     },
     {
       key: "basic",
-      name: "أساسي",
-      price: "3 000",
+      name: "قياسي",
+      price: "1 500",
       priceNote: null,
       period: "سنة",
       icon: Star,
@@ -170,7 +170,7 @@ export default function SubscriptionPage() {
     {
       key: "pro",
       name: "Pro",
-      price: "7 000",
+      price: "3 000",
       priceNote: null,
       period: "سنة",
       icon: Zap,
@@ -557,8 +557,8 @@ export default function SubscriptionPage() {
             <Star className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">أساسي — 3 000 دج / سنة</p>
-            <p className="text-xs text-muted-foreground">500 دج / شهر</p>
+            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">قياسي — 1 500 دج / سنة</p>
+            <p className="text-xs text-muted-foreground">125 دج / شهر</p>
           </div>
         </div>
         <div className="rounded-xl border bg-violet-50/50 dark:bg-violet-950/20 border-violet-200/50 dark:border-violet-800/50 px-4 py-3 flex items-center gap-3">
@@ -566,8 +566,8 @@ export default function SubscriptionPage() {
             <Zap className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold text-violet-700 dark:text-violet-300">Pro — 7 000 دج / سنة</p>
-            <p className="text-xs text-muted-foreground">1 000 دج / شهر — الأنسب للمؤسسات التعليمية</p>
+            <p className="text-sm font-bold text-violet-700 dark:text-violet-300">Pro — 3 000 دج / سنة</p>
+            <p className="text-xs text-muted-foreground">250 دج / شهر — الأنسب للمؤسسات التعليمية</p>
           </div>
         </div>
         <div className="rounded-xl border bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-800/50 px-4 py-3 flex items-center gap-3">

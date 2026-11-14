@@ -8,7 +8,7 @@ const PATH_PERMISSIONS: Array<[RegExp, StaffPermission]> = [
   [/^\/students(?:\/|$)/, "students"],
   [/^\/teacher\/students(?:\/|$)/, "students"],
   [/^\/teacher\/grades(?:\/|$)/, "results"],
-  [/^\/(?:grades|results|bem|bac)(?:\/|$)/, "results"],
+  [/^\/(?:grades|results|bem|bac|assessments)(?:\/|$)/, "results"],
   [/^\/absences(?:\/|$)/, "absences"],
   [/^\/v1\/attendance(?:\/|$)/, "absences"],
   [/^\/(?:yearend|repeaters)(?:\/|$)/, "yearend"],

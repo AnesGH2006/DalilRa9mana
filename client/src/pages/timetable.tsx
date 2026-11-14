@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, Users, Building2, Plus, Trash2, Edit3, X, Check,
   AlertTriangle, Printer, Loader2, ChevronDown, Grid3X3, BookMarked, Wand2,
+  CalendarDays, FlaskConical, Clock3, Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,7 +28,7 @@ const BASE = import.meta.env.BASE_URL;
 const DAYS_AR  = [...TIMETABLE_DAY_LABELS];
 const DAYS_EN  = ["Sun", "Mon", "Tue", "Wed", "Thu"];
 const PERIODS  = TIMETABLE_PERIODS.map(item => ({
-  label: `ح${item.period}`,
+  label: item.label,
   time: `${item.start} - ${item.end}`,
 }));
 const YEARS = ["2023-2024", "2024-2025", "2025-2026", "2026-2027"];
@@ -714,7 +715,7 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, rooms, teachers, 
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-type Tab = "teachers" | "rooms" | "schedule" | "print" | "hourly";
+type Tab = "teachers" | "rooms" | "schedule" | "print" | "hourly" | "assessments";
 
 export default function TimetablePage() {
   const { toast } = useToast();
@@ -926,6 +927,7 @@ export default function TimetablePage() {
     { id: "teachers", label: "الأساتذة",       icon: Users },
     { id: "rooms",    label: "القاعات والمخابر", icon: Building2 },
     { id: "hourly",   label: "الحجم الساعي",   icon: BookMarked },
+    { id: "assessments", label: "الفروض والاختبارات", icon: CalendarDays },
     { id: "print",    label: "طباعة",           icon: Printer },
   ];
 
@@ -1038,7 +1040,7 @@ export default function TimetablePage() {
               ) : (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {todaySlots.map(slot => {
-                    const period = PERIODS.find(item => item.label === `ح${slot.period}`);
+                    const period = PERIODS[slot.period];
                     const teacher = slot.teacherId ? teachers.find(item => item.id === slot.teacherId) : null;
                     return (
                       <span key={slot.id} className="rounded-lg bg-white/80 dark:bg-slate-900/60 border border-cyan-200/70 dark:border-cyan-800/60 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200">
@@ -1184,6 +1186,16 @@ export default function TimetablePage() {
       {/* ── HOURLY VOLUME TAB ───────────────────────────────────────────────────── */}
       {tab === "hourly" && (
         <HourlyVolumePanel slots={slots} classes={classes} annee={annee} onFetchSlots={fetchSlots} />
+      )}
+
+      {/* ── ASSESSMENTS TAB ─────────────────────────────────────────────────────── */}
+      {tab === "assessments" && (
+        <AssessmentsPanel
+          classes={classes}
+          subjects={availableSubjects}
+          annee={annee}
+          onAnneeChange={setAnnee}
+        />
       )}
 
       {/* ── PRINT TAB ───────────────────────────────────────────────────────────── */}
@@ -1501,6 +1513,262 @@ function RoomsPanel({ rooms, loading, onRefresh, toast }: {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+interface AssessmentEvent {
+  id: string;
+  annee: string;
+  trimestre: number | null;
+  classe: string | null;
+  subject: string;
+  kind: "test" | "exam" | string;
+  title: string;
+  eventDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  room: string | null;
+  notes: string | null;
+}
+
+interface AssessmentsPanelProps {
+  classes: string[];
+  subjects: string[];
+  annee: string;
+  onAnneeChange: (annee: string) => void;
+}
+
+function emptyAssessmentForm() {
+  return {
+    classe: "",
+    subject: "",
+    kind: "test" as "test" | "exam",
+    title: "",
+    eventDate: "",
+    startTime: "",
+    endTime: "",
+    room: "",
+    notes: "",
+    trimestre: "",
+  };
+}
+
+function AssessmentsPanel({ classes, subjects, annee, onAnneeChange }: AssessmentsPanelProps) {
+  const { toast } = useToast();
+  const [events, setEvents] = useState<AssessmentEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [filterClasse, setFilterClasse] = useState("");
+  const [filterKind, setFilterKind] = useState("");
+  const [form, setForm] = useState(emptyAssessmentForm);
+
+  const fetchEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ annee });
+      if (filterClasse) params.set("classe", filterClasse);
+      const res = await fetch(`${BASE}api/assessments?${params.toString()}`, { credentials: "include" });
+      if (res.ok) setEvents(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }, [annee, filterClasse]);
+
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  const updateForm = (patch: Partial<ReturnType<typeof emptyAssessmentForm>>) =>
+    setForm(current => ({ ...current, ...patch }));
+
+  const submitEvent = async (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!form.subject.trim() || !form.title.trim() || !form.eventDate) {
+      toast({ title: "أكمل الحقول المطلوبة", description: "المادة والعنوان والتاريخ مطلوبة", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        annee,
+        classe: form.classe || null,
+        subject: form.subject.trim(),
+        kind: form.kind,
+        title: form.title.trim(),
+        eventDate: form.eventDate,
+        startTime: form.startTime || null,
+        endTime: form.endTime || null,
+        room: form.room || null,
+        notes: form.notes || null,
+        trimestre: form.trimestre ? Number(form.trimestre) : null,
+      };
+      const res = await fetch(`${BASE}api/assessments`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({})) as AssessmentEvent & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "تعذر حفظ الموعد");
+      setEvents(current => [...current, data].sort((a, b) => `${a.eventDate}${a.startTime ?? "99:99"}`.localeCompare(`${b.eventDate}${b.startTime ?? "99:99"}`)));
+      setForm(emptyAssessmentForm());
+      toast({ title: "تمت إضافة الموعد", description: `${data.title} — ${data.eventDate}` });
+    } catch (error) {
+      toast({ title: "فشل الحفظ", description: error instanceof Error ? error.message : "تعذر الاتصال بالخادم", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeEvent = async (id: string) => {
+    if (!window.confirm("هل تريد حذف هذا الموعد؟")) return;
+    const res = await fetch(`${BASE}api/assessments/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "include" });
+    if (res.ok) {
+      setEvents(current => current.filter(event => event.id !== id));
+      toast({ title: "تم الحذف" });
+    } else {
+      toast({ title: "فشل الحذف", variant: "destructive" });
+    }
+  };
+
+  const visibleEvents = filterKind ? events.filter(event => event.kind === filterKind) : events;
+  const today = new Date().toISOString().slice(0, 10);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card>
+          <CardContent className="space-y-4 p-5">
+            <div className="flex items-center gap-2">
+              <div className="rounded-xl bg-amber-400/10 p-2.5 text-amber-500"><CalendarDays className="h-5 w-5" /></div>
+              <div>
+                <h2 className="text-base font-bold">إضافة موعد فرض أو اختبار</h2>
+                <p className="text-xs text-muted-foreground">يظهر للوالدين في صفحة متابعة الأبناء</p>
+              </div>
+            </div>
+            <form onSubmit={submitEvent} className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  النوع
+                  <select value={form.kind} onChange={e => updateForm({ kind: e.target.value as "test" | "exam" })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                    <option value="test">فرض</option>
+                    <option value="exam">اختبار</option>
+                  </select>
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  الفصل الدراسي
+                  <select value={form.trimestre} onChange={e => updateForm({ trimestre: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                    <option value="">بدون</option>
+                    <option value="1">الفصل الأول</option>
+                    <option value="2">الفصل الثاني</option>
+                    <option value="3">الفصل الثالث</option>
+                  </select>
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  المادة
+                  <input list="assessment-subjects" value={form.subject} onChange={e => updateForm({ subject: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="مثال: الرياضيات" required />
+                  <datalist id="assessment-subjects">{subjects.map(subject => <option key={subject} value={subject} />)}</datalist>
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  القسم
+                  <select value={form.classe} onChange={e => updateForm({ classe: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                    <option value="">كل الأقسام</option>
+                    {classes.map(classe => <option key={classe} value={classe}>{classe}</option>)}
+                  </select>
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground sm:col-span-2">
+                  العنوان
+                  <input value={form.title} onChange={e => updateForm({ title: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="مثال: فرض الشهر الثاني" required />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  التاريخ
+                  <input type="date" value={form.eventDate} onChange={e => updateForm({ eventDate: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" required />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  القاعة
+                  <input value={form.room} onChange={e => updateForm({ room: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="اختياري" />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  من
+                  <input type="time" value={form.startTime} onChange={e => updateForm({ startTime: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  إلى
+                  <input type="time" value={form.endTime} onChange={e => updateForm({ endTime: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground sm:col-span-2">
+                  ملاحظات
+                  <textarea value={form.notes} onChange={e => updateForm({ notes: e.target.value })} className="min-h-20 w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="اختياري" />
+                </label>
+              </div>
+              <Button type="submit" disabled={saving} className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                حفظ الموعد
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold">رزنامة {annee}</h2>
+                <p className="text-xs text-muted-foreground">{visibleEvents.length} موعد مسجل</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <select value={filterClasse} onChange={e => setFilterClasse(e.target.value)} className="rounded-lg border bg-background px-2.5 py-1.5 text-xs">
+                  <option value="">كل الأقسام</option>
+                  {classes.map(classe => <option key={classe} value={classe}>{classe}</option>)}
+                </select>
+                <select value={filterKind} onChange={e => setFilterKind(e.target.value)} className="rounded-lg border bg-background px-2.5 py-1.5 text-xs">
+                  <option value="">الكل</option>
+                  <option value="test">فروض</option>
+                  <option value="exam">اختبارات</option>
+                </select>
+                <select value={annee} onChange={e => onAnneeChange(e.target.value)} className="rounded-lg border bg-background px-2.5 py-1.5 text-xs">
+                  {["2023-2024", "2024-2025", "2025-2026", "2026-2027"].map(year => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </div>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-12 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            ) : visibleEvents.length === 0 ? (
+              <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                <FlaskConical className="mx-auto mb-3 h-8 w-8 opacity-30" />
+                لا توجد مواعيد مسجلة بعد
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {visibleEvents.map(event => (
+                  <div key={event.id} className={`flex items-start gap-3 rounded-xl border p-3 ${event.eventDate === today ? "border-amber-300 bg-amber-50/70 dark:bg-amber-950/20" : "border-border/60 bg-muted/20"}`}>
+                    <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-amber-400/10 text-amber-600 dark:text-amber-300">
+                      <span className="text-[10px] font-bold">{event.eventDate.slice(8, 10)}</span>
+                      <span className="text-[9px]">{event.eventDate.slice(5, 7)}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${event.kind === "exam" ? "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300" : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"}`}>{event.kind === "exam" ? "اختبار" : "فرض"}</span>
+                        <span className="text-xs text-muted-foreground">{event.subject}{event.classe ? ` · ${event.classe}` : ""}</span>
+                      </div>
+                      <p className="mt-1 text-sm font-bold">{event.title}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {new Date(`${event.eventDate}T00:00:00`).toLocaleDateString("ar-DZ", { weekday: "long", day: "numeric", month: "long" })}
+                        {event.startTime ? ` · ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ""}` : ""}
+                        {event.room ? ` · ${event.room}` : ""}
+                        {event.trimestre ? ` · الفصل ${event.trimestre}` : ""}
+                      </p>
+                      {event.notes && <p className="mt-1 text-[11px] text-muted-foreground">{event.notes}</p>}
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-red-500" onClick={() => removeEvent(event.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </motion.div>
   );
 }
 

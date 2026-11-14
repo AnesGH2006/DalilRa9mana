@@ -30,8 +30,8 @@ import { STAFF_PLAN, PARENT_PLAN } from "../middlewares/staffAccess.js";
 function paidPlanForAmount(amountDzd: number): string | null {
   if (amountDzd === 500) return PARENT_PLAN;                 // "parent"
   if (amountDzd === 1000 || amountDzd === 2000) return STAFF_PLAN; // "staff" (2000 kept for legacy payments)
-  if (amountDzd === 3000 || amountDzd === PAID_PLAN_PRICES_DZD.basic) return "basic";
-  if (amountDzd === 7000 || amountDzd === PAID_PLAN_PRICES_DZD.pro) return "pro";
+  if (amountDzd === 1500 || amountDzd === PAID_PLAN_PRICES_DZD.basic) return "basic";
+  if (amountDzd === 3000 || amountDzd === 7000 || amountDzd === PAID_PLAN_PRICES_DZD.pro) return "pro";
   return null;
 }
 

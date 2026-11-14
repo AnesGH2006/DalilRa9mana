@@ -11,7 +11,7 @@ import {
   User, BarChart2, CalendarOff, UserCheck, RefreshCw, AlertCircle,
   TrendingUp, Star, CreditCard, Upload, FileText, Archive,
   CircleArrowRight, MessageSquare, CircleDot, Trophy, FileBarChart, Bot, Download, Send,
-  ScanLine, Shield, Calendar, Shuffle,
+  ScanLine, Shield, Calendar, CalendarDays, Shuffle,
 } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { SCHOOL_STAGE } from "@/lib/deployment";
@@ -182,6 +182,7 @@ const SECTIONS: SectionDef[] = [
     items: [
       { href: "/class-balancer", icon: Shuffle,  labelKey: "nav.class_balancer" },
       { href: "/timetable",      icon: Calendar, labelKey: "nav.timetable"      },
+      { href: "/assessments",    icon: CalendarDays, labelKey: "nav.assessments" },
     ],
   },
   {

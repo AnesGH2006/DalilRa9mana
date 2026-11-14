@@ -12,8 +12,8 @@
  * POST   /api/parent-register   — parent claims their child using school join code + student national ID
  */
 import { Router, type Request, type Response } from "express";
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { db, schoolMembersTable, studentsTable, gradesTable, absencesTable, studentDailyAttendanceTable, schoolInfoTable, timetableTeachersTable, timetableRoomsTable, timetableSlotsTable } from "../../shared/db.js";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { assessmentEventsTable, db, schoolMembersTable, studentsTable, gradesTable, absencesTable, studentDailyAttendanceTable, schoolInfoTable, timetableTeachersTable, timetableRoomsTable, timetableSlotsTable } from "../../shared/db.js";
 import { deleteCachedJson, getCachedJson, setCachedJson } from "../services/redisCache.js";
 import { calcAnnualAvg, calcWeightedAvg, getSubjectsForLevel } from "../../shared/subjects.js";
 import {
@@ -223,7 +223,7 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   if (req.memberContext?.role !== "parent") { res.status(403).json({ error: "Parents only" }); return; }
   if (!hasActiveParentSubscription(req.user)) {
-    res.status(402).json({ error: "Parent service subscription required" });
+    res.status(402).json({ error: "يتطلب الاشتراك في خدمة متابعة الأبناء" });
     return;
   }
 
@@ -337,7 +337,7 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
 
   const scheduleYears = [...new Set([annee, fallbackYear, selectedYear].filter(Boolean))];
   const classKeys = parentTimetableClassKeys(student);
-  const [timetableSlots, timetableTeachers, timetableRooms] = classKeys.size
+  const [timetableSlots, timetableTeachers, timetableRooms, assessmentEvents] = classKeys.size
     ? await Promise.all([
         db.select().from(timetableSlotsTable).where(and(
           eq(timetableSlotsTable.userId, schoolUserId),
@@ -349,8 +349,19 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
         db.select({ id: timetableRoomsTable.id, name: timetableRoomsTable.name, type: timetableRoomsTable.type })
           .from(timetableRoomsTable)
           .where(eq(timetableRoomsTable.userId, schoolUserId)),
+        db.select().from(assessmentEventsTable).where(and(
+          eq(assessmentEventsTable.userId, schoolUserId),
+          inArray(assessmentEventsTable.annee, scheduleYears),
+        )).orderBy(asc(assessmentEventsTable.eventDate), asc(assessmentEventsTable.startTime)),
       ])
-    : [[], [], []];
+    : [[], [], [], await db.select().from(assessmentEventsTable).where(and(
+        eq(assessmentEventsTable.userId, schoolUserId),
+        inArray(assessmentEventsTable.annee, scheduleYears),
+      )).orderBy(asc(assessmentEventsTable.eventDate), asc(assessmentEventsTable.startTime))];
+
+  const childAssessments = assessmentEvents.filter(event =>
+    event.annee === selectedYear && (!event.classe || classKeys.has(timetableClassKey(event.classe))),
+  );
 
   const childSlots = timetableSlots.filter(slot => classKeys.has(timetableClassKey(slot.classe)));
   const periodByNumber = new Map<number, (typeof TIMETABLE_PERIODS)[number]>(
@@ -370,7 +381,7 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
       return {
         id: slot.id,
         period: slot.period,
-        label: `ح${slot.period}`,
+        label: periodInfo?.label ?? `ح${slot.period + 1}`,
         start: periodInfo?.start ?? null,
         end: periodInfo?.end ?? null,
         subject: slot.subject,
@@ -415,6 +426,7 @@ router.get("/my-child", async (req: Request, res: Response): Promise<void> => {
     t3Avg,
     annualAvg,
     schedule,
+    assessments: childAssessments,
   };
   await setCachedJson(cacheKey, payload, 600);
   res.set("Cache-Control", "private, max-age=60");
@@ -427,7 +439,7 @@ router.post("/my-child/absences/:id/reason", async (req: Request, res: Response)
     return;
   }
   if (!hasActiveParentSubscription(req.user)) {
-    res.status(402).json({ error: "Parent service subscription required" });
+    res.status(402).json({ error: "يتطلب الاشتراك في خدمة متابعة الأبناء" });
     return;
   }
 
@@ -454,7 +466,7 @@ router.post("/my-child/absences/:id/reason", async (req: Request, res: Response)
     return;
   }
 
-  await deleteCachedJson(`parent-feed:v5:${schoolUserId}:${linkedStudentId}:${annee}`);
+  await deleteCachedJson(`parent-feed:v6:${schoolUserId}:${linkedStudentId}:${annee}`);
   res.json({ success: true, ...updatedAbsence });
 });
 

@@ -27,6 +27,7 @@ import aiSettingsRouter from "./ai-settings.js";
 import paymentsRouter from "./payments.js";
 import excelInjectionRouter from "./excel-injection.js";
 import pedagogyRouter from "./pedagogy.js";
+import assessmentsRouter from "./assessments.js";
 import { requirePaidPlan } from "../middlewares/planAccess.js";
 import { memberPermissionMiddleware } from "../middlewares/memberPermissions.js";
 import smsRouter from "./sms.js";
@@ -67,5 +68,6 @@ router.use(timetableRouter);
 router.use(aiSettingsRouter);
 router.use(excelInjectionRouter);
 router.use(pedagogyRouter);
+router.use(assessmentsRouter);
 
 export default router;

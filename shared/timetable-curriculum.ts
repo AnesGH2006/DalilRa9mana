@@ -9,16 +9,16 @@ export interface TimetableProgram {
 export const TIMETABLE_DAY_LABELS = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"] as const;
 
 export const TIMETABLE_PERIODS = [
-  { period: 1, start: "08:00", end: "09:00" },
-  { period: 2, start: "09:00", end: "10:00" },
-  { period: 3, start: "10:15", end: "11:15" },
-  { period: 4, start: "11:15", end: "12:15" },
-  { period: 5, start: "14:00", end: "15:00" },
-  { period: 6, start: "15:00", end: "16:00" },
-  { period: 7, start: "16:00", end: "17:00" },
+  { period: 0, label: "ح1", start: "08:00", end: "09:00" },
+  { period: 1, label: "ح2", start: "09:00", end: "10:00" },
+  { period: 2, label: "ح3", start: "10:15", end: "11:15" },
+  { period: 3, label: "ح4", start: "11:15", end: "12:15" },
+  { period: 4, label: "ح5", start: "14:00", end: "15:00" },
+  { period: 5, label: "ح6", start: "15:00", end: "16:00" },
+  { period: 6, label: "ح7", start: "16:00", end: "17:00" },
 ] as const;
 
-export const TIMETABLE_PERIOD_LABELS = TIMETABLE_PERIODS.map(item => `ح${item.period}`);
+export const TIMETABLE_PERIOD_LABELS = TIMETABLE_PERIODS.map(item => item.label);
 
 export const MOYEN_SUBJECTS = [
   "اللغة العربية", "اللغة الفرنسية", "الرياضيات", "العلوم الطبيعية",

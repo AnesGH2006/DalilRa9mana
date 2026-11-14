@@ -14,7 +14,9 @@ import {
   User, Award, AlertCircle, LogOut, Bell, BellOff, Loader2,
   LayoutDashboard, ClipboardCheck, BarChart3, ChevronLeft, CircleAlert,
   CheckCircle2, Clock3, MoreHorizontal, ArrowUpLeft, Settings2, FileText,
-  CalendarClock,
+  CalendarClock, CalendarDays,
+  FlaskConical,
+  ClipboardList,
 } from "lucide-react";
 import { getSubjectsForLevel, calcWeightedAvg } from "@shared/subjects";
 import type { Niveau } from "@shared/types";
@@ -71,6 +73,20 @@ interface StudentData {
       }[];
     }[];
   } | null;
+  assessments?: {
+    id: string;
+    annee: string;
+    trimestre: number | null;
+    classe: string | null;
+    subject: string;
+    kind: "test" | "exam" | string;
+    title: string;
+    eventDate: string;
+    startTime: string | null;
+    endTime: string | null;
+    room: string | null;
+    notes: string | null;
+  }[];
 }
 
 interface ParentNotification {
@@ -218,10 +234,15 @@ export default function MyChildPage() {
 
   useEffect(() => {
     setLoading(true);
+    setError("");
     fetch(`${BASE}api/my-child?annee=${encodeURIComponent(annee)}`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(async r => {
+        const payload = await r.json().catch(() => ({})) as StudentData & { error?: string };
+        if (!r.ok) throw new Error(payload.error ?? `HTTP ${r.status}`);
+        return payload;
+      })
       .then(d => { setData(d); setLoading(false); })
-      .catch(e => { setError(String(e)); setLoading(false); });
+      .catch(e => { setError(e instanceof Error ? e.message : "حدث خطأ أثناء تحميل البيانات"); setLoading(false); });
   }, [annee]);
 
   const student = data?.student;
@@ -273,7 +294,7 @@ export default function MyChildPage() {
       >
         <AlertCircle className="w-12 h-12 text-amber-500 opacity-70" />
         <p className="text-sm text-center">
-          {memberCtx?.linkedStudentId ? "حدث خطأ أثناء تحميل البيانات" : "لا يوجد تلميذ مرتبط بحسابك. تواصل مع مدير المدرسة."}
+          {memberCtx?.linkedStudentId ? (error || "حدث خطأ أثناء تحميل البيانات") : "لا يوجد تلميذ مرتبط بحسابك. تواصل مع مدير المدرسة."}
         </p>
       </div>
     );
@@ -341,6 +362,7 @@ export default function MyChildPage() {
   const tabItems = [
     { id: "overview", label: "نظرة عامة", icon: LayoutDashboard },
     { id: "schedule", label: "استعمال الزمن", icon: CalendarClock },
+    { id: "assessments", label: "الفروض والاختبارات", icon: CalendarDays },
     { id: "attendance", label: "الغيابات", icon: ClipboardCheck },
     { id: "grades", label: "الدرجات", icon: GraduationCap },
     { id: "notifications", label: "الإشعارات", icon: Bell },
@@ -369,6 +391,22 @@ export default function MyChildPage() {
   });
   const gradeTypeLabels: Record<string, string> = { general: "درجة", continuous: "تقويم مستمر", test: "فرض", exam: "اختبار" };
   const schedule = data?.schedule ?? null;
+  const assessments = data?.assessments ?? [];
+  const assessmentScores = grades.filter(grade => grade.gradeType === "test" || grade.gradeType === "exam");
+  const upcomingAssessments = assessments
+    .filter(event => event.eventDate >= new Date().toISOString().slice(0, 10))
+    .sort((a, b) => `${a.eventDate}${a.startTime ?? "99:99"}`.localeCompare(`${b.eventDate}${b.startTime ?? "99:99"}`));
+  const pastAssessments = assessments
+    .filter(event => event.eventDate < new Date().toISOString().slice(0, 10))
+    .sort((a, b) => `${b.eventDate}${b.startTime ?? "99:99"}`.localeCompare(`${a.eventDate}${a.startTime ?? "99:99"}`));
+  const visibleAssessmentScores = termFilter === "all"
+    ? assessmentScores
+    : assessmentScores.filter(grade => String(grade.trimestre) === termFilter);
+  const assessmentScoresByKind = visibleAssessmentScores.reduce<Record<string, typeof visibleAssessmentScores>>((acc, grade) => {
+    const key = grade.gradeType === "exam" ? "exam" : "test";
+    (acc[key] ??= []).push(grade);
+    return acc;
+  }, {});
   const schedulePeriodNumbers = [...new Set(schedule?.days.flatMap(day => day.periods.map(period => period.period)) ?? [])].sort((a, b) => a - b);
   const schedulePeriodMeta = new Map<number, { label: string; start: string | null; end: string | null }>();
   for (const day of schedule?.days ?? []) {
@@ -565,6 +603,86 @@ export default function MyChildPage() {
                 <p className="mt-1 text-xs text-slate-500">عندما تنشر المؤسسة استعمال الزمن، ستظهر هنا مواعيد الحصص ووقت الانصراف مباشرة.</p>
               </div>
             )}
+          </section>
+
+          <section id="parent-assessments" className="mb-7 scroll-mt-6 rounded-[26px] border border-white/10 bg-[#111a2c]/85 p-5 shadow-xl shadow-black/10 sm:p-6">
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs text-slate-500">رزنامة الامتحانات والفرض</p>
+                <h2 className="mt-1 text-xl font-bold text-white">مواعيد الفروض والاختبارات ونقاطها</h2>
+              </div>
+              <div className="rounded-2xl bg-amber-400/10 p-3 text-amber-300"><CalendarDays className="h-5 w-5" /></div>
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-400"><Clock3 className="h-4 w-4 text-cyan-300" /> الفروض والاختبارات القادمة</div>
+                {upcomingAssessments.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center">
+                    <CalendarDays className="mx-auto h-7 w-7 text-slate-600" />
+                    <p className="mt-3 text-sm font-bold text-white">لا توجد مواعيد قادمة</p>
+                    <p className="mt-1 text-xs text-slate-500">ستظهر هنا الفروض والاختبارات المسجلة لقسم {schedule?.className || loadedStudent.classe}.</p>
+                  </div>
+                ) : upcomingAssessments.map(event => (
+                  <article key={event.id} className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10">
+                      <span className="text-[10px] font-bold text-amber-200">{new Date(`${event.eventDate}T00:00:00`).toLocaleDateString("ar-DZ", { day: "numeric" })}</span>
+                      <span className="text-[10px] text-slate-400">{new Date(`${event.eventDate}T00:00:00`).toLocaleDateString("ar-DZ", { month: "short" })}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={event.kind === "exam" ? "border-rose-300/20 bg-rose-400/10 text-rose-200" : "border-amber-300/20 bg-amber-400/10 text-amber-200"}>{event.kind === "exam" ? "اختبار" : "فرض"}</Badge>
+                        <span className="text-[11px] text-slate-500">{event.subject}{event.classe ? ` · ${event.classe}` : ""}</span>
+                      </div>
+                      <h3 className="mt-2 text-sm font-bold text-white">{event.title}</h3>
+                      <p className="mt-1 text-xs text-slate-400">{new Date(`${event.eventDate}T00:00:00`).toLocaleDateString("ar-DZ", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}{event.startTime ? ` · ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ""}` : ""}</p>
+                      {(event.room || event.trimestre || event.notes) && <p className="mt-2 text-[11px] text-slate-500">{[event.room ? `القاعة: ${event.room}` : "", event.trimestre ? `الفصل ${event.trimestre}` : "", event.notes].filter(Boolean).join(" · ")}</p>}
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-400"><FileText className="h-4 w-4 text-cyan-300" /> نقاط الفروض والاختبارات</div>
+                {(["test", "exam"] as const).map(kind => {
+                  const items = assessmentScoresByKind[kind] ?? [];
+                  const label = kind === "exam" ? "الاختبارات" : "الفروض";
+                  const Icon = kind === "exam" ? FlaskConical : ClipboardList;
+                  return (
+                    <div key={kind} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm font-bold text-white"><Icon className="h-4 w-4 text-amber-300" /> {label}</div>
+                        <span className="text-[11px] text-slate-500">{items.length} نتيجة</span>
+                      </div>
+                      {items.length === 0 ? <p className="text-xs text-slate-500">لا توجد نقاط مسجلة بعد.</p> : (
+                        <div className="space-y-2">
+                          {items.slice(0, 8).map(grade => (
+                            <div key={grade.id} className="flex items-center justify-between gap-3 rounded-xl bg-black/15 px-3 py-2 text-xs">
+                              <div className="min-w-0"><p className="truncate font-bold text-white">{grade.subject}</p><p className="text-[10px] text-slate-500">الفصل {grade.trimestre}</p></div>
+                              <span className="shrink-0 font-bold text-cyan-200">{grade.score}/20</span>
+                            </div>
+                          ))}
+                          {items.length > 8 && <p className="text-[11px] text-slate-500">+{items.length - 8} نتيجة أخرى في تبويب الدرجات.</p>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {pastAssessments.length > 0 && (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white"><CalendarClock className="h-4 w-4 text-cyan-300" /> آخر المواعيد</div>
+                    <div className="space-y-2">
+                      {pastAssessments.slice(0, 5).map(event => (
+                        <div key={event.id} className="flex items-center justify-between gap-3 rounded-xl bg-black/15 px-3 py-2 text-xs">
+                          <div className="min-w-0"><p className="truncate font-bold text-white">{event.title}</p><p className="text-[10px] text-slate-500">{event.subject} · {new Date(`${event.eventDate}T00:00:00`).toLocaleDateString("ar-DZ")}</p></div>
+                          <span className="shrink-0 rounded-full bg-white/5 px-2 py-1 text-[10px] font-bold text-slate-400">{event.kind === "exam" ? "اختبار" : "فرض"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </section>
 
           {pushError && <p className="mb-5 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-xs text-red-200">{pushError}</p>}

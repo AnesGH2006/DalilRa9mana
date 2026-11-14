@@ -496,6 +496,26 @@ export const timetableSlotsTable = pgTable("timetable_slots", {
 export type TimetableSlot       = typeof timetableSlotsTable.$inferSelect;
 export type InsertTimetableSlot = typeof timetableSlotsTable.$inferInsert;
 
+export const assessmentEventsTable = pgTable("assessment_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  annee: varchar("annee", { length: 20 }).notNull().default(CURRENT_ACADEMIC_YEAR),
+  trimestre: integer("trimestre"),
+  classe: varchar("classe", { length: 80 }),
+  subject: varchar("subject", { length: 100 }).notNull(),
+  kind: varchar("kind", { length: 20 }).notNull().default("test"),
+  title: varchar("title", { length: 255 }).notNull(),
+  eventDate: varchar("event_date", { length: 10 }).notNull(),
+  startTime: varchar("start_time", { length: 5 }),
+  endTime: varchar("end_time", { length: 5 }),
+  room: varchar("room", { length: 100 }),
+  notes: varchar("notes", { length: 500 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type AssessmentEvent = typeof assessmentEventsTable.$inferSelect;
+export type InsertAssessmentEvent = typeof assessmentEventsTable.$inferInsert;
+
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 // Records every critical action performed by the head-admin or any sub-account member.
 export const auditLogsTable = pgTable("audit_logs", {

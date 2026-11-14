@@ -1,8 +1,8 @@
 export const FREE_STUDENT_LIMIT = 50;
 
 export const PAID_PLAN_PRICES_DZD = {
-  basic: 3000,
-  pro: 7000,
+  basic: 1500,
+  pro: 3000,
 } as const;
 
 /** Individual staff subscription (teachers / supervisors). */

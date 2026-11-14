@@ -47,7 +47,7 @@ export function normalizeStaffPermissions(value: unknown, role: StaffRole): Staf
 export function permissionForAppPath(path: string): StaffPermission | undefined {
   if (path === "/") return "dashboard";
   if (path === "/students") return "students";
-  if (["/results", "/subjects", "/exam-results", "/repeaters", "/failed", "/bem"].includes(path)) return "results";
+  if (["/results", "/subjects", "/exam-results", "/repeaters", "/failed", "/bem", "/assessments"].includes(path)) return "results";
   if (path === "/absences") return "absences";
   if (path === "/yearend" || path.startsWith("/yearend/")) return "yearend";
   if (["/orientation-results", "/transfer-results", "/councils", "/orientation"].includes(path)

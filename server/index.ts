@@ -208,6 +208,29 @@ async function probeDb(attempt = 1): Promise<void> {
     `);
 
     await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS assessment_events (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        annee varchar(20) NOT NULL DEFAULT '2026-2027',
+        trimestre integer,
+        classe varchar(80),
+        subject varchar(100) NOT NULL,
+        kind varchar(20) NOT NULL DEFAULT 'test',
+        title varchar(255) NOT NULL,
+        event_date varchar(10) NOT NULL,
+        start_time varchar(5),
+        end_time varchar(5),
+        room varchar(100),
+        notes varchar(500),
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS "IDX_assessment_events_user_date"
+      ON assessment_events(user_id, event_date)
+    `);
+
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS student_documents (
         id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -26,7 +26,7 @@ const COLORS = {
   groups: "#f59e0b",
 } as const;
 
-const SCHOOL_PLAN_LABEL: Record<string, string> = { basic: "الخطة الأساسية", pro: "الخطة المتقدمة" };
+const SCHOOL_PLAN_LABEL: Record<string, string> = { basic: "الخطة القياسية", pro: "Pro" };
 
 const FEATURES = {
   free: ["حتى 50 تلميذاً", "تسجيل الحضور والغياب الأساسي", "إدخال النقاط والنتائج", "لوحة التحكم المبسطة"],
