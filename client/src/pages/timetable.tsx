@@ -728,6 +728,7 @@ export default function TimetablePage() {
   const [classes,  setClasses]  = useState<string[]>([]);
   const [availableSubjects, setAvailableSubjects] = useState<string[]>(DEFAULT_SUBJECTS);
   const [conflictIds, setConflictIds] = useState<Set<string>>(new Set());
+  const [fetStatus, setFetStatus] = useState<{ annee: string; totalSlots: number; fetSlots: number; fetClasses: number; fetTeachers: number; fetDays: number; fetPeriods: number } | null>(null);
 
   // Filters
   const [annee,       setAnnee]       = useState("2026-2027");
@@ -806,6 +807,15 @@ export default function TimetablePage() {
     } finally { setLoadingSlots(false); }
   }, [annee, activeClasse]);
 
+  const fetchFetStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE}api/timetable/fet/status?annee=${encodeURIComponent(annee)}`, { credentials: "include" });
+      if (res.ok) setFetStatus(await res.json());
+    } catch {
+      setFetStatus(null);
+    }
+  }, [annee]);
+
   const generateAllTimetables = async () => {
     if (!classes.length) return;
     const unsupportedClasses = classes.filter(classe => !DEFAULT_WEEKLY_PERIODS[getLevel(classe)]);
@@ -880,12 +890,13 @@ export default function TimetablePage() {
   };
 
   useEffect(() => { fetchTeachers(); fetchRooms(); fetchClasses(); }, []);
-  useEffect(() => { fetchClasses(); }, [annee]);
+  useEffect(() => { fetchClasses(); fetchFetStatus(); }, [annee]);
   useEffect(() => { fetchSlots(); }, [activeClasse, annee]);
 
   // ── Slot helpers ──────────────────────────────────────────────────────────────
   const getSlot = (day: number, period: number) =>
     slots.find(s => s.day === day && s.period === period) ?? null;
+  const isFetSlot = (slot?: Slot | null) => String(slot?.notes ?? "").startsWith("fet");
 
   const deleteSlot = async (id: string) => {
     await fetch(`${BASE}api/timetable/slots/${id}`, { method: "DELETE", credentials: "include" });
@@ -944,7 +955,10 @@ export default function TimetablePage() {
           <h1 className="text-xl font-extrabold">جدول الأوقات وتنظيم الأساتذة</h1>
           <p className="text-xs text-muted-foreground mt-0.5">بناء الجداول الزمنية، توزيع الأساتذة والقاعات، كشف التعارضات</p>
         </div>
-        <div className="ms-auto">
+        <div className="ms-auto flex items-center gap-2">
+          <a href="/fet-rgf" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-background text-xs font-semibold hover:bg-muted">
+            <CalendarDays className="w-3.5 h-3.5" /> FET &amp; RGF
+          </a>
           <select value={annee} onChange={e => setAnnee(e.target.value)}
             className="text-xs px-2.5 py-1.5 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-cyan-500/30">
             {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
@@ -1029,6 +1043,19 @@ export default function TimetablePage() {
             </motion.div>
           )}
 
+          {fetStatus && (
+            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border ${fetStatus.fetSlots > 0 ? "bg-cyan-50 dark:bg-cyan-950/20 border-cyan-200/60 dark:border-cyan-900/50" : "bg-amber-50 dark:bg-amber-950/20 border-amber-200/60 dark:border-amber-900/50"}`}>
+              <CalendarDays className={`w-4 h-4 shrink-0 ${fetStatus.fetSlots > 0 ? "text-cyan-500" : "text-amber-500"}`} />
+              <span className={`text-sm font-medium ${fetStatus.fetSlots > 0 ? "text-cyan-800 dark:text-cyan-200" : "text-amber-800 dark:text-amber-300"}`}>
+                {fetStatus.fetSlots > 0
+                  ? `المصدر الأساسي: FET — ${fetStatus.fetSlots} حصة مستوردة لـ ${fetStatus.fetClasses} قسم`
+                  : "لم يتم استيراد حصص FET بعد — الجداول الحالية يدوية/مولدة"}
+              </span>
+              <a href="/fet-rgf" className="ms-auto text-xs font-bold underline underline-offset-2">إدارة FET &amp; RGF</a>
+            </motion.div>
+          )}
+
           {todayIndex !== null && (
             <div className="rounded-2xl border border-cyan-200/70 bg-cyan-50/70 dark:border-cyan-900/50 dark:bg-cyan-950/20 px-4 py-3">
               <div className="flex items-center gap-2 text-sm font-bold text-cyan-800 dark:text-cyan-200">
@@ -1045,6 +1072,7 @@ export default function TimetablePage() {
                     return (
                       <span key={slot.id} className="rounded-lg bg-white/80 dark:bg-slate-900/60 border border-cyan-200/70 dark:border-cyan-800/60 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200">
                         {period?.label ?? `ح${slot.period}`} {period?.time} · {slot.subject}
+                        {isFetSlot(slot) ? " · FET" : ""}
                         {teacher ? ` · ${teacher.name}` : ""}
                       </span>
                     );
@@ -1118,6 +1146,9 @@ export default function TimetablePage() {
                                     <AlertTriangle className="w-3 h-3 text-red-500 absolute top-1 end-1" />
                                   )}
                                   <p className="text-[11px] font-bold leading-tight truncate">{slot.subject}</p>
+                                  {isFetSlot(slot) && (
+                                    <span className="absolute bottom-1 start-1 rounded bg-cyan-500/90 px-1 text-[8px] font-black text-white">FET</span>
+                                  )}
                                   {slot.alternateSubject && (
                                     <p className="text-[9px] font-semibold text-cyan-700 dark:text-cyan-300 truncate">أسبوع ب: {slot.alternateSubject}</p>
                                   )}

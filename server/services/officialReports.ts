@@ -6,7 +6,8 @@ export type OfficialReportType =
   | "monthly"
   | "invigilation_plan"
   | "seating_plan"
-  | "rgf";
+  | "rgf"
+  | "census";
 
 export interface ReportSheet {
   name: string;

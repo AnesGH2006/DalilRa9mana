@@ -35,6 +35,35 @@ async function readXml(req: any): Promise<string> {
   return xml;
 }
 
+router.get("/timetable/fet/status", async (req, res): Promise<void> => {
+  if (forbidParent(req, res)) return;
+  try {
+    const userId = schoolId(req);
+    const annee = typeof req.query.annee === "string" && req.query.annee.trim() ? req.query.annee.trim() : "2026-2027";
+    const slots = await db.select({
+      id: timetableSlotsTable.id,
+      classe: timetableSlotsTable.classe,
+      teacherId: timetableSlotsTable.teacherId,
+      day: timetableSlotsTable.day,
+      period: timetableSlotsTable.period,
+      notes: timetableSlotsTable.notes,
+    }).from(timetableSlotsTable).where(and(eq(timetableSlotsTable.userId, userId), eq(timetableSlotsTable.annee, annee)));
+
+    const fetSlots = slots.filter(slot => String(slot.notes ?? "").startsWith("fet"));
+    res.json({
+      annee,
+      totalSlots: slots.length,
+      fetSlots: fetSlots.length,
+      fetClasses: new Set(fetSlots.map(slot => slot.classe)).size,
+      fetTeachers: new Set(fetSlots.map(slot => slot.teacherId).filter(Boolean)).size,
+      fetDays: new Set(fetSlots.map(slot => slot.day)).size,
+      fetPeriods: new Set(fetSlots.map(slot => `${slot.day}:${slot.period}`)).size,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error?.message ?? "Failed to load FET status" });
+  }
+});
+
 router.post("/timetable/fet/parse", upload.single("file"), async (req, res): Promise<void> => {
   if (forbidParent(req, res)) return;
   try {
