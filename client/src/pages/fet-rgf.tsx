@@ -6,9 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileSpreadsheet, Printer, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Upload, FileSpreadsheet, Printer, Loader2, AlertTriangle, CheckCircle2, FileUp, CalendarDays, Users, BookOpenCheck, ShieldCheck } from "lucide-react";
 
 const CURRENT_YEAR = "2026-2027";
+
+const STAT_LABELS: Record<string, string> = {
+  teachers: "أساتذة",
+  classes: "أقسام",
+  activities: "أنشطة",
+  timeslots: "فترات",
+  slots: "حصص موزعة",
+};
 
 type FetPreview = {
   teachers?: Array<{ name: string }>;
@@ -42,9 +50,11 @@ export default function FetRgfPage() {
   const [fetPreview, setFetPreview] = useState<FetPreview | null>(null);
   const [fetResult, setFetResult] = useState<any>(null);
   const [rgfReport, setRgfReport] = useState<RgfReport | null>(null);
+  const [sheetIndex, setSheetIndex] = useState(0);
   const [loading, setLoading] = useState<"parse" | "import" | "rgf" | null>(null);
 
   const rgfSheets = useMemo(() => rgfReport?.sheets ?? [], [rgfReport]);
+  const selectedSheet = rgfSheets.length ? rgfSheets[Math.min(sheetIndex, rgfSheets.length - 1)] : null;
 
   async function parseFet() {
     if (!fetFile) { toast({ title: "اختر ملف FET أولاً", variant: "destructive" }); return; }
@@ -85,7 +95,9 @@ export default function FetRgfPage() {
     setLoading("rgf");
     try {
       const response = await fetch(`/api/reports/rgf?annee=${encodeURIComponent(annee)}&format=json`, { credentials: "same-origin" });
-      setRgfReport(await readJson<RgfReport>(response));
+      const report = await readJson<RgfReport>(response);
+      setRgfReport(report);
+      setSheetIndex(0);
       toast({ title: "تم توليد التقرير العام" });
     } catch (error: any) {
       toast({ title: "فشل توليد RGF", description: error?.message, variant: "destructive" });
@@ -97,114 +109,180 @@ export default function FetRgfPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 space-y-6" dir="rtl">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">FET &amp; RGF</h1>
-          <p className="text-slate-400">استيراد جداول FET وتوليد التقرير العام لسير المؤسسة</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Label htmlFor="annee">السنة الدراسية</Label>
-          <Input id="annee" value={annee} onChange={e => setAnnee(e.target.value)} className="w-36 bg-slate-900 border-slate-800" />
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="bg-slate-900 border-slate-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Upload className="w-5 h-5" /> استيراد FET</CardTitle>
-            <CardDescription>ارفع ملف FET/XML لاستخراج الأساتذة والأقسام والحصص والفترات الفارغة.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Label>ملف FET / XML</Label>
-                <Input type="file" accept=".xml,.fet,.txt" onChange={e => setFetFile(e.target.files?.[0] ?? null)} className="bg-slate-950 border-slate-800" />
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6" dir="rtl">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <header className="rounded-3xl border border-slate-800 bg-gradient-to-l from-slate-900 via-slate-900 to-indigo-950 p-6 shadow-2xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-indigo-500/20 text-indigo-200 border-indigo-500/30">Timetable</Badge>
+                <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-500/30">Reports</Badge>
               </div>
-              <div className="space-y-2">
-                <Label>إزاحة الأيام (dayOffset)</Label>
-                <Select value={dayOffset} onValueChange={setDayOffset}>
-                  <SelectTrigger className="bg-slate-950 border-slate-800"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">FET 1-5 → يوم 0-4</SelectItem>
-                    <SelectItem value="1">إزاحة +1</SelectItem>
-                    <SelectItem value="-1">إزاحة -1</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end gap-4 pb-2 text-sm">
-                <label className="flex items-center gap-2"><input type="checkbox" checked={replaceFet} onChange={e => setReplaceFet(e.target.checked)} /> استبدال حصص FET</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={includeSlots} onChange={e => setIncludeSlots(e.target.checked)} /> استيراد الحصص</label>
+              <h1 className="text-3xl font-black tracking-tight">FET &amp; RGF Studio</h1>
+              <p className="max-w-2xl text-sm text-slate-400">استيراد جداول التوقيت من FET، ثم توليد التقرير العام لسير المؤسسة بصيغة Excel وHTML رسمي.</p>
+            </div>
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+              <CalendarDays className="h-5 w-5 text-cyan-300" />
+              <div>
+                <Label htmlFor="annee" className="text-xs text-slate-400">السنة الدراسية</Label>
+                <Input id="annee" value={annee} onChange={e => setAnnee(e.target.value)} className="mt-1 w-36 border-slate-800 bg-slate-900" />
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={parseFet} disabled={loading !== null} variant="outline">
-                {loading === "parse" ? <Loader2 className="w-4 h-4 animate-spin" /> : "معاينة"}
-              </Button>
-              <Button onClick={importFet} disabled={loading !== null || !fetPreview}>
-                {loading === "import" ? <Loader2 className="w-4 h-4 animate-spin" /> : "استيراد"}
-              </Button>
-            </div>
+          </div>
+        </header>
 
-            {fetPreview?.stats && (
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
-                {Object.entries(fetPreview.stats).map(([key, value]) => (
-                  <div key={key} className="rounded-lg bg-slate-950 border border-slate-800 p-3">
-                    <div className="text-slate-400">{key}</div>
-                    <div className="text-lg font-semibold">{value}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {fetPreview?.warnings?.length ? (
-              <div className="space-y-1 text-sm text-amber-300">
-                {fetPreview.warnings.slice(0, 8).map((warning, index) => <div key={index} className="flex gap-2"><AlertTriangle className="w-4 h-4" /> {warning}</div>)}
-              </div>
-            ) : null}
-            {fetResult && (
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm space-y-1">
-                <div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="w-4 h-4" /> تم الاستيراد</div>
-                <div>أساتذة: {fetResult.teachersCreated ?? 0} جديد / {fetResult.teachersUpdated ?? 0} محدث — قاعات: {fetResult.roomsCreated ?? 0} — حصص: {fetResult.slotsCreated ?? 0}</div>
-                {fetResult.warnings?.length ? <div className="text-amber-300">تحذيرات: {fetResult.warnings.slice(0, 5).join(" | ")}</div> : null}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900 border-slate-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="w-5 h-5" /> التقرير العام RGF</CardTitle>
-            <CardDescription>تجميع شامل: التلاميذ، النتائج، الغيابات، الأساتذة، المحلات، والاختبارات.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={loadRgf} disabled={loading !== null}>
-                {loading === "rgf" ? <Loader2 className="w-4 h-4 animate-spin" /> : "توليد ومعاينة"}
-              </Button>
-              <Button variant="outline" onClick={() => downloadRgf("xlsx")}><FileSpreadsheet className="w-4 h-4" /> Excel</Button>
-              <Button variant="outline" onClick={() => downloadRgf("html")}><Printer className="w-4 h-4" /> HTML للطباعة</Button>
-            </div>
-            {rgfReport && (
-              <div className="space-y-3">
-                <div className="text-sm text-slate-300">{rgfReport.title}</div>
-                <div className="flex flex-wrap gap-2">
-                  {rgfSheets.map(sheet => <Badge key={sheet.name} variant="secondary">{sheet.name}</Badge>)}
+        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <Card className="overflow-hidden border-slate-800 bg-slate-900/80 shadow-xl">
+            <CardHeader className="border-b border-slate-800 bg-slate-950/50">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-xl"><FileUp className="h-5 w-5 text-cyan-300" /> استيراد جدول FET</CardTitle>
+                  <CardDescription className="mt-1">ارفع ملف FET/XML لمعاينة الأساتذة والأقسام والحصص قبل الاستيراد.</CardDescription>
                 </div>
-                <div className="max-h-[520px] overflow-auto rounded-lg border border-slate-800">
-                  {rgfSheets.slice(0, 4).map(sheet => (
-                    <div key={sheet.name} className="border-b border-slate-800 last:border-0">
-                      <div className="bg-slate-950 px-3 py-2 font-semibold">{sheet.name}</div>
-                      <table className="w-full text-xs">
-                        <thead><tr className="bg-slate-900">{sheet.headers.map(header => <th key={header} className="px-2 py-1 text-right border-b border-slate-800">{header}</th>)}</tr></thead>
-                        <tbody>{sheet.rows.slice(0, 20).map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex} className="px-2 py-1 border-b border-slate-900">{cell ?? ""}</td>)}</tr>)}</tbody>
-                      </table>
+                {fetPreview?.stats && <Badge variant="secondary">{fetPreview.stats.slots} حصة</Badge>}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5 p-5">
+              <label className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-700 bg-slate-950/60 px-6 py-8 text-center transition hover:border-cyan-500/60 hover:bg-slate-900">
+                <Upload className="mb-3 h-8 w-8 text-cyan-300 transition group-hover:scale-110" />
+                <div className="font-semibold">{fetFile ? fetFile.name : "اسحب ملف FET هنا أو اضغط للاختيار"}</div>
+                <div className="mt-1 text-xs text-slate-500">XML / .fet / .txt — حتى 5MB</div>
+                <Input type="file" accept=".xml,.fet,.txt" className="hidden" onChange={e => setFetFile(e.target.files?.[0] ?? null)} />
+              </label>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>ترقيم أيام FET</Label>
+                  <Select value={dayOffset} onValueChange={setDayOffset}>
+                    <SelectTrigger className="border-slate-800 bg-slate-950"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">FET 1-5 → يوم 0-4</SelectItem>
+                      <SelectItem value="1">إزاحة +1</SelectItem>
+                      <SelectItem value="-1">إزاحة -1</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm">
+                  <label className="flex items-center justify-between gap-3">
+                    <span>استبدال حصص FET القديمة</span>
+                    <input type="checkbox" checked={replaceFet} onChange={e => setReplaceFet(e.target.checked)} className="h-4 w-4 accent-cyan-400" />
+                  </label>
+                  <label className="flex items-center justify-between gap-3">
+                    <span>استيراد الحصص الزمنية</span>
+                    <input type="checkbox" checked={includeSlots} onChange={e => setIncludeSlots(e.target.checked)} className="h-4 w-4 accent-cyan-400" />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={parseFet} disabled={loading !== null} variant="outline" className="border-slate-700 bg-slate-950">
+                  {loading === "parse" ? <Loader2 className="h-4 w-4 animate-spin" /> : "معاينة التحليل"}
+                </Button>
+                <Button onClick={importFet} disabled={loading !== null || !fetPreview} className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+                  {loading === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الاستيراد"}
+                </Button>
+              </div>
+
+              {fetPreview?.stats && (
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                  {Object.entries(fetPreview.stats).map(([key, value]) => (
+                    <div key={key} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+                      <div className="text-xs text-slate-500">{STAT_LABELS[key] ?? key}</div>
+                      <div className="mt-1 text-2xl font-black">{value}</div>
                     </div>
                   ))}
                 </div>
+              )}
+
+              {fetPreview?.warnings?.length ? (
+                <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+                  <div className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> تحذيرات التحليل</div>
+                  {fetPreview.warnings.slice(0, 8).map((warning, index) => <div key={index}>• {warning}</div>)}
+                </div>
+              ) : null}
+
+              {fetResult && (
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
+                  <div className="mb-2 flex items-center gap-2 font-bold text-emerald-200"><CheckCircle2 className="h-4 w-4" /> تم الاستيراد بنجاح</div>
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <div>أساتذة جدد: <b>{fetResult.teachersCreated ?? 0}</b></div>
+                    <div>أساتذة محدثون: <b>{fetResult.teachersUpdated ?? 0}</b></div>
+                    <div>قاعات: <b>{fetResult.roomsCreated ?? 0}</b></div>
+                    <div>حصص مدخلة: <b>{fetResult.slotsCreated ?? 0}</b></div>
+                    <div>تحذيرات: <b>{fetResult.warnings?.length ?? 0}</b></div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border-slate-800 bg-slate-900/80 shadow-xl">
+            <CardHeader className="border-b border-slate-800 bg-slate-950/50">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-xl"><FileSpreadsheet className="h-5 w-5 text-emerald-300" /> التقرير العام RGF</CardTitle>
+                  <CardDescription className="mt-1">تجميع التلاميذ، النتائج، الغيابات، الأساتذة، المحلات، والاختبارات.</CardDescription>
+                </div>
+                {rgfReport && <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-500/30">{rgfSheets.length} sheets</Badge>}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="space-y-5 p-5">
+              <div className="grid gap-3 md:grid-cols-3">
+                <Button onClick={loadRgf} disabled={loading !== null} className="bg-emerald-500 text-slate-950 hover:bg-emerald-400">
+                  {loading === "rgf" ? <Loader2 className="h-4 w-4 animate-spin" /> : "توليد التقرير"}
+                </Button>
+                <Button variant="outline" onClick={() => downloadRgf("xlsx")} className="border-slate-700 bg-slate-950"><FileSpreadsheet className="h-4 w-4" /> Excel</Button>
+                <Button variant="outline" onClick={() => downloadRgf("html")} className="border-slate-700 bg-slate-950"><Printer className="h-4 w-4" /> HTML للطباعة</Button>
+              </div>
+
+              {rgfReport ? (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                    <div className="font-bold">{rgfReport.title}</div>
+                    <div className="mt-1 text-xs text-slate-500">تاريخ الإصدار: {rgfReport.generatedAt?.slice(0, 10)}</div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {rgfSheets.map((sheet, index) => (
+                      <button key={sheet.name} onClick={() => setSheetIndex(index)} className={`rounded-full border px-3 py-1 text-xs transition ${index === sheetIndex ? "border-cyan-400 bg-cyan-500/20 text-cyan-100" : "border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200"}`}>
+                        {sheet.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedSheet && (
+                    <div className="overflow-hidden rounded-2xl border border-slate-800">
+                      <div className="flex items-center gap-2 border-b border-slate-800 bg-slate-950 px-4 py-3 font-semibold">
+                        {selectedSheet.name === "التلاميذ" ? <Users className="h-4 w-4 text-cyan-300" /> : selectedSheet.name === "النتائج" ? <BookOpenCheck className="h-4 w-4 text-emerald-300" /> : <ShieldCheck className="h-4 w-4 text-violet-300" />}
+                        {selectedSheet.name}
+                      </div>
+                      <div className="max-h-[520px] overflow-auto">
+                        <table className="w-full text-xs">
+                          <thead className="sticky top-0 bg-slate-900">
+                            <tr>{selectedSheet.headers.map(header => <th key={header} className="border-b border-slate-800 px-3 py-2 text-right font-bold text-slate-300">{header}</th>)}</tr>
+                          </thead>
+                          <tbody>
+                            {selectedSheet.rows.map((row, rowIndex) => (
+                              <tr key={rowIndex} className="odd:bg-slate-950/40">
+                                {row.map((cell, cellIndex) => <td key={cellIndex} className="border-b border-slate-900 px-3 py-2 text-slate-200">{cell ?? ""}</td>)}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/50 p-8 text-center text-slate-500">
+                  <FileSpreadsheet className="mb-3 h-10 w-10 text-slate-700" />
+                  <div className="font-semibold text-slate-300">لا يوجد تقرير بعد</div>
+                  <div className="mt-1 text-sm">اضغط “توليد التقرير” لعرض RGF داخل الصفحة.</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
