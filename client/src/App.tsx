@@ -70,6 +70,7 @@ import ClassBalancerPage from "@/pages/class-balancer";
 import TimetablePage from "@/pages/timetable";
 import ExamOperationsPage from "@/pages/exam-operations";
 import ExamReportsPage from "@/pages/exam-reports";
+import FetRgfPage from "@/pages/fet-rgf";
 import AssessmentsPage from "@/pages/assessments";
 import ExcelInjectionPage from "@/pages/excel-injection";
 import {
@@ -167,6 +168,7 @@ const SECTIONS: SectionDef[] = [
       { href: "/analytics", icon: BarChart3, labelKey: "nav.analytics", accent: "text-cyan-400" },
       { href: "/reports",   icon: FileText,  labelKey: "nav.reports",   accent: "text-cyan-400" },
       { href: "/exam-reports", icon: FileText, labelKey: "nav.exam_reports", accent: "text-cyan-400" },
+      { href: "/fet-rgf", icon: FileSpreadsheet, labelKey: "nav.fet_rgf", accent: "text-violet-400" },
     ],
   },
   {
@@ -973,6 +975,7 @@ function AppLayout() {
               <Route path="/timetable"           component={TimetablePage} />
               <Route path="/exams"               component={ExamOperationsPage} />
               <Route path="/exam-reports"        component={ExamReportsPage} />
+              <Route path="/fet-rgf"             component={FetRgfPage} />
               <Route path="/assessments"         component={AssessmentsPage} />
               <Route component={NotFound} />
               </Switch>

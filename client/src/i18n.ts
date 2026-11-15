@@ -261,6 +261,7 @@ export const translations: TranslationMap = {
   "nav.assessments":    { en: "Tests & Exams",      ar: "الفروض والاختبارات",     fr: "Devoirs et examens" },
   "nav.exams":          { en: "Exam Operations",    ar: "تنظيم الاختبارات",       fr: "Organisation des examens" },
   "nav.exam_reports":   { en: "Official Exam Reports", ar: "التقارير الرسمية للاختبارات", fr: "Rapports officiels examens" },
+  "nav.fet_rgf":        { en: "FET & RGF",           ar: "FET والتقرير العام",        fr: "FET et RGF" },
 
   toggleTheme: { en: "Toggle Theme", ar: "تبديل المظهر", fr: "Changer de thème" },
 
