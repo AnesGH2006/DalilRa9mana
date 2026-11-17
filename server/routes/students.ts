@@ -558,6 +558,42 @@ router.get("/stats", async (req, res): Promise<void> => {
         passed: subjectGrades.filter(score => score >= 10).length,
       };
     });
+
+    // Per-class breakdown (niveau + classe) for analytics
+    const classGroups = new Map<string, typeof all>();
+    for (const s of all) {
+      const key = `${s.niveau}|${s.classe}`;
+      const arr = classGroups.get(key) ?? [];
+      arr.push(s);
+      classGroups.set(key, arr);
+    }
+    const byClass = [...classGroups.entries()].map(([key, g]) => {
+      const [niveau, classe] = key.split("|") as [SchoolLevel, string];
+      const ids = new Set(g.map(s => s.id));
+      const classGrades = gradeRows.filter(gr => ids.has(gr.studentId))
+        .map(gr => Number(gr.score)).filter(Number.isFinite);
+      return {
+        niveau, classe,
+        total: g.length,
+        boys: g.filter(s => s.sexe === "M").length,
+        girls: g.filter(s => s.sexe === "F").length,
+        admis: g.filter(s => s.resultat === "admis").length,
+        nonAdmis: g.filter(s => s.resultat === "non_admis").length,
+        mustarrak: g.filter(s => s.resultat === "mustarrak").length,
+        nouveau: g.filter(s => s.statut === "nouveau").length,
+        redoublant: g.filter(s => s.statut === "redoublant").length,
+        averageGrade: average(classGrades),
+      };
+    }).sort((a, b) => a.niveau.localeCompare(b.niveau) || a.classe.localeCompare(b.classe, "ar"));
+
+    // Average grade per gender
+    const sexeByStudent = new Map(all.map(s => [s.id, s.sexe] as const));
+    const gradeScores = gradeRows
+      .map(gr => ({ score: Number(gr.score), sexe: sexeByStudent.get(gr.studentId) }))
+      .filter((g): g is { score: number; sexe: "M" | "F" } => Number.isFinite(g.score) && (g.sexe === "M" || g.sexe === "F"));
+    const boysAvgGrade = average(gradeScores.filter(g => g.sexe === "M").map(g => g.score));
+    const girlsAvgGrade = average(gradeScores.filter(g => g.sexe === "F").map(g => g.score));
+
     res.json(DashboardStatsResponse.parse({
       total: all.length,
       boys: all.filter(s => s.sexe === "M").length,
@@ -569,10 +605,13 @@ router.get("/stats", async (req, res): Promise<void> => {
       redoublant: all.filter(s => s.statut === "redoublant").length,
       gradeCount: gradeRows.length,
       averageGrade: average(gradeRows.map(grade => Number(grade.score)).filter(Number.isFinite)),
+      boysAvgGrade,
+      girlsAvgGrade,
       gradesBySubject,
       justifiedHours: absenceRows.reduce((sum, absence) => sum + absence.justifiedHours, 0),
       unjustifiedHours: absenceRows.reduce((sum, absence) => sum + absence.unjustifiedHours, 0),
       byLevel,
+      byClass,
     }));
   } catch (err) {
     req.log.error({ err }, "Stats query failed");

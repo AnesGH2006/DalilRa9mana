@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { CountUp } from "@/components/count-up";
 import type { DashboardStats } from "@shared/types";
+import { successRatePercent, evaluatedCount } from "@shared/schoolStats";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { SCHOOL_STAGE } from "@/lib/deployment";
@@ -118,22 +119,16 @@ function ComparisonSection({ yearA, yearB }: { yearA: string; yearB: string }) {
   const successCompare = levels.map(lvl => {
     const la = sA?.byLevel.find(l => l.niveau === lvl);
     const lb = sB?.byLevel.find(l => l.niveau === lvl);
-    const rateA = la && (la.admis + la.nonAdmis) > 0
-      ? Math.round((la.admis / (la.admis + la.nonAdmis)) * 100) : 0;
-    const rateB = lb && (lb.admis + lb.nonAdmis) > 0
-      ? Math.round((lb.admis / (lb.admis + lb.nonAdmis)) * 100) : 0;
     return {
       name: LEVEL_LABELS[lvl],
-      [yearA]: rateA,
-      [yearB]: rateB,
+      [yearA]: la ? successRatePercent(la) ?? 0 : 0,
+      [yearB]: lb ? successRatePercent(lb) ?? 0 : 0,
     };
   }).filter(d => (d[yearA] as number) > 0 || (d[yearB] as number) > 0);
 
   // Trend line: total + success rate per year
-  const rateA = sA && (sA.admis + sA.nonAdmis) > 0
-    ? Math.round((sA.admis / (sA.admis + sA.nonAdmis)) * 100) : null;
-  const rateB = sB && (sB.admis + sB.nonAdmis) > 0
-    ? Math.round((sB.admis / (sB.admis + sB.nonAdmis)) * 100) : null;
+  const rateA = sA ? successRatePercent(sA) : null;
+  const rateB = sB ? successRatePercent(sB) : null;
 
   const trendData = [
     { year: yearA, total: sA?.total ?? 0, rate: rateA ?? 0, boys: sA?.boys ?? 0, girls: sA?.girls ?? 0 },
@@ -345,9 +340,16 @@ export default function AnalyticsPage() {
   }));
 
   const stageTotal = stageStats.reduce((sum, l) => sum + l.total, 0);
-  const stagePassed = stageStats.reduce((sum, l) => sum + l.admis, 0);
-  const stageFailed = stageStats.reduce((sum, l) => sum + l.nonAdmis, 0);
-  const successRate = stageTotal > 0 ? Math.round((stagePassed / (stageTotal || 1)) * 100) : null;
+  const stageCounts = stageStats.reduce(
+    (acc, l) => ({
+      admis: acc.admis + l.admis,
+      nonAdmis: acc.nonAdmis + l.nonAdmis,
+      mustarrak: acc.mustarrak + l.mustarrak,
+    }),
+    { admis: 0, nonAdmis: 0, mustarrak: 0 },
+  );
+  const stageEvaluated = evaluatedCount(stageCounts);
+  const successRate = stageEvaluated > 0 ? successRatePercent(stageCounts) : null;
   const schoolAverage = stageStats.length > 0
     ? (stageStats.reduce((sum, l) => sum + (l.avgAge ?? 0), 0) / stageStats.length).toFixed(1)
     : "0.0";
@@ -356,8 +358,8 @@ export default function AnalyticsPage() {
     [t("analytics.justifiedAbsences")]: level.justifiedHours,
     [t("analytics.unjustifiedAbsences")]: level.unjustifiedHours,
   }));
-  const hasAbsenceData = absenceData.some(level =>
-    level[t("analytics.justifiedAbsences")] > 0 || level[t("analytics.unjustifiedAbsences")] > 0,
+  const hasAbsenceData = stageStats.some(level =>
+    level.justifiedHours > 0 || level.unjustifiedHours > 0,
   );
 
   const radialData = successRate !== null
@@ -585,10 +587,15 @@ export default function AnalyticsPage() {
                     </div>
                     <div className="flex gap-4 text-xs mt-1">
                       <span className="flex items-center gap-1.5 text-emerald-600 font-semibold">
-                        <UserCheck className="w-3.5 h-3.5" />{stagePassed || stats.admis}
+                        <UserCheck className="w-3.5 h-3.5" />{stageCounts.admis || stats.admis}
                       </span>
+                      {(stageCounts.mustarrak || stats.mustarrak) > 0 && (
+                        <span className="flex items-center gap-1.5 text-amber-600 font-semibold">
+                          <TrendingUp className="w-3.5 h-3.5" />{stageCounts.mustarrak || stats.mustarrak}
+                        </span>
+                      )}
                       <span className="flex items-center gap-1.5 text-red-500 font-semibold">
-                        <UserX className="w-3.5 h-3.5" />{stageFailed || stats.nonAdmis}
+                        <UserX className="w-3.5 h-3.5" />{stageCounts.nonAdmis || stats.nonAdmis}
                       </span>
                     </div>
                     <div className="mt-3 rounded-xl bg-muted/60 px-3 py-2 text-center text-[11px] text-muted-foreground">
@@ -731,8 +738,7 @@ export default function AnalyticsPage() {
                       </thead>
                       <tbody>
                         {stats.byLevel.map((l, i) => {
-                          const total = l.admis + l.nonAdmis;
-                          const rate = total > 0 ? Math.round((l.admis / total) * 100) : null;
+                          const rate = successRatePercent(l);
                           return (
                             <motion.tr key={l.niveau}
                               initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
@@ -918,44 +924,112 @@ export default function AnalyticsPage() {
               );
             })()}
 
-            {/* ── Gender success rate by level ── */}
-            {successData.length > 0 && (() => {
-              const genderSuccessData = stats.byLevel
-                .filter(l => l.admis > 0 || l.nonAdmis > 0)
-                .map(l => {
-                  const boysPass = l.boys > 0 ? Math.round((l.admis * (l.boys / l.total)) / l.boys * 100) : 0;
-                  const girlsPass = l.girls > 0 ? Math.round((l.admis * (l.girls / l.total)) / l.girls * 100) : 0;
-                  return { name: LEVEL_LABELS[l.niveau] || l.niveau, ذكور: boysPass, إناث: girlsPass };
-                });
+            {/* ── Gender average grade (real per-gender grade data) ── */}
+            {(stats.boysAvgGrade !== null || stats.girlsAvgGrade !== null) && (
+              <motion.div variants={cardVariants} initial="initial" animate="animate" whileHover={{ y: -2 }}
+                transition={{ type: "spring", stiffness: 200 }} className="md:col-span-2 xl:col-span-3">
+                <Card className="shadow-md border-0 bg-gradient-to-br from-card to-muted/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                      متوسط الدرجة حسب الجنس /20
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={Math.max(220, Math.min(460, (stats.gradesBySubject.length || 4) * 40))}>
+                      <BarChart
+                        data={[
+                          { name: t("analytics.boys"), avg: stats.boysAvgGrade ?? 0 },
+                          { name: t("analytics.girls"), avg: stats.girlsAvgGrade ?? 0 },
+                        ]}
+                        barSize={80}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.12} />
+                        <XAxis dataKey="name" tick={{ fontSize: 14, fontWeight: "bold" }} />
+                        <YAxis domain={[0, 20]} tick={{ fontSize: 14, fontWeight: "bold" }} width={40} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="avg" name="المتوسط" radius={[6, 6, 0, 0]}>
+                          <Cell fill="#3b82f6" />
+                          <Cell fill="#ec4899" />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="flex justify-center gap-8 text-sm mt-2">
+                      <span className="font-bold text-blue-600 dark:text-blue-400">{t("analytics.boys")}: {stats.boysAvgGrade ?? "—"}/20</span>
+                      <span className="font-bold text-pink-600 dark:text-pink-400">{t("analytics.girls")}: {stats.girlsAvgGrade ?? "—"}/20</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
 
-              if (!genderSuccessData.length) return null;
-              return (
-                <motion.div variants={cardVariants} initial="initial" animate="animate" whileHover={{ y: -2 }}
-                  transition={{ type: "spring", stiffness: 200 }} className="md:col-span-2 xl:col-span-3">
-                  <Card className="shadow-md border-0 bg-gradient-to-br from-card to-muted/20">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-pink-500" />
-                        نسبة النجاح حسب الجنس والمستوى %
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={460}>
-                        <BarChart data={genderSuccessData} barSize={44} barGap={6}>
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.12} />
-                          <XAxis dataKey="name" tick={{ fontSize: 14, fontWeight: "bold" }} />
-                          <YAxis tick={{ fontSize: 14, fontWeight: "bold" }} domain={[0, 100]} unit="%" width={44} />
-                          <Tooltip content={<CustomTooltip />} />
-                          <Legend iconType="circle" iconSize={8} />
-                          <Bar dataKey="ذكور" fill="#3b82f6" radius={[5, 5, 0, 0]} />
-                          <Bar dataKey="إناث" fill="#ec4899" radius={[5, 5, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })()}
+            {/* ── Per-class breakdown ── */}
+            {(stats.byClass?.length ?? 0) > 0 && (
+              <motion.div variants={cardVariants} initial="initial" animate="animate"
+                className="md:col-span-2 xl:col-span-3">
+                <Card className="shadow-md border-0">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                      إحصائيات الأقسام / الفصول
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-muted-foreground text-xs uppercase">
+                            <th className="pb-2 text-start font-semibold">القسم</th>
+                            <th className="pb-2 text-center font-semibold">{t("stats.total_col")}</th>
+                            <th className="pb-2 text-center font-semibold text-blue-500">{t("analytics.boys")}</th>
+                            <th className="pb-2 text-center font-semibold text-pink-500">{t("analytics.girls")}</th>
+                            <th className="pb-2 text-center font-semibold text-emerald-500">{t("analytics.passed")}</th>
+                            <th className="pb-2 text-center font-semibold text-amber-500">مستدرك</th>
+                            <th className="pb-2 text-center font-semibold text-red-500">{t("analytics.failed")}</th>
+                            <th className="pb-2 text-center font-semibold">{t("analytics.rate")}</th>
+                            <th className="pb-2 text-center font-semibold">المعدل</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stats.byClass.map((c, i) => {
+                            const rate = successRatePercent(c);
+                            return (
+                              <motion.tr key={`${c.niveau}-${c.classe}`}
+                                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: Math.min(i * 0.03, 0.6) }}
+                                className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/15"}`}
+                              >
+                                <td className="py-2.5 font-semibold text-foreground whitespace-nowrap">
+                                  {LEVEL_LABELS[c.niveau] || c.niveau} — {c.classe}
+                                </td>
+                                <td className="py-2.5 text-center font-bold"><CountUp to={c.total} /></td>
+                                <td className="py-2.5 text-center text-blue-600 dark:text-blue-400 font-semibold"><CountUp to={c.boys} /></td>
+                                <td className="py-2.5 text-center text-pink-600 dark:text-pink-400 font-semibold"><CountUp to={c.girls} /></td>
+                                <td className="py-2.5 text-center text-emerald-600 font-semibold">{c.admis ? <CountUp to={c.admis} /> : "—"}</td>
+                                <td className="py-2.5 text-center text-amber-600 font-semibold">{c.mustarrak ? <CountUp to={c.mustarrak} /> : "—"}</td>
+                                <td className="py-2.5 text-center text-red-500 font-semibold">{c.nonAdmis ? <CountUp to={c.nonAdmis} /> : "—"}</td>
+                                <td className="py-2.5 text-center">
+                                  {rate !== null ? (
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                                      rate >= 75 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                                      : rate >= 50 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+                                      : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
+                                    }`}>{rate}%</span>
+                                  ) : "—"}
+                                </td>
+                                <td className="py-2.5 text-center font-bold text-foreground">
+                                  {c.averageGrade !== null ? `${c.averageGrade}/20` : "—"}
+                                </td>
+                              </motion.tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
           </div>
         </>
       )}

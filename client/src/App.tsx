@@ -73,6 +73,7 @@ import ExamReportsPage from "@/pages/exam-reports";
 import FetRgfPage from "@/pages/fet-rgf";
 import CensusPage from "@/pages/census";
 import AssessmentsPage from "@/pages/assessments";
+import GuidePage from "@/pages/guide";
 import ExcelInjectionPage from "@/pages/excel-injection";
 import {
   DEFAULT_STAFF_PERMISSIONS,
@@ -131,6 +132,7 @@ const SECTIONS: SectionDef[] = [
       { href: "/students", icon: List,            labelKey: "nav.students"  },
       { href: "/sms", icon: MessageSquare, labelKey: "nav.sms", label: "الرسائل SMS" },
       { href: "/whatsapp", icon: MessageCircle, labelKey: "nav.whatsapp", label: "واتساب وأولياء الأمور" },
+      { href: "/guide", icon: BookOpen, labelKey: "nav.guide", label: "دليل الاستخدام" },
     ],
   },
   {
@@ -980,6 +982,7 @@ function AppLayout() {
               <Route path="/fet-rgf"             component={FetRgfPage} />
               <Route path="/census"              component={CensusPage} />
               <Route path="/assessments"         component={AssessmentsPage} />
+              <Route path="/guide"               component={GuidePage} />
               <Route component={NotFound} />
               </Switch>
             </AnimatePresence>

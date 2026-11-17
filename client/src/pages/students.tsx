@@ -12,6 +12,7 @@ import { Upload, Trash2, Search, Users, FileSpreadsheet, X, CheckCircle2, AlertC
 import { CountUp } from "@/components/count-up";
 import { StudentHealthDialog } from "@/components/student-health-dialog";
 import type { Student, Niveau, Sexe, Statut } from "@shared/types";
+import { successRatePercent } from "@shared/schoolStats";
 import { SCHOOL_LEVELS, SCHOOL_STAGE } from "@/lib/deployment";
 import {
   LYCEE_BAC_FILIERES,
@@ -118,10 +119,10 @@ function StudentAnalytics({ students }: { students: Student[] }) {
     fill: LEVEL_COLORS[i],
   })).filter(d => d.total > 0);
 
-  const admis    = students.filter(s => s.resultat === "admis").length;
-  const nonAdmis = students.filter(s => s.resultat === "non_admis").length;
-  const withResult = admis + nonAdmis;
-  const successRate = withResult > 0 ? Math.round((admis / withResult) * 100) : null;
+  const admis     = students.filter(s => s.resultat === "admis").length;
+  const nonAdmis  = students.filter(s => s.resultat === "non_admis").length;
+  const mustarrak = students.filter(s => s.resultat === "mustarrak").length;
+  const successRate = successRatePercent({ admis, nonAdmis, mustarrak });
 
   const statusData = [
     { name: "جديد",  value: students.filter(s => s.statut === "nouveau").length,    fill: "#10b981" },
@@ -136,16 +137,19 @@ function StudentAnalytics({ students }: { students: Student[] }) {
     }, {} as Record<string, number>)
   ).sort(([a], [b]) => a.localeCompare(b, "ar")).map(([name, value]) => ({ name, value }));
 
-  // Per-level pass/fail rate
+  // Per-level pass/fail rate (mustarrak counts in the evaluated denominator)
   const levelPassData = LEVELS.map((lvl, i) => {
-    const lvlStudents = students.filter(s => s.niveau === lvl && (s.resultat === "admis" || s.resultat === "non_admis"));
-    const lvlPass = lvlStudents.filter(s => s.resultat === "admis");
+    const lvlStudents = students.filter(s => s.niveau === lvl && s.resultat !== null);
+    const lvlAdmis = lvlStudents.filter(s => s.resultat === "admis").length;
+    const lvlFail = lvlStudents.filter(s => s.resultat === "non_admis").length;
+    const lvlMust = lvlStudents.filter(s => s.resultat === "mustarrak").length;
     return {
       name: LEVEL_LABELS[lvl],
-      ناجح: lvlPass.length,
-      راسب: lvlStudents.length - lvlPass.length,
+      ناجح: lvlAdmis,
+      راسب: lvlFail,
+      مستدرك: lvlMust,
       total: lvlStudents.length,
-      rate: lvlStudents.length > 0 ? Math.round((lvlPass.length / lvlStudents.length) * 100) : 0,
+      rate: successRatePercent({ admis: lvlAdmis, nonAdmis: lvlFail, mustarrak: lvlMust }) ?? 0,
       fill: LEVEL_COLORS[i],
     };
   }).filter(d => d.total > 0);
@@ -284,6 +288,12 @@ function StudentAnalytics({ students }: { students: Student[] }) {
                     initial={{ width: 0 }}
                     animate={{ width: `${(l.ناجح / l.total) * 100}%` }}
                     transition={{ duration: 0.8, delay: i * 0.1 }} />
+                  {l.مستدرك > 0 && (
+                    <motion.div className="h-full bg-amber-400"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(l.مستدرك / l.total) * 100}%` }}
+                      transition={{ duration: 0.8, delay: i * 0.1 + 0.05 }} />
+                  )}
                   <motion.div className="h-full bg-red-400 rounded-e-full"
                     initial={{ width: 0 }}
                     animate={{ width: `${(l.راسب / l.total) * 100}%` }}
@@ -291,6 +301,7 @@ function StudentAnalytics({ students }: { students: Student[] }) {
                 </div>
                 <div className="flex gap-3 text-[10px] text-muted-foreground">
                   <span className="text-emerald-600">{l.ناجح} ناجح</span>
+                  {l.مستدرك > 0 && <span className="text-amber-600">{l.مستدرك} مستدرك</span>}
                   <span className="text-red-500">{l.راسب} راسب</span>
                 </div>
               </div>

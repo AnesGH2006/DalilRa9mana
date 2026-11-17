@@ -57,7 +57,7 @@ export type Niveau = SchoolLevel;
 export type { LyceeBacFiliere, LyceeCommonCoreFiliere, LyceeFiliere } from "./subjects.js";
 export type Sexe = "M" | "F";
 export type Statut = "nouveau" | "redoublant";
-export type Resultat = "admis" | "non_admis" | null;
+export type Resultat = "admis" | "non_admis" | "mustarrak" | null;
 
 export interface Student {
   id: string;
@@ -93,6 +93,20 @@ export interface LevelStats {
   ageDist: { age: number; count: number }[];
 }
 
+export interface ClassStats {
+  niveau: Niveau;
+  classe: string;
+  total: number;
+  boys: number;
+  girls: number;
+  admis: number;
+  nonAdmis: number;
+  mustarrak: number;
+  nouveau: number;
+  redoublant: number;
+  averageGrade: number | null;
+}
+
 export interface DashboardStats {
   total: number;
   boys: number;
@@ -104,10 +118,13 @@ export interface DashboardStats {
   redoublant: number;
   gradeCount: number;
   averageGrade: number | null;
+  boysAvgGrade: number | null;
+  girlsAvgGrade: number | null;
   gradesBySubject: { subject: string; average: number; count: number; passed: number }[];
   justifiedHours: number;
   unjustifiedHours: number;
   byLevel: LevelStats[];
+  byClass: ClassStats[];
 }
 
 export interface StudentsFilter {

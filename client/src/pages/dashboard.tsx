@@ -21,6 +21,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import type { SchoolInfo, DashboardStats, Niveau } from "@shared/types";
+import { successRatePercent } from "@shared/schoolStats";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -246,9 +247,8 @@ export default function Dashboard() {
     color: LEVEL_COLORS[i % LEVEL_COLORS.length],
   })) || [];
 
-  const successRate = stats && (stats.admis + stats.nonAdmis + stats.mustarrak) > 0
-    ? Math.round((stats.admis / (stats.admis + stats.nonAdmis + stats.mustarrak)) * 100)
-    : null;
+  const successRate = stats ? successRatePercent(stats) : null;
+  const absenceHours = stats ? stats.justifiedHours + stats.unjustifiedHours : 0;
 
   return (
     <motion.div
@@ -292,7 +292,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <QuickActionCard
           title="إدارة الطلبة"
           description="عرض، البحث، متابعة الحالة التعليمية لكل التلاميذ."
@@ -320,6 +320,13 @@ export default function Dashboard() {
           onClick={openSchoolDialog}
           icon={School}
           gradient="from-emerald-500 to-teal-600"
+        />
+        <QuickActionCard
+          title="دليل الاستخدام"
+          description="شرح مبسط لكل خطوات استخدام المنصة خطوة بخطوة."
+          href="/guide"
+          icon={GraduationCap}
+          gradient="from-amber-500 to-orange-600"
         />
       </div>
 
@@ -401,7 +408,7 @@ export default function Dashboard() {
         ) : stats && stats.total > 0 ? (
           <motion.div key="stats" variants={containerVariants} initial="initial" animate="animate" className="space-y-5">
             {/* Stat cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
               <StatCard label={t("stats.total")} value={stats.total} icon={Users}
                 gradient="from-blue-500 to-blue-700" shadow="shadow-blue-500/25" />
               <StatCard label={t("stats.boys")} value={stats.boys} icon={Users}
@@ -414,6 +421,14 @@ export default function Dashboard() {
               ) : (
                 <StatCard label={t("stats.admis")} value={stats.admis} icon={UserCheck}
                   gradient="from-emerald-500 to-green-600" shadow="shadow-emerald-500/25" />
+              )}
+              {stats.averageGrade !== null && (
+                <StatCard label="المعدل العام" value={stats.averageGrade} icon={TrendingUp}
+                  gradient="from-amber-500 to-orange-600" shadow="shadow-amber-500/25" suffix="/20" />
+              )}
+              {absenceHours > 0 && (
+                <StatCard label="ساعات الغياب" value={absenceHours} icon={UserX}
+                  gradient="from-rose-500 to-red-600" shadow="shadow-rose-500/25" />
               )}
             </div>
 
@@ -523,6 +538,31 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* Subject averages chart */}
+            {stats.gradesBySubject.length > 0 && (
+              <motion.div variants={cardVariants}>
+                <Card className="shadow-md border-0 bg-gradient-to-br from-card to-muted/20">
+                  <CardHeader className="pb-1">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      متوسط الدرجات حسب المادة /20
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={Math.min(360, Math.max(200, stats.gradesBySubject.length * 44))}>
+                      <BarChart data={stats.gradesBySubject} layout="vertical" margin={{ left: 8, right: 16 }}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.12} horizontal={false} />
+                        <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 12 }} />
+                        <YAxis type="category" dataKey="subject" width={110} tick={{ fontSize: 12 }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="average" name="المتوسط" fill="#f59e0b" radius={[0, 6, 6, 0]} barSize={18} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
             {/* Level breakdown table */}
             {stats.byLevel.length > 0 && (
               <motion.div variants={cardVariants}>
@@ -550,6 +590,9 @@ export default function Dashboard() {
                                 <th className="pb-2 text-center font-semibold text-emerald-600">{t("val.admis")}</th>
                                 <th className="pb-2 text-center font-semibold text-red-500">{t("val.non_admis")}</th>
                               </>
+                            )}
+                            {stats.byLevel.some(l => l.averageGrade !== null) && (
+                              <th className="pb-2 text-center font-semibold text-amber-600">المعدل</th>
                             )}
                             {stats.byLevel.some(l => l.avgAge !== null) && (
                               <>
@@ -590,6 +633,11 @@ export default function Dashboard() {
                                   <td className="py-3 text-center text-red-500 font-semibold">{l.nonAdmis ? <CountUp to={l.nonAdmis} /> : "—"}</td>
                                 </>
                               )}
+                              {stats.byLevel.some(ll => ll.averageGrade !== null) && (
+                                <td className="py-3 text-center font-bold text-amber-600">
+                                  {l.averageGrade !== null ? `${l.averageGrade}/20` : "—"}
+                                </td>
+                              )}
                               {stats.byLevel.some(ll => ll.avgAge !== null) && (
                                 <>
                                   <td className="py-3 text-center">
@@ -620,6 +668,7 @@ export default function Dashboard() {
                                 <td className="py-3 text-center text-red-500"><CountUp to={stats.nonAdmis} /></td>
                               </>
                             )}
+                            {stats.byLevel.some(l => l.averageGrade !== null) && <td />}
                             {stats.byLevel.some(l => l.avgAge !== null) && (
                               <><td /><td /></>
                             )}

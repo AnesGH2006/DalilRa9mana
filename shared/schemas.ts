@@ -126,6 +126,20 @@ export const LevelStatsSchema = zod.object({
   ageDist: zod.array(zod.object({ age: zod.number(), count: zod.number() })),
 });
 
+export const ClassStatsSchema = zod.object({
+  niveau: NiveauEnum,
+  classe: zod.string(),
+  total: zod.number(),
+  boys: zod.number(),
+  girls: zod.number(),
+  admis: zod.number(),
+  nonAdmis: zod.number(),
+  mustarrak: zod.number().default(0),
+  nouveau: zod.number(),
+  redoublant: zod.number(),
+  averageGrade: zod.number().nullable(),
+});
+
 export const DashboardStatsResponse = zod.object({
   total: zod.number(),
   boys: zod.number(),
@@ -137,6 +151,8 @@ export const DashboardStatsResponse = zod.object({
   redoublant: zod.number(),
   gradeCount: zod.number(),
   averageGrade: zod.number().nullable(),
+  boysAvgGrade: zod.number().nullable(),
+  girlsAvgGrade: zod.number().nullable(),
   gradesBySubject: zod.array(zod.object({
     subject: zod.string(),
     average: zod.number(),
@@ -146,6 +162,7 @@ export const DashboardStatsResponse = zod.object({
   justifiedHours: zod.number(),
   unjustifiedHours: zod.number(),
   byLevel: zod.array(LevelStatsSchema),
+  byClass: zod.array(ClassStatsSchema).default([]),
 });
 
 export const GradeSchema = zod.object({

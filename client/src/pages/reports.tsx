@@ -19,6 +19,7 @@ import {
 import { CountUp } from "@/components/count-up";
 import { SCHOOL_STAGE } from "@/lib/deployment";
 import type { DashboardStats, SchoolInfo, StudentResult } from "@shared/types";
+import { successRatePercent } from "@shared/schoolStats";
 
 const BASE = import.meta.env.BASE_URL;
 const ACADEMIC_YEARS = ["2026-2027", "2025-2026", "2024-2025", "2023-2024", "2022-2023"];
@@ -146,8 +147,7 @@ export default function ReportsPage() {
 
   // ── Derived data ──
   const withAvg = results.filter(r => r.annualAvg !== null);
-  const successRate = stats && (stats.admis + stats.nonAdmis) > 0
-    ? Math.round((stats.admis / (stats.admis + stats.nonAdmis)) * 100) : null;
+  const successRate = stats ? successRatePercent(stats) : null;
 
   const genderData = stats ? [
     { name: "ذكور", value: stats.boys, fill: GENDER_COLORS[0] },
@@ -161,10 +161,9 @@ export default function ReportsPage() {
   })) || [];
 
   const successByLevel = stats?.byLevel
-    .filter(l => l.admis + l.nonAdmis > 0)
     .map((l, i) => ({
       name: LEVEL_LABELS[l.niveau] || l.niveau,
-      "نسبة النجاح": Math.round((l.admis / (l.admis + l.nonAdmis)) * 100),
+      "نسبة النجاح": successRatePercent(l) ?? 0,
       fill: LEVEL_COLORS[i % LEVEL_COLORS.length],
     })) || [];
 
