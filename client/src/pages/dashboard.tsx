@@ -114,35 +114,39 @@ function QuickActionCard({
   title,
   description,
   href,
+  onClick,
   icon: Icon,
   gradient,
 }: {
   title: string;
   description: string;
-  href: string;
+  href?: string;
+  onClick?: () => void;
   icon: React.ElementType;
   gradient: string;
 }) {
-  return (
-    <Link href={href}>
-      <motion.div
-        whileHover={{ y: -4, scale: 1.01 }}
-        whileTap={{ scale: 0.98 }}
-        className="surface-panel p-4 h-full cursor-pointer transition-all"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-md`}>
-            <Icon className="h-4 w-4" />
-          </div>
-          <ArrowUpLeft className="h-4 w-4 text-muted-foreground" />
+  const card = (
+    <motion.div
+      whileHover={{ y: -4, scale: 1.01 }}
+      whileTap={{ scale: 0.98 }}
+      className="surface-panel p-4 h-full cursor-pointer transition-all"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-md`}>
+          <Icon className="h-4 w-4" />
         </div>
-        <div className="mt-4 space-y-1">
-          <h3 className="text-sm font-bold text-foreground">{title}</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
-        </div>
-      </motion.div>
-    </Link>
+        <ArrowUpLeft className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="mt-4 space-y-1">
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+        <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+      </div>
+    </motion.div>
   );
+  if (onClick) {
+    return <button type="button" onClick={onClick} className="w-full text-start">{card}</button>;
+  }
+  return <Link href={href ?? "#"}>{card}</Link>;
 }
 
 export default function Dashboard() {
@@ -157,7 +161,7 @@ export default function Dashboard() {
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [viewYear, setViewYear] = useState(() => localStorage.getItem("cem-selected-year") || "2026-2027");
-  const [form, setForm] = useState({ nom: "", wilaya: "", commune: "", annee: "2026-2027", directeur: "", phone: "" });
+  const [form, setForm] = useState({ nom: "", wilaya: "", commune: "", annee: "2026-2027", directeur: "", phone: "", supportPhone: "" });
 
   const fetchSchool = useCallback(async () => {
     setLoadingSchool(true);
@@ -166,7 +170,7 @@ export default function Dashboard() {
       if (res.ok) {
         const d = await res.json();
         setSchool(d);
-        if (d) setForm({ nom: d.nom, wilaya: d.wilaya, commune: d.commune, annee: d.annee, directeur: d.directeur || "", phone: d.phone || "" });
+        if (d) setForm({ nom: d.nom, wilaya: d.wilaya, commune: d.commune, annee: d.annee, directeur: d.directeur || "", phone: d.phone || "", supportPhone: d.supportPhone || "" });
       }
     } finally { setLoadingSchool(false); }
   }, []);
@@ -211,6 +215,22 @@ export default function Dashboard() {
         variant: "destructive",
       });
     } finally { setSaving(false); }
+  };
+
+  const openSchoolDialog = () => {
+    setForm(school
+      ? {
+          nom: school.nom,
+          wilaya: school.wilaya,
+          commune: school.commune,
+          annee: school.annee,
+          directeur: school.directeur || "",
+          phone: school.phone || "",
+          supportPhone: school.supportPhone || "",
+        }
+      : { nom: "", wilaya: "", commune: "", annee: "2026-2027", directeur: "", phone: "", supportPhone: "" }
+    );
+    setEditOpen(true);
   };
 
   // Chart data
@@ -263,13 +283,7 @@ export default function Dashboard() {
           <Button
             variant="outline" size="sm"
             className="gap-2 hover:shadow-md transition-all border-blue-200 dark:border-blue-800 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 text-blue-600 dark:text-blue-400 font-semibold"
-            onClick={() => {
-              setForm(school
-                ? { nom: school.nom, wilaya: school.wilaya, commune: school.commune, annee: school.annee, directeur: school.directeur || "", phone: school.phone || "" }
-                : { nom: "", wilaya: "", commune: "", annee: "2026-2027", directeur: "", phone: "" }
-              );
-              setEditOpen(true);
-            }}
+            onClick={openSchoolDialog}
           >
             <Pencil className="w-3.5 h-3.5" />
             {school ? t("dashboard.editInfo") : t("dashboard.setup")}
@@ -301,10 +315,10 @@ export default function Dashboard() {
           gradient="from-cyan-500 to-blue-600"
         />
         <QuickActionCard
-          title="معلومات المؤسسة"
-          description="تحديث اسم المؤسسة، الولاية، مدير المدرسة، وبيانات التواصل."
-          href="#school-info"
-          icon={Pencil}
+          title="إعدادات المؤسسة"
+          description="إدخال أو تعديل اسم المؤسسة، الولاية، المدير، وبيانات التواصل."
+          onClick={openSchoolDialog}
+          icon={School}
           gradient="from-emerald-500 to-teal-600"
         />
       </div>
@@ -335,6 +349,8 @@ export default function Dashboard() {
                       { label: `${t("dashboard.wilaya")} / ${t("dashboard.commune")}`, value: `${school.wilaya} — ${school.commune}`, icon: MapPin, gradient: "from-indigo-500 to-violet-600" },
                       { label: t("dashboard.year"), value: school.annee, icon: Calendar, gradient: "from-violet-500 to-purple-700" },
                       ...(school.directeur ? [{ label: t("settings.director"), value: school.directeur, icon: GraduationCap, gradient: "from-cyan-500 to-blue-600" }] : []),
+                      ...(school.phone ? [{ label: t("settings.phone"), value: school.phone, icon: Pencil, gradient: "from-emerald-500 to-teal-600" }] : []),
+                      ...(school.supportPhone ? [{ label: t("settings.supportPhone"), value: school.supportPhone, icon: Pencil, gradient: "from-green-500 to-emerald-600" }] : []),
                     ].map((item, i) => (
                       <motion.div key={i} className="flex items-center gap-3"
                         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -359,7 +375,7 @@ export default function Dashboard() {
                   </motion.div>
                   <p className="mb-4">{t("dashboard.noSchool")}</p>
                   <Button
-                    onClick={() => setEditOpen(true)}
+                    onClick={openSchoolDialog}
                     className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 shadow-lg shadow-blue-500/30 font-bold"
                   >
                     {t("dashboard.setup")}
@@ -704,6 +720,7 @@ export default function Dashboard() {
               { key: "annee", label: t("dashboard.year"), placeholder: "2026-2027" },
               { key: "directeur", label: t("settings.director") },
               { key: "phone", label: t("settings.phone") },
+              { key: "supportPhone", label: t("settings.supportPhone") },
             ].map((f, i) => (
               <motion.div key={f.key} className="space-y-1.5"
                 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}

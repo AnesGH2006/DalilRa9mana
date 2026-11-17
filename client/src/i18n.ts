@@ -171,6 +171,7 @@ export const translations: TranslationMap = {
   "settings.title":     { en: "School Information", ar: "معلومات المؤسسة", fr: "Informations de l'établissement" },
   "settings.director":  { en: "Director",            ar: "المدير",          fr: "Directeur" },
   "settings.phone":     { en: "Phone",               ar: "الهاتف",          fr: "Téléphone" },
+  "settings.supportPhone": { en: "Support / WhatsApp", ar: "هاتف الدعم / واتساب", fr: "Téléphone support / WhatsApp" },
   "settings.saved":     { en: "Settings saved",      ar: "تم حفظ الإعدادات",fr: "Paramètres enregistrés" },
   "settings.account":   { en: "Account Information", ar: "معلومات الحساب", fr: "Informations du compte" },
 
