@@ -311,10 +311,13 @@ export default function UploadGradesOcrPage() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          type: mode,
+          meta: { subject, classe, niveau, annee, reportDate, trimestre, gradeType },
           rows: rows.map(r => ({
             studentName: effectiveName(r),
             grade: effectiveGrade(r),
             status: effectiveStatus(r),
+            isAbsent: effectiveAbsent(r),
             note: r.note ?? "",
             justifiedHours: effectiveJustified(r),
             unjustifiedHours: effectiveUnjustified(r),
@@ -333,7 +336,7 @@ export default function UploadGradesOcrPage() {
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement("a");
       a.href = url;
-      a.download = `ocr-${mode}-${reportDate || new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `ocr-${mode}-${reportDate || new Date().toISOString().slice(0, 10)}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) {

@@ -8,6 +8,7 @@
  */
 import { Router } from "express";
 import multer from "multer";
+import * as XLSX from "xlsx";
 import { logger } from "../lib/logger.js";
 import { db, ocrUploadsTable } from "../../shared/db.js";
 import { getUserGroqKey, getUserGeminiKey } from "../lib/groq-key.js";
@@ -192,12 +193,71 @@ router.post(
   },
 );
 
-// ── Export reviewed rows to a CSV that Excel opens (paid "excel_export" feature) ──────────────
-const csvCell = (value: unknown): string => {
-  let text = String(value ?? "").replace(/\r?\n/g, " ");
-  if (/^[=+\-@]/.test(text)) text = `'${text}`; // stops Excel from running formulas
-  return `"${text.replace(/"/g, '""')}"`;
+// ── Export reviewed rows to a real .xlsx workbook (paid "excel_export" feature) ──────────────
+// Columns adapt to the OCR mode: grades / absences / daily register.
+const xlsxCell = (value: unknown): string => {
+  const text = String(value ?? "").replace(/\r?\n/g, " ");
+  // Neutralize spreadsheet formula injection on text cells
+  return /^[=+\-@]/.test(text) ? `'${text}` : text;
 };
+
+type ExportMeta = {
+  subject?: string;
+  classe?: string;
+  niveau?: string;
+  annee?: string;
+  reportDate?: string;
+  trimestre?: string;
+  gradeType?: string;
+};
+
+function buildExportSheet(type: string, rows: Array<Record<string, unknown>>, meta: ExportMeta): { headers: string[]; data: unknown[][] } {
+  const name = (r: Record<string, unknown>) => xlsxCell(r.studentName);
+  const note = (r: Record<string, unknown>) => xlsxCell(r.note ?? r.editedNote ?? "");
+  const grade = (r: Record<string, unknown>) => {
+    const g = r.editedGrade ?? r.grade;
+    const n = Number(g);
+    return Number.isFinite(n) ? n : xlsxCell(g ?? "");
+  };
+
+  if (type === "grades") {
+    return {
+      headers: ["#", "الاسم الكامل", "المادة", "القسم", "المستوى", "السنة", "الفصل", "نوع التقييم", "العلامة /20", "ملاحظة"],
+      data: rows.map((r, i) => [
+        i + 1, name(r), xlsxCell(meta.subject ?? ""), xlsxCell(meta.classe ?? ""),
+        xlsxCell(meta.niveau ?? ""), xlsxCell(meta.annee ?? ""), xlsxCell(meta.trimestre ?? ""),
+        xlsxCell(meta.gradeType ?? ""), grade(r), note(r),
+      ]),
+    };
+  }
+
+  if (type === "absences") {
+    return {
+      headers: ["#", "الاسم الكامل", "القسم", "السنة", "ساعات مبررة", "ساعات غير مبررة", "ملاحظة"],
+      data: rows.map((r, i) => [
+        i + 1, name(r), xlsxCell(meta.classe ?? ""), xlsxCell(meta.annee ?? ""),
+        Number(r.editedJustified ?? r.justifiedHours) || 0,
+        Number(r.editedUnjustified ?? r.unjustifiedHours) || 0,
+        note(r),
+      ]),
+    };
+  }
+
+  // daily_register / daily_attendance
+  const absent = (r: Record<string, unknown>) => {
+    const v = r.editedAbsent ?? r.isAbsent;
+    if (v === true) return "غائب";
+    if (v === false) return "حاضر";
+    return xlsxCell(r.status ?? "");
+  };
+  return {
+    headers: ["#", "الاسم الكامل", "التاريخ", "السنة", "الحالة", "ملاحظة"],
+    data: rows.map((r, i) => [
+      i + 1, name(r), xlsxCell(meta.reportDate ?? r.reportDate ?? ""), xlsxCell(meta.annee ?? ""),
+      absent(r), note(r),
+    ]),
+  };
+}
 
 router.post(
   "/ocr/export",
@@ -210,21 +270,28 @@ router.post(
   },
   requireStaffFeature("excel_export"),
   (req, res): void => {
-    const rows = Array.isArray(req.body?.rows)
-      ? (req.body.rows as Array<Record<string, unknown>>).slice(0, 2000)
+    const body = req.body ?? {};
+    const rows = Array.isArray(body.rows)
+      ? (body.rows as Array<Record<string, unknown>>).slice(0, 2000)
       : [];
-    const header = ["#", "الاسم الكامل", "العلامة", "الحالة", "ملاحظة", "ساعات مبررة", "ساعات غير مبررة"];
-    const lines = [header.map(csvCell).join(";")];
-    rows.forEach((r, i) => {
-      lines.push(
-        [i + 1, r.studentName, r.grade, r.status, r.note, r.justifiedHours, r.unjustifiedHours]
-          .map(csvCell)
-          .join(";"),
-      );
-    });
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", 'attachment; filename="ocr-export.csv"');
-    res.send("\uFEFF" + lines.join("\r\n"));
+    const type = String(body.type ?? "grades");
+    const meta = (body.meta ?? {}) as ExportMeta;
+
+    const { headers, data } = buildExportSheet(type, rows, meta);
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    worksheet["!sheetViews"] = [{ rightToLeft: true } as any];
+    worksheet["!cols"] = headers.map((_, i) => ({ wch: i === 1 ? 34 : i === headers.length - 1 ? 24 : 16 }));
+    worksheet["!autofilter"] = { ref: worksheet["!ref"] ?? "A1" };
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "OCR");
+
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+    const safeType = ["grades", "absences", "daily_register", "daily_attendance"].includes(type) ? type : "export";
+    const date = meta.reportDate || new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="ocr-${safeType}-${date}.xlsx"`);
+    res.send(buffer);
   },
 );
 
