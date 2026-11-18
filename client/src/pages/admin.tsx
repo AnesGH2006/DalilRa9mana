@@ -38,7 +38,7 @@ interface CcpRequest {
   id: string; userId: string; plan: string; amountDzd: number;
   contactEmail: string | null; contactFacebook: string | null;
   status: string; reviewNote: string | null; createdAt: string;
-  userName: string | null; userEmail: string | null;
+  userFirstName: string | null; userLastName: string | null; userEmail: string | null;
 }
 
 function CcpRequestsCard() {
@@ -85,7 +85,7 @@ function CcpRequestsCard() {
             <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
               <div className="space-y-1">
                 <p className="text-sm font-bold">
-                  {r.userName ?? r.userEmail ?? r.userId} — {r.plan === "pro" ? "Pro" : r.plan === "basic" ? "Basic" : r.plan} ({r.amountDzd.toLocaleString("en-US")} دج)
+                  {[r.userFirstName, r.userLastName].filter(Boolean).join(" ") || r.userEmail || r.userId} — {r.plan === "pro" ? "Pro" : r.plan === "basic" ? "Basic" : r.plan} ({r.amountDzd.toLocaleString("en-US")} دج)
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {r.contactEmail ?? r.contactFacebook ?? "—"} · {new Date(r.createdAt).toLocaleString("ar-DZ")}

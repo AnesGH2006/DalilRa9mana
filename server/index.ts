@@ -383,6 +383,27 @@ async function probeDb(attempt = 1): Promise<void> {
       ON student_documents(student_id, created_at)
     `);
     
+    // Manual CCP payment requests (receipt photo + contact → admin approval).
+    await db.execute(sql`DO $$ BEGIN CREATE TYPE payment_request_status AS ENUM ('pending','approved','rejected'); EXCEPTION WHEN duplicate_object THEN null; END $$`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS payment_requests (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        plan varchar(20) NOT NULL,
+        amount_dzd integer NOT NULL,
+        contact_email varchar(255),
+        contact_facebook varchar(255),
+        receipt_path varchar(500),
+        status payment_request_status NOT NULL DEFAULT 'pending',
+        review_note text,
+        reviewed_by varchar REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_payment_requests_user" ON payment_requests(user_id, created_at)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_payment_requests_status" ON payment_requests(status)`);
+
     // Repair names imported from combined Excel name columns before the parser fix.
     await db.execute(sql`UPDATE students SET nom_prenom = regexp_replace(nom_prenom, '^(.+)\\s+\\1$', '\\1') WHERE nom_prenom ~ '^(.+)\\s+\\1$'`);
     logger.info("Database connection verified");

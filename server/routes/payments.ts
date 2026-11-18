@@ -9,7 +9,6 @@ import { CCP_ACCOUNT, PAID_PLAN_PRICES_DZD, STAFF_PLAN, STAFF_PLAN_PRICE_DZD, PA
 import { isSchoolStage } from "../../shared/school-stage.js";
 import { generateActivationBatch, redeemActivationCode } from "../services/activationCodeService.js";
 import { activateFreePlan, activatePaidPlanTrial, completeDemoPayment, createDemoCheckout, createChargilyCheckout, settleChargilyPayment, verifyChargilySignature, verifyChargilyCheckout } from "../services/paymentService.js";
-import { PAID_PLAN_PRICES_DZD } from "../../shared/subscription.js";
 import {
   hasOwnStaffSubscription,
 } from "../middlewares/staffAccess.js";
@@ -365,7 +364,18 @@ function ccpAmount(plan: string): number | null {
 }
 
 // POST /api/payments/ccp/request — submit a manual CCP payment request (multipart).
-router.post("/payments/ccp/request", receiptUpload.single("receipt"), async (req, res): Promise<void> => {
+router.post("/payments/ccp/request", (req, res, next) => {
+  receiptUpload.single("receipt")(req, res, (err: any) => {
+    if (err) {
+      const message = err?.code === "LIMIT_FILE_SIZE"
+        ? "حجم الصورة كبير جداً (الحد الأقصى 8MB)"
+        : (err?.message ?? "تعذر رفع الصورة");
+      res.status(400).json({ error: message });
+      return;
+    }
+    next();
+  });
+}, async (req, res): Promise<void> => {
   if (!requireAuth(req, res)) return;
   const plan = String(req.body?.plan ?? "");
   const amountDzd = ccpAmount(plan);
@@ -448,7 +458,8 @@ router.get("/payments/ccp/admin/requests", async (req, res): Promise<void> => {
     reviewNote: paymentRequestsTable.reviewNote,
     createdAt: paymentRequestsTable.createdAt,
     reviewedAt: paymentRequestsTable.reviewedAt,
-    userName: usersTable.name,
+    userFirstName: usersTable.firstName,
+    userLastName: usersTable.lastName,
     userEmail: usersTable.email,
   }).from(paymentRequestsTable)
     .innerJoin(usersTable, eq(usersTable.id, paymentRequestsTable.userId))
