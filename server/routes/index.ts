@@ -32,7 +32,7 @@ import paymentsRouter from "./payments.js";
 import excelInjectionRouter from "./excel-injection.js";
 import pedagogyRouter from "./pedagogy.js";
 import assessmentsRouter from "./assessments.js";
-import { requirePaidPlan } from "../middlewares/planAccess.js";
+import { requirePaidPlan, requireProPlan } from "../middlewares/planAccess.js";
 import { memberPermissionMiddleware } from "../middlewares/memberPermissions.js";
 import smsRouter from "./sms.js";
 import whatsappRouter from "./whatsapp.js";
@@ -71,13 +71,16 @@ router.use(ocrReviewRouter);
 router.use(membersRouter);
 router.use(auditLogsRouter);
 router.use(timetableRouter);
-router.use(examOperationsRouter);
-router.use(fetRouter);
-router.use(rgfRouter);
-router.use(censusRouter);
 router.use(aiSettingsRouter);
 router.use(excelInjectionRouter);
 router.use(pedagogyRouter);
 router.use(assessmentsRouter);
+// Pro-only (3000 DA) premium features: exams management + official exam reports,
+// FET timetable import, RGF annual report, and the comprehensive census.
+router.use(requireProPlan);
+router.use(examOperationsRouter);
+router.use(fetRouter);
+router.use(rgfRouter);
+router.use(censusRouter);
 
 export default router;

@@ -1,15 +1,16 @@
 import { Router, type Request, type Response } from "express";
-import { desc, eq } from "drizzle-orm";
-import { db, paymentsTable, schoolInfoTable, usersTable } from "../../shared/db.js";
+import { desc, eq, and } from "drizzle-orm";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import crypto from "crypto";
+import { db, paymentsTable, paymentRequestsTable, schoolInfoTable, usersTable } from "../../shared/db.js";
+import { CCP_ACCOUNT, PAID_PLAN_PRICES_DZD, STAFF_PLAN, STAFF_PLAN_PRICE_DZD, PARENT_PLAN, PARENT_PLAN_PRICE_DZD } from "../../shared/subscription.js";
 import { isSchoolStage } from "../../shared/school-stage.js";
 import { generateActivationBatch, redeemActivationCode } from "../services/activationCodeService.js";
 import { activateFreePlan, activatePaidPlanTrial, completeDemoPayment, createDemoCheckout, createChargilyCheckout, settleChargilyPayment, verifyChargilySignature, verifyChargilyCheckout } from "../services/paymentService.js";
 import { PAID_PLAN_PRICES_DZD } from "../../shared/subscription.js";
 import {
-  STAFF_PLAN,
-  STAFF_PLAN_PRICE_DZD,
-  PARENT_PLAN,
-  PARENT_PLAN_PRICE_DZD,
   hasOwnStaffSubscription,
 } from "../middlewares/staffAccess.js";
 
@@ -329,6 +330,181 @@ router.post("/payments/chargily/webhook", async (req, res): Promise<void> => {
   });
   req.log?.info?.({ eventType: event.type, checkoutId: checkout.id, ...result }, "Chargily webhook processed");
   res.json({ received: true, ...result });
+});
+
+// ─── Manual CCP payments ──────────────────────────────────────────────────────
+// The customer transfers to the CCP account, then submits a request with the
+// receipt photo + an email or Facebook contact. An admin reviews and activates
+// the chosen plan (basic 2000 / pro 3000) for one year.
+
+const RECEIPTS_DIR = path.resolve(process.cwd(), "server", "uploads", "receipts");
+fs.mkdirSync(RECEIPTS_DIR, { recursive: true });
+
+const receiptUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, RECEIPTS_DIR),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+      cb(null, `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`);
+    },
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /image\//.test(file.mimetype) || /\.(jpe?g|png|webp|heic)$/i.test(file.originalname);
+    cb(ok ? null : new Error("يجب أن يكون الملف صورة"), ok);
+  },
+});
+
+const SCHOOL_PLANS = ["basic", "pro"] as const;
+
+function ccpAmount(plan: string): number | null {
+  if ((SCHOOL_PLANS as readonly string[]).includes(plan)) return PAID_PLAN_PRICES_DZD[plan as "basic" | "pro"];
+  if (plan === STAFF_PLAN) return STAFF_PLAN_PRICE_DZD;
+  if (plan === PARENT_PLAN) return PARENT_PLAN_PRICE_DZD;
+  return null;
+}
+
+// POST /api/payments/ccp/request — submit a manual CCP payment request (multipart).
+router.post("/payments/ccp/request", receiptUpload.single("receipt"), async (req, res): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const plan = String(req.body?.plan ?? "");
+  const amountDzd = ccpAmount(plan);
+  if (!amountDzd) { res.status(400).json({ error: "اختر باقة صحيحة" }); return; }
+
+  const contactEmail = String(req.body?.contactEmail ?? "").trim().slice(0, 255) || null;
+  const contactFacebook = String(req.body?.contactFacebook ?? "").trim().slice(0, 255) || null;
+  if (!contactEmail && !contactFacebook) {
+    res.status(400).json({ error: "أدخل بريدك الإلكتروني أو حسابك على فيسبوك للتواصل" });
+    return;
+  }
+  const receipt = (req as Request & { file?: Express.Multer.File }).file;
+  if (!receipt) { res.status(400).json({ error: "أرفق صورة وصل الدفع (CCP)" }); return; }
+
+  // A school account may only request school plans; staff/parent their own plans.
+  const options = await purchaseOptions(req);
+  if (!options.some(o => o.plan === plan)) {
+    res.status(403).json({ error: "هذه الباقة غير متاحة لهذا الحساب" });
+    return;
+  }
+
+  const [existing] = await db.select({ id: paymentRequestsTable.id }).from(paymentRequestsTable)
+    .where(and(eq(paymentRequestsTable.userId, req.user!.id), eq(paymentRequestsTable.status, "pending"))).limit(1);
+  if (existing) { res.status(409).json({ error: "لديك طلب دفع قيد المراجعة بالفعل" }); return; }
+
+  const [request] = await db.insert(paymentRequestsTable).values({
+    userId: req.user!.id,
+    plan,
+    amountDzd,
+    contactEmail,
+    contactFacebook,
+    receiptPath: receipt.filename,
+    status: "pending",
+  }).returning();
+
+  res.status(201).json({ success: true, id: request!.id, status: "pending", ccpAccount: CCP_ACCOUNT });
+});
+
+// GET /api/payments/ccp/mine — the caller's own CCP requests.
+router.get("/payments/ccp/mine", async (req, res): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const rows = await db.select({
+    id: paymentRequestsTable.id,
+    plan: paymentRequestsTable.plan,
+    amountDzd: paymentRequestsTable.amountDzd,
+    status: paymentRequestsTable.status,
+    reviewNote: paymentRequestsTable.reviewNote,
+    createdAt: paymentRequestsTable.createdAt,
+    reviewedAt: paymentRequestsTable.reviewedAt,
+  }).from(paymentRequestsTable)
+    .where(eq(paymentRequestsTable.userId, req.user!.id))
+    .orderBy(desc(paymentRequestsTable.createdAt))
+    .limit(10);
+  res.json({ ccpAccount: CCP_ACCOUNT, requests: rows });
+});
+
+// GET /api/payments/ccp/receipt/:id — serve the receipt image to its owner or an admin.
+router.get("/payments/ccp/receipt/:id", async (req, res): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const [row] = await db.select().from(paymentRequestsTable).where(eq(paymentRequestsTable.id, String(req.params.id))).limit(1);
+  if (!row?.receiptPath) { res.status(404).json({ error: "Not found" }); return; }
+  if (row.userId !== req.user!.id && req.user!.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
+  const filePath = path.join(RECEIPTS_DIR, path.basename(row.receiptPath));
+  if (!fs.existsSync(filePath)) { res.status(404).json({ error: "Receipt file missing" }); return; }
+  res.sendFile(filePath);
+});
+
+// GET /api/payments/ccp/admin/requests — admin list of pending/all requests.
+router.get("/payments/ccp/admin/requests", async (req, res): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+  const status = typeof req.query.status === "string" ? req.query.status : "pending";
+  const rows = await db.select({
+    id: paymentRequestsTable.id,
+    userId: paymentRequestsTable.userId,
+    plan: paymentRequestsTable.plan,
+    amountDzd: paymentRequestsTable.amountDzd,
+    contactEmail: paymentRequestsTable.contactEmail,
+    contactFacebook: paymentRequestsTable.contactFacebook,
+    status: paymentRequestsTable.status,
+    reviewNote: paymentRequestsTable.reviewNote,
+    createdAt: paymentRequestsTable.createdAt,
+    reviewedAt: paymentRequestsTable.reviewedAt,
+    userName: usersTable.name,
+    userEmail: usersTable.email,
+  }).from(paymentRequestsTable)
+    .innerJoin(usersTable, eq(usersTable.id, paymentRequestsTable.userId))
+    .where(status === "all" ? undefined : eq(paymentRequestsTable.status, status as any))
+    .orderBy(desc(paymentRequestsTable.createdAt))
+    .limit(200);
+  res.json({ requests: rows });
+});
+
+// POST /api/payments/ccp/admin/review — approve (activates plan +1 year) or reject.
+router.post("/payments/ccp/admin/review", async (req, res): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+  const id = String(req.body?.id ?? "");
+  const action = String(req.body?.action ?? "");
+  const note = typeof req.body?.note === "string" ? req.body.note.slice(0, 500) : null;
+  if (!id || (action !== "approve" && action !== "reject")) {
+    res.status(400).json({ error: "id and action (approve|reject) are required" });
+    return;
+  }
+
+  const [row] = await db.select().from(paymentRequestsTable).where(eq(paymentRequestsTable.id, id)).limit(1);
+  if (!row) { res.status(404).json({ error: "Request not found" }); return; }
+  if (row.status !== "pending") { res.status(409).json({ error: "Request already reviewed" }); return; }
+
+  if (action === "reject") {
+    await db.update(paymentRequestsTable).set({
+      status: "rejected", reviewNote: note, reviewedBy: req.user!.id, reviewedAt: new Date(),
+    }).where(eq(paymentRequestsTable.id, id));
+    res.json({ success: true, status: "rejected" });
+    return;
+  }
+
+  // Approve: activate the requested plan for one year (extends an active plan).
+  const now = new Date();
+  const [user] = await db.select({
+    subscriptionPlan: usersTable.subscriptionPlan,
+    subscriptionStatus: usersTable.subscriptionStatus,
+    subscriptionExpiresAt: usersTable.subscriptionExpiresAt,
+  }).from(usersTable).where(eq(usersTable.id, row.userId)).limit(1);
+  const currentExpiry = user?.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt) : null;
+  const base = currentExpiry && currentExpiry.getTime() > now.getTime() ? currentExpiry : now;
+  const expiresAt = new Date(base.getTime());
+  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+  await db.update(usersTable).set({
+    subscriptionPlan: row.plan,
+    subscriptionStatus: "active",
+    subscriptionExpiresAt: expiresAt,
+    updatedAt: now,
+  }).where(eq(usersTable.id, row.userId));
+
+  await db.update(paymentRequestsTable).set({
+    status: "approved", reviewNote: note, reviewedBy: req.user!.id, reviewedAt: now,
+  }).where(eq(paymentRequestsTable.id, id));
+
+  res.json({ success: true, status: "approved", plan: row.plan, expiresAt: expiresAt.toISOString() });
 });
 
 export default router;

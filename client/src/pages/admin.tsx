@@ -33,6 +33,77 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
   suspended: { label: "موقوف", color: "text-red-500",     icon: XCircle },
 };
 
+// ── CCP Payment Requests Review ───────────────────────────────────────────────
+interface CcpRequest {
+  id: string; userId: string; plan: string; amountDzd: number;
+  contactEmail: string | null; contactFacebook: string | null;
+  status: string; reviewNote: string | null; createdAt: string;
+  userName: string | null; userEmail: string | null;
+}
+
+function CcpRequestsCard() {
+  const [requests, setRequests] = useState<CcpRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = async () => {
+    try {
+      const res = await fetch(`${BASE}api/payments/ccp/admin/requests?status=pending`, { credentials: "include" });
+      if (res.ok) {
+        const data = (await res.json()) as { requests?: CcpRequest[] };
+        setRequests(data.requests ?? []);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+  useEffect(() => { void load(); }, []);
+
+  const review = async (id: string, action: "approve" | "reject") => {
+    setBusy(id);
+    try {
+      const res = await fetch(`${BASE}api/payments/ccp/admin/review`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      if (res.ok) await load();
+    } finally { setBusy(null); }
+  };
+
+  return (
+    <Card className="border-0 shadow-md overflow-hidden md:col-span-2">
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-700 p-4">
+        <h2 className="text-white font-bold text-sm">طلبات الدفع عبر CCP</h2>
+        <p className="text-white/65 text-xs">تحقق من صورة الوصل وفعّل الباقة المختارة (Basic 2000 / Pro 3000)</p>
+      </div>
+      <CardContent className="pt-4 pb-4 space-y-3">
+        {loading ? (
+          <p className="text-xs text-muted-foreground text-center py-3">جارٍ التحميل…</p>
+        ) : requests.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-3">لا توجد طلبات معلّقة</p>
+        ) : (
+          requests.map(r => (
+            <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
+              <div className="space-y-1">
+                <p className="text-sm font-bold">
+                  {r.userName ?? r.userEmail ?? r.userId} — {r.plan === "pro" ? "Pro" : r.plan === "basic" ? "Basic" : r.plan} ({r.amountDzd.toLocaleString("en-US")} دج)
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {r.contactEmail ?? r.contactFacebook ?? "—"} · {new Date(r.createdAt).toLocaleString("ar-DZ")}
+                </p>
+                <a className="text-xs text-blue-600 hover:underline" href={`${BASE}api/payments/ccp/receipt/${r.id}`} target="_blank" rel="noreferrer">عرض الوصل</a>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" disabled={busy === r.id} onClick={() => void review(r.id, "approve")}>موافقة وتفعيل</Button>
+                <Button size="sm" variant="outline" className="text-red-600 border-red-200" disabled={busy === r.id} onClick={() => void review(r.id, "reject")}>رفض</Button>
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Bulk Import Card ──────────────────────────────────────────────────────────
 const YEARS = ["2023-2024", "2024-2025", "2025-2026", "2026-2027"];
 
@@ -226,6 +297,7 @@ export default function AdminPage() {
       {/* Bulk Import + Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <BulkImportCard />
+        <CcpRequestsCard />
         <Card className="border-0 shadow-md overflow-hidden">
           <div className="bg-gradient-to-br from-rose-500 to-red-700 p-4">
             <div className="flex items-center gap-2 mb-1">

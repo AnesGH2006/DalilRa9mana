@@ -666,6 +666,31 @@ export const paymentsTable = pgTable("payments", {
 
 export type Payment = typeof paymentsTable.$inferSelect;
 export type InsertPayment = typeof paymentsTable.$inferInsert;
+
+// Manual CCP payment requests: user transfers to the CCP account, uploads the
+// receipt photo + a contact (email or Facebook), an admin reviews and activates.
+export const paymentRequestStatusEnum = pgEnum("payment_request_status", ["pending", "approved", "rejected"]);
+
+export const paymentRequestsTable = pgTable("payment_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  plan: varchar("plan", { length: 20 }).notNull(), // basic | pro | staff | parent
+  amountDzd: integer("amount_dzd").notNull(),
+  contactEmail: varchar("contact_email", { length: 255 }),
+  contactFacebook: varchar("contact_facebook", { length: 255 }),
+  receiptPath: varchar("receipt_path", { length: 500 }),
+  status: paymentRequestStatusEnum("status").notNull().default("pending"),
+  reviewNote: text("review_note"),
+  reviewedBy: varchar("reviewed_by").references(() => usersTable.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("IDX_payment_requests_user").on(table.userId, table.createdAt),
+  index("IDX_payment_requests_status").on(table.status),
+]);
+
+export type PaymentRequest = typeof paymentRequestsTable.$inferSelect;
+export type InsertPaymentRequest = typeof paymentRequestsTable.$inferInsert;
 export const studentDocumentsTable = pgTable("student_documents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),

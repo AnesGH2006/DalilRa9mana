@@ -17,6 +17,9 @@ type Me = {
   prices: { school: Record<string, number>; staff: number; parent: number };
 };
 type Persona = "school" | "staff" | "parent";
+type CcpRequest = { id: string; plan: string; amountDzd: number; status: string; reviewNote: string | null; createdAt: string; reviewedAt: string | null };
+
+const CCP_ACCOUNT = "0001538792";
 
 const COLORS = {
   free: "#64748b",
@@ -30,6 +33,20 @@ const SCHOOL_PLAN_LABEL: Record<string, string> = { basic: "الخطة القي�
 
 const FEATURES = {
   free: ["حتى 50 تلميذاً", "تسجيل الحضور والغياب الأساسي", "إدخال النقاط والنتائج", "لوحة التحكم المبسطة"],
+  basic: [
+    "كل ميزات الباقة المجانية بدون حدود عملية",
+    "OCR للدرجات والغيابات + تصدير Excel",
+    "لوحة القيادة والتحليلات المتقدمة",
+    "إدارة التلاميذ والغيابات والاتصال",
+    "الاشتراك والتفعيل لكل أعضاء المؤسسة",
+  ],
+  pro: [
+    "كل ميزات الباقة الأساسية (2000 دج)",
+    "الإحصاء الشامل للمؤسسة (Census)",
+    "التقارير الرسمية للاختبارات وقوائم التفويج",
+    "استيراد الجداول من FET",
+    "التقرير العام للسير السنوي (RGF)",
+  ],
   parent: [
     "متابعة علامات ونتائج الأبناء",
     "استعمال الزمن ومواعيد الانصراف اليومية",
@@ -68,22 +85,23 @@ const PERSONAS: Array<{ id: Persona; label: string; icon: string }> = [
 
 const TRUST = [
   { icon: "🔒", text: "دفع آمن عبر Chargily" },
-  { icon: "💳", text: "بطاقة CIB أو الذهبية" },
-  { icon: "⚡", text: "تفعيل فوري بعد التأكيد" },
+  { icon: "🏦", text: "أو حوالة CCP: 0001538792" },
+  { icon: "⚡", text: "تفعيل بعد مراجعة الوصل" },
   { icon: "🧾", text: "سنة كاملة بدون تجديد تلقائي" },
 ];
 
 const STEPS = [
   { n: "1", text: "اختر الباقة المناسبة لدورك في المؤسسة" },
-  { n: "2", text: "أتمّ الدفع الآمن بالبطاقة الذهبية / CIB" },
-  { n: "3", text: "تُفعَّل الميزات الاحترافية لحسابك فوراً" },
+  { n: "2", text: "ادفع بالبطاقة عبر Chargily أو حوّل إلى CCP وأرسل صورة الوصل" },
+  { n: "3", text: "تُفعَّل ميزاتك بعد تأكيد الدفع" },
 ];
 
 const FAQ = [
-  { q: "متى يتفعّل اشتراكي؟", a: "فور تأكيد الدفع، وغالباً خلال ثوانٍ. ستنتقل تلقائياً إلى الصفحة المناسبة لحسابك." },
+  { q: "كيف أدفع عبر CCP؟", a: `حوّل المبلغ إلى الحساب البريدي 0001538792، ثم أرسل صورة الوصل مع بريدك الإلكتروني أو حسابك على فيسبوك من صفحة الدفع. سيفعّلها المشرف خلال مراجعة الطلب.` },
+  { q: "متى يتفعّل اشتراكي؟", a: "فور تأكيد الدفع عبر Chargily، أو خلال مراجعة طلب CCP (عادة خلال 24 ساعة)." },
   { q: "خُصم المبلغ ولم يتفعّل اشتراكي، ماذا أفعل؟", a: "لا تدفع مرة ثانية. انتظر بضع دقائق ثم حدّث الصفحة، وإن استمر الأمر فتواصل مع الدعم وأرسل رقم العملية الظاهر في عنوان صفحة العودة." },
   { q: "هل يُجدَّد الاشتراك تلقائياً؟", a: "لا. الاشتراك لسنة واحدة، ولن يُخصم منك أي مبلغ آخر دون أن تدفع بنفسك." },
-  { q: "هل تحفظون بيانات بطاقتي؟", a: "لا. تتم عملية الدفع كاملة على صفحة Chargily الآمنة، ولا تصلنا بيانات البطاقة." },
+  { q: "ما الفرق بين Basic و Pro؟", a: "Basic (2000 دج) يشمل كل الميزات ما عدا: الإحصاء الشامل، التقارير الرسمية للاختبارات، FET، والتقرير العام RGF. Pro (3000 دج) يشملها جميعاً." },
 ];
 
 const STYLE = `
@@ -197,6 +215,13 @@ export default function PaywallScreen() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [persona, setPersona] = useState<Persona>("school");
+  const [ccpOpen, setCcpOpen] = useState(false);
+  const [ccpPlan, setCcpPlan] = useState("");
+  const [ccpEmail, setCcpEmail] = useState("");
+  const [ccpFacebook, setCcpFacebook] = useState("");
+  const [ccpReceipt, setCcpReceipt] = useState<File | null>(null);
+  const [ccpBusy, setCcpBusy] = useState(false);
+  const [ccpDone, setCcpDone] = useState<CcpRequest[]>([]);
   const { stage, stageConfigured, stageLoading, stageSaving, stageError, chooseStage } = useSchoolStage();
 
   const load = useCallback(async () => {
@@ -216,7 +241,61 @@ export default function PaywallScreen() {
 
   useEffect(() => {
     void load();
+    void (async () => {
+      try {
+        const res = await fetch(`${BASE}api/payments/ccp/mine`, { credentials: "include" });
+        if (res.ok) {
+          const data = (await res.json()) as { requests?: CcpRequest[] };
+          setCcpDone(data.requests ?? []);
+        }
+      } catch { /* ignore */ }
+    })();
   }, [load]);
+
+  function openCcp(plan: string) {
+    setCcpPlan(plan);
+    setCcpEmail("");
+    setCcpFacebook("");
+    setCcpReceipt(null);
+    setError("");
+    setCcpOpen(true);
+  }
+
+  async function submitCcpRequest() {
+    if (!ccpPlan || (!ccpEmail.trim() && !ccpFacebook.trim()) || !ccpReceipt) {
+      setError("اختر الباقة، أدخل بريدك أو فيسبوك، وأرفق صورة الوصل");
+      return;
+    }
+    setCcpBusy(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.set("plan", ccpPlan);
+      if (ccpEmail.trim()) fd.set("contactEmail", ccpEmail.trim());
+      if (ccpFacebook.trim()) fd.set("contactFacebook", ccpFacebook.trim());
+      fd.set("receipt", ccpReceipt);
+      const res = await fetch(`${BASE}api/payments/ccp/request`, {
+        method: "POST", credentials: "include", body: fd,
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "تعذر إرسال الطلب");
+      setCcpOpen(false);
+      setNotice(`تم إرسال طلب الدفع عبر CCP (${ccpPlan === "pro" ? "Pro" : "Basic"}) — ستتم مراجعته وتفعيل الباقة بعد التحقق من الوصل.`);
+      void (async () => {
+        try {
+          const r = await fetch(`${BASE}api/payments/ccp/mine`, { credentials: "include" });
+          if (r.ok) {
+            const d = (await r.json()) as { requests?: CcpRequest[] };
+            setCcpDone(d.requests ?? []);
+          }
+        } catch { /* ignore */ }
+      })();
+    } catch (e: any) {
+      setError(e?.message ?? "تعذر إرسال الطلب");
+    } finally {
+      setCcpBusy(false);
+    }
+  }
 
   async function chooseInstitutionStage(nextStage: SchoolStage) {
     if (await chooseStage(nextStage)) await load();
@@ -469,23 +548,37 @@ export default function PaywallScreen() {
               features={FEATURES.school}
               footer={
                 schoolOptions.length > 0 ? (
-                  schoolOptions.map(option => (
-                    <div key={option.plan} style={{ display: "grid", gap: 8 }}>
-                      <button type="button" className="pw-btn" disabled={busy || trialBusy !== null || !stageReady || stageSaving} onClick={() => void pay(option.amountDzd)}>
-                        {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : `الدفع عبر Chargily${schoolOptions.length > 1 ? ` · ${option.amountDzd.toLocaleString("en-US")} دج` : ""}`}
-                      </button>
-                      {me?.trialAvailable && (option.plan === "basic" || option.plan === "pro") && (
+                  <>
+                    <div className="pw-note" style={{ textAlign: "right" }}>
+                      <b>Basic (2000 دج):</b> كل الميزات ما عدا الإحصاء الشامل، التقارير الرسمية للاختبارات، FET، RGF.
+                      <br /><b>Pro (3000 دج):</b> كل شيء بدون استثناء.
+                    </div>
+                    {schoolOptions.map(option => (
+                      <div key={option.plan} style={{ display: "grid", gap: 8 }}>
+                        <button type="button" className="pw-btn" disabled={busy || trialBusy !== null || !stageReady || stageSaving} onClick={() => void pay(option.amountDzd)}>
+                          {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : `الدفع عبر Chargily${schoolOptions.length > 1 ? ` · ${option.amountDzd.toLocaleString("en-US")} دج` : ""}`}
+                        </button>
                         <button
                           type="button"
-                          className="pw-btn pw-trial"
-                          disabled={busy || trialBusy !== null || !stageReady || stageSaving}
-                          onClick={() => void startTrial(option.plan === "basic" ? "basic" : "pro")}
+                          className="pw-btn pw-btn-outline"
+                          disabled={!stageReady || stageSaving}
+                          onClick={() => openCcp(option.plan)}
                         >
-                          {trialBusy === option.plan ? "جارٍ تفعيل التجربة…" : `جرّب ${option.plan === "basic" ? "الأساسية" : "المتقدمة"} مجاناً لمدة شهر`}
+                          🏦 دفع عبر CCP · {option.amountDzd.toLocaleString("en-US")} دج
                         </button>
-                      )}
-                    </div>
-                  ))
+                        {me?.trialAvailable && (option.plan === "basic" || option.plan === "pro") && (
+                          <button
+                            type="button"
+                            className="pw-btn pw-trial"
+                            disabled={busy || trialBusy !== null || !stageReady || stageSaving}
+                            onClick={() => void startTrial(option.plan === "basic" ? "basic" : "pro")}
+                          >
+                            {trialBusy === option.plan ? "جارٍ تفعيل التجربة…" : `جرّب ${option.plan === "basic" ? "الأساسية" : "المتقدمة"} مجاناً لمدة شهر`}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </>
                 ) : (
                   <button type="button" className="pw-btn" disabled>غير متاحة لهذا الحساب</button>
                 )
@@ -501,6 +594,30 @@ export default function PaywallScreen() {
               footer={<button type="button" className="pw-btn pw-btn-outline" onClick={contactUs}>تواصل معنا</button>}
             />
           </div>
+        )}
+
+        {ccpDone.length > 0 && (
+          <section className="pw-section">
+            <h2>طلبات الدفع عبر CCP</h2>
+            <div style={{ display: "grid", gap: 10 }}>
+              {ccpDone.map(r => (
+                <div key={r.id} className="pw-step" style={{ justifyContent: "space-between" }}>
+                  <span>
+                    <b>{r.plan === "pro" ? "Pro" : r.plan === "basic" ? "Basic" : r.plan}</b>
+                    {" · "}{r.amountDzd.toLocaleString("en-US")} دج
+                    {" · "}{new Date(r.createdAt).toLocaleDateString("ar-DZ")}
+                  </span>
+                  <span style={{
+                    fontSize: 12, fontWeight: 700, borderRadius: 999, padding: "3px 10px",
+                    background: r.status === "approved" ? "rgba(16,185,129,.15)" : r.status === "rejected" ? "rgba(239,68,68,.15)" : "rgba(245,158,11,.15)",
+                    color: r.status === "approved" ? "#6ee7b7" : r.status === "rejected" ? "#fca5a5" : "#fcd34d",
+                  }}>
+                    {r.status === "approved" ? "مفعّلة" : r.status === "rejected" ? "مرفوضة" : "قيد المراجعة"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         <section className="pw-section">
@@ -522,6 +639,66 @@ export default function PaywallScreen() {
           ))}
         </section>
       </div>
+
+      {ccpOpen && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(4,8,20,.72)", backdropFilter: "blur(4px)", padding: 16,
+        }} onClick={() => !ccpBusy && setCcpOpen(false)}>
+          <div dir="rtl" onClick={e => e.stopPropagation()} style={{
+            width: "100%", maxWidth: 460, borderRadius: 20, padding: "26px 24px",
+            background: "linear-gradient(180deg,#16203f,#0d132a)", border: "1.5px solid rgba(255,255,255,.12)",
+            color: "#e6e9f2", boxShadow: "0 24px 60px rgba(0,0,0,.5)",
+          }}>
+            <h3 style={{ margin: "0 0 6px", fontSize: 19, fontWeight: 800 }}>الدفع عبر الحساب البريدي CCP</h3>
+            <p style={{ margin: "0 0 16px", color: "#9aa6c4", fontSize: 13.5, lineHeight: 1.7 }}>
+              حوّل المبلغ إلى CCP: <b style={{ color: "#fff", letterSpacing: 1 }}>{CCP_ACCOUNT}</b>،
+              ثم أرسل صورة الوصل مع وسيلة تواصل ليتم تفعيل الباقة بعد المراجعة.
+            </p>
+            <div style={{ display: "grid", gap: 12 }}>
+              <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
+                <span>الباقة</span>
+                <select value={ccpPlan} onChange={e => setCcpPlan(e.target.value)} style={inputStyle}>
+                  <option value="">اختر الباقة…</option>
+                  {schoolOptions.map(o => (
+                    <option key={o.plan} value={o.plan}>{o.plan === "pro" ? "Pro" : "Basic"} — {o.amountDzd.toLocaleString("en-US")} دج/سنة</option>
+                  ))}
+                  {staffOption && <option value="staff">الأستاذ/المشرف — {staffOption.amountDzd.toLocaleString("en-US")} دج/سنة</option>}
+                  {parentOption && <option value="parent">ولي الأمر — {parentOption.amountDzd.toLocaleString("en-US")} دج/سنة</option>}
+                </select>
+              </label>
+              <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
+                <span>البريد الإلكتروني</span>
+                <input type="email" value={ccpEmail} onChange={e => setCcpEmail(e.target.value)} placeholder="you@example.com" style={inputStyle} />
+              </label>
+              <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
+                <span>أو حساب فيسبوك</span>
+                <input value={ccpFacebook} onChange={e => setCcpFacebook(e.target.value)} placeholder="facebook.com/yourname" style={inputStyle} />
+              </label>
+              <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
+                <span>صورة وصل الدفع (CCP)</span>
+                <input type="file" accept="image/*" onChange={e => setCcpReceipt(e.target.files?.[0] ?? null)} style={{ fontSize: 12.5, color: "#cbd5e6" }} />
+              </label>
+            </div>
+            {error && <p style={{ color: "#fca5a5", fontSize: 13, margin: "12px 0 0" }}>{error}</p>}
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <button type="button" onClick={() => void submitCcpRequest()} disabled={ccpBusy}
+                style={{ flex: 1, border: 0, borderRadius: 12, padding: "12px 14px", fontWeight: 700, fontSize: 14, cursor: ccpBusy ? "wait" : "pointer", background: "linear-gradient(135deg,#059669,#10b981)", color: "#fff" }}>
+                {ccpBusy ? "جارٍ الإرسال…" : "إرسال طلب الدفع"}
+              </button>
+              <button type="button" onClick={() => setCcpOpen(false)} disabled={ccpBusy}
+                style={{ border: "1.5px solid rgba(255,255,255,.2)", borderRadius: 12, padding: "12px 14px", fontWeight: 700, fontSize: 14, cursor: "pointer", background: "transparent", color: "#cbd5e6" }}>
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const inputStyle: CSSProperties = {
+  borderRadius: 10, border: "1.5px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.05)",
+  color: "#e6e9f2", padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", outline: "none",
+};

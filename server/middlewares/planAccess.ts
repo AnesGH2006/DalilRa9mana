@@ -1,5 +1,45 @@
 import type { Request, Response, NextFunction } from "express";
 import { hasOwnStaffSubscription } from "./staffAccess.js";
+import { PRO_ONLY_PREFIXES } from "../../shared/subscription.js";
+
+/**
+ * Pro-plan gate for premium school features (census, exam reports, FET, RGF).
+ * Basic (2000 DA) does NOT include them; Pro (3000 DA) does.
+ * Admins always pass; school members inherit the owner's plan.
+ */
+export function requireProPlan(req: Request, res: Response, next: NextFunction): void {
+  if (req.user?.role === "admin") { next(); return; }
+
+  const member = req.memberContext;
+  let plan: string | undefined;
+  let status: string | undefined;
+  let expiresAt: string | Date | null | undefined;
+
+  if (member) {
+    plan = member.schoolSubscriptionPlan;
+    status = member.schoolSubscriptionStatus;
+    expiresAt = member.schoolSubscriptionExpiresAt;
+  } else if (req.user) {
+    plan = String(req.user.subscriptionPlan ?? "");
+    status = String(req.user.subscriptionStatus ?? "");
+    expiresAt = req.user.subscriptionExpiresAt as any;
+  }
+
+  const unexpired = !expiresAt || new Date(expiresAt).getTime() > Date.now();
+  if (plan === "pro" && status === "active" && unexpired) { next(); return; }
+
+  res.status(403).json({
+    error: "هذه الميزة تتطلب باقة Pro (3000 دج/سنة)",
+    requiredPlan: "pro",
+    priceDzd: 3000,
+    proOnlyPrefixes: [...PRO_ONLY_PREFIXES],
+  });
+}
+
+/** True when the request path targets a Pro-only feature. */
+export function isProOnlyPath(path: string): boolean {
+  return PRO_ONLY_PREFIXES.some(prefix => path === prefix || path.startsWith(`${prefix}/`) || path.startsWith(prefix));
+}
 
 const FREE_TIER_PATHS = [
   /^\/school(?:\/|$)/,
