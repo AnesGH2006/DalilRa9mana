@@ -135,6 +135,7 @@ async function probeDb(attempt = 1): Promise<void> {
       )
     `);
     await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS filiere varchar(30)`);
+    await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS internat varchar(20)`);
     await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS raqm integer`);
     await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS parent_phone varchar(30)`);
     await db.execute(sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS qr_token varchar(64)`);

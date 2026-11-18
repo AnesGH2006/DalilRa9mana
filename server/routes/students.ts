@@ -13,7 +13,7 @@ import type { SchoolLevel } from "../../shared/school-stage.js";
 import { FREE_STUDENT_LIMIT } from "../../shared/subscription.js";
 import { getSchoolLevelsForRequest, getSchoolStageForRequest } from "../config/school-stage.js";
 import { SCHOOL_STAGE_LEVELS, type SchoolStage } from "../../shared/school-stage.js";
-import { normalizeLyceeFiliere } from "../../shared/subjects.js";
+import { normalizeLyceeFiliere, LYCEE_FILIERE_LABELS } from "../../shared/subjects.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -141,6 +141,7 @@ const RESULT_N = ["نتيجه","نتيجة","résultat","resultat","result","men
 const RAQM_N  = ["رقم القيد","رقم التلميذ","رقم الفوج","رقم المتعلم","no","n°","numero","numéro","#"];
 const PHONE_N = ["رقم هاتف الولي","هاتف الولي","هاتف ولي الأمر","رقم الهاتف","الهاتف","phone","tel","telephone","téléphone","mobile","gsm","portable","contact"];
 const FILIERE_N = ["الشعبة","شعبة","filiere","filière","stream","specialite","spécialité"];
+const INTERNAT_N = ["نظام التمدرس","نظام","internat","boarder"," pension","داخلي","خارجي"];
 
 // ─── Column detector ──────────────────────────────────────────────────────────
 function findCol(headers: string[], needles: string[]): string | null {
@@ -240,6 +241,16 @@ function normalizeStatut(val: string): "nouveau" | "redoublant" {
   return "nouveau";
 }
 
+// نظام التمدرس: داخلي / نصف داخلي / خارجي (internat)
+export function normalizeInternat(val: string): "داخلي" | "نصف داخلي" | "خارجي" | null {
+  const v = norm(String(val ?? ""));
+  if (!v) return null;
+  if (/نصف|نص\s*داخلي|demi|semi/.test(v)) return "نصف داخلي";
+  if (/داخلي|interne|board|pension/.test(v)) return "داخلي";
+  if (/خارجي|externe|day|externe/.test(v)) return "خارجي";
+  return null;
+}
+
 function normalizeResultat(val: string): "admis" | "non_admis" | "mustarrak" | null {
   if (!val) return null;
   const v = norm(val);
@@ -298,6 +309,7 @@ function processRows(
   const colRaqm   = findCol(headerCells, RAQM_N);   // ✅ now correctly picks "رقم القيد"
   const colPhone  = findCol(headerCells, PHONE_N);   // رقم هاتف الولي
   const colFiliere = findCol(headerCells, FILIERE_N);
+  const colInternat = findCol(headerCells, INTERNAT_N);
 
   // A combined "الاسم واللقب" header contains both keywords, so fuzzy
   // detection returns the same column for nom and prenom. Use it as one name.
@@ -375,6 +387,7 @@ function processRows(
     const dateNaissance = cellStr(row, colBirth) || null;
     const statut  = normalizeStatut(cellStr(row, colStatus));
     const resultat = normalizeResultat(cellStr(row, colResult));
+    const internat = normalizeInternat(cellStr(row, colInternat));
     const rawFiliere = cellStr(row, colFiliere);
     const filiere = rawFiliere && stage === "lycee"
       ? normalizeLyceeFiliere(rawFiliere, niveauFinal)
@@ -395,7 +408,7 @@ function processRows(
       userId, nomPrenom, dateNaissance,
       niveau: niveauFinal, classe: classeRaw,
       filiere: stage === "lycee" ? filiere : null,
-      sexe, statut, resultat, annee, raqm, parentPhone,
+      sexe, statut, resultat, annee, raqm, parentPhone, internat,
     });
   }
 
@@ -454,13 +467,18 @@ router.get("/students/:id", async (req, res): Promise<void> => {
 router.get("/students", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const userId = req.user!.id;
-  const { annee, niveau, classe, sexe, statut, q, filiere } = req.query as Record<string, string>;
+  const { annee, niveau, classe, sexe, statut, q, filiere, internat } = req.query as Record<string, string>;
   const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))];
   if (annee) conds.push(eq(studentsTable.annee, annee));
   if (niveau && NiveauEnum.safeParse(niveau).success) conds.push(eq(studentsTable.niveau, niveau as any));
   if (classe) conds.push(eq(studentsTable.classe, classe));
   if (sexe && SexeEnum.safeParse(sexe).success) conds.push(eq(studentsTable.sexe, sexe as any));
   if (statut && StatutEnum.safeParse(statut).success) conds.push(eq(studentsTable.statut, statut as any));
+  const normalizedInternat = internat ? normalizeInternat(internat) : null;
+  if (internat) {
+    if (!normalizedInternat) { res.status(400).json({ error: "نظام التمدرس غير صالح" }); return; }
+    conds.push(eq(studentsTable.internat, normalizedInternat));
+  }
   if (filiere) {
     const normalizedFiliere = niveau
       ? normalizeLyceeFiliere(filiere, niveau as SchoolLevel)
@@ -476,6 +494,80 @@ router.get("/students", async (req, res): Promise<void> => {
     .where(and(...conds))
     .orderBy(studentsTable.niveau, studentsTable.classe, studentsTable.raqm, studentsTable.nomPrenom);
   res.json(ListStudentsResponse.parse({ students, total: students.length }));
+});
+
+// ─── GET /export/eleve — official élève list (lycée template, 16 columns) ─────
+// Mirrors the Ministry "Eleve.xls" layout: NIN, nom, prénom, sexe, naissance,
+// filière, classe, نظام التمدرس, numéro de registre, date d'inscription.
+router.get("/export/eleve", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const userId = req.user!.id;
+  const { annee, niveau, classe, sexe, statut, q, filiere, internat } = req.query as Record<string, string>;
+  const conds = [eq(studentsTable.userId, userId), inArray(studentsTable.niveau, getSchoolLevelsForRequest(req))];
+  if (annee) conds.push(eq(studentsTable.annee, annee));
+  if (niveau && NiveauEnum.safeParse(niveau).success) conds.push(eq(studentsTable.niveau, niveau as any));
+  if (classe) conds.push(eq(studentsTable.classe, classe));
+  if (sexe && SexeEnum.safeParse(sexe).success) conds.push(eq(studentsTable.sexe, sexe as any));
+  if (statut && StatutEnum.safeParse(statut).success) conds.push(eq(studentsTable.statut, statut as any));
+  const normalizedInternat = internat ? normalizeInternat(internat) : null;
+  if (internat) {
+    if (!normalizedInternat) { res.status(400).json({ error: "نظام التمدرس غير صالح" }); return; }
+    conds.push(eq(studentsTable.internat, normalizedInternat));
+  }
+  if (filiere) {
+    const normalizedFiliere = normalizeLyceeFiliere(filiere, (niveau as SchoolLevel) || "2AS") ?? normalizeLyceeFiliere(filiere, "1AS");
+    if (normalizedFiliere) conds.push(eq(studentsTable.filiere, normalizedFiliere));
+  }
+  if (q) conds.push(ilike(studentsTable.nomPrenom, `%${q}%`));
+
+  const students = await db.select().from(studentsTable)
+    .where(and(...conds))
+    .orderBy(studentsTable.niveau, studentsTable.classe, studentsTable.raqm, studentsTable.nomPrenom);
+
+  const headers = [
+    "رقم التعريف", "اللقب", "الاسم", "الجنس", "تاريخ الازدياد",
+    "مولود بحكم", "عقد الميلاد", "سنة التسجيل في سجل الولادات", "رقم عقد الميلاد",
+    "مكان الازدياد", "السنة", "الشعبة", "القسم", "نظام التمدرس", "رقم القيد", "تاريخ التسجيل",
+  ];
+
+  const splitName = (full: string): [string, string] => {
+    const parts = String(full ?? "").trim().split(/\s+/).filter(Boolean);
+    if (parts.length <= 1) return ["", parts[0] ?? ""];
+    return [parts.slice(0, -1).join(" "), parts[parts.length - 1]!];
+  };
+  const birthYear = (dob: string | null): string => {
+    if (!dob) return "";
+    const m = dob.match(/(\d{4})/);
+    return m ? m[1]! : "";
+  };
+  const filiereLabel = (f: string | null): string =>
+    f ? (LYCEE_FILIERE_LABELS as Record<string, string>)[f] ?? f : "";
+
+  const rows = students.map(s => {
+    const [nom, prenom] = splitName(s.nomPrenom);
+    return [
+      "", nom, prenom,
+      s.sexe === "F" ? "أنثى" : "ذكر",
+      s.dateNaissance ?? "",
+      "", "", birthYear(s.dateNaissance), "",
+      "", annee || s.annee, filiereLabel(s.filiere ?? null), s.classe,
+      s.internat ?? "", s.raqm ?? "", "",
+    ];
+  });
+
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  worksheet["!sheetViews"] = [{ rightToLeft: true } as any];
+  worksheet["!cols"] = headers.map((_, i) => ({ wch: i === 1 || i === 2 ? 22 : i === 0 ? 18 : 16 }));
+  worksheet["!autofilter"] = { ref: worksheet["!ref"] ?? "A1" };
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Eleves");
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+  const stage = getSchoolStageForRequest(req);
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="eleves-${stage}-${annee || "all"}.xlsx"`);
+  res.send(buffer);
 });
 
 router.get("/stats", async (req, res): Promise<void> => {
@@ -586,6 +678,37 @@ router.get("/stats", async (req, res): Promise<void> => {
       };
     }).sort((a, b) => a.niveau.localeCompare(b.niveau) || a.classe.localeCompare(b.classe, "ar"));
 
+    // نظام التمدرس breakdown (داخلي / نصف داخلي / خارجي)
+    const internatOrder = ["داخلي", "نصف داخلي", "خارجي"] as const;
+    const internatGroups = new Map<string, typeof all>();
+    for (const s of all) {
+      const key = s.internat || "غير محدد";
+      const arr = internatGroups.get(key) ?? [];
+      arr.push(s);
+      internatGroups.set(key, arr);
+    }
+    const byInternat = [...internatGroups.entries()].map(([internat, g]) => {
+      const ids = new Set(g.map(s => s.id));
+      const gGrades = gradeRows.filter(gr => ids.has(gr.studentId))
+        .map(gr => Number(gr.score)).filter(Number.isFinite);
+      return {
+        internat,
+        total: g.length,
+        boys: g.filter(s => s.sexe === "M").length,
+        girls: g.filter(s => s.sexe === "F").length,
+        admis: g.filter(s => s.resultat === "admis").length,
+        nonAdmis: g.filter(s => s.resultat === "non_admis").length,
+        mustarrak: g.filter(s => s.resultat === "mustarrak").length,
+        nouveau: g.filter(s => s.statut === "nouveau").length,
+        redoublant: g.filter(s => s.statut === "redoublant").length,
+        averageGrade: average(gGrades),
+      };
+    }).sort((a, b) => {
+      const ia = internatOrder.indexOf(a.internat as any);
+      const ib = internatOrder.indexOf(b.internat as any);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+
     // Average grade per gender
     const sexeByStudent = new Map(all.map(s => [s.id, s.sexe] as const));
     const gradeScores = gradeRows
@@ -612,6 +735,7 @@ router.get("/stats", async (req, res): Promise<void> => {
       unjustifiedHours: absenceRows.reduce((sum, absence) => sum + absence.unjustifiedHours, 0),
       byLevel,
       byClass,
+      byInternat,
     }));
   } catch (err) {
     req.log.error({ err }, "Stats query failed");

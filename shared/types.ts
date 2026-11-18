@@ -68,6 +68,7 @@ export interface Student {
   niveau: Niveau;
   classe: string;
   filiere?: import("./subjects.js").LyceeFiliere | null;
+  internat?: string | null;
   sexe: Sexe;
   statut: Statut;
   resultat: Resultat;
@@ -107,6 +108,19 @@ export interface ClassStats {
   averageGrade: number | null;
 }
 
+export interface InternatStats {
+  internat: string;
+  total: number;
+  boys: number;
+  girls: number;
+  admis: number;
+  nonAdmis: number;
+  mustarrak: number;
+  nouveau: number;
+  redoublant: number;
+  averageGrade: number | null;
+}
+
 export interface DashboardStats {
   total: number;
   boys: number;
@@ -125,6 +139,7 @@ export interface DashboardStats {
   unjustifiedHours: number;
   byLevel: LevelStats[];
   byClass: ClassStats[];
+  byInternat: InternatStats[];
 }
 
 export interface StudentsFilter {
@@ -133,6 +148,7 @@ export interface StudentsFilter {
   classe?: string;
   sexe?: Sexe;
   statut?: Statut;
+  internat?: string;
   q?: string;
 }
 

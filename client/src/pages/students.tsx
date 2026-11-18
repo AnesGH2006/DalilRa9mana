@@ -404,7 +404,7 @@ export default function Students() {
   const [showAnalytics, setShowAnalytics] = useState(true);
   const [updatingFiliere, setUpdatingFiliere] = useState<string | null>(null);
 
-  const [filters, setFilters] = useState({ q: "", niveau: "", classe: "", sexe: "", statut: "", annee: DEFAULT_YEAR });
+  const [filters, setFilters] = useState({ q: "", niveau: "", classe: "", sexe: "", statut: "", internat: "", annee: DEFAULT_YEAR });
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
@@ -415,6 +415,7 @@ export default function Students() {
       if (filters.classe) params.set("classe", filters.classe);
       if (filters.sexe) params.set("sexe", filters.sexe);
       if (filters.statut) params.set("statut", filters.statut);
+      if (filters.internat) params.set("internat", filters.internat);
       if (filters.annee) params.set("annee", filters.annee);
       const res = await fetch(`${BASE}api/students?${params}`, { credentials: "include" });
       if (res.ok) {
@@ -549,6 +550,27 @@ export default function Students() {
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
             <Button
               size="sm" variant="outline"
+              className="gap-1.5 h-9 text-xs font-semibold text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (filters.annee) params.set("annee", filters.annee);
+                if (filters.niveau) params.set("niveau", filters.niveau);
+                if (filters.classe) params.set("classe", filters.classe);
+                if (filters.sexe) params.set("sexe", filters.sexe);
+                if (filters.statut) params.set("statut", filters.statut);
+                if (filters.internat) params.set("internat", filters.internat);
+                if (filters.q) params.set("q", filters.q);
+                window.open(`${BASE}api/export/eleve?${params}`, "_blank");
+              }}
+              data-testid="button-export-eleve"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              تصدير Élève
+            </Button>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <Button
+              size="sm" variant="outline"
               className="gap-1.5 h-9 text-xs font-semibold text-slate-600 hover:text-slate-800"
               onClick={() => window.print()}
               data-testid="button-print-students"
@@ -640,6 +662,7 @@ export default function Students() {
             { key: "niveau", placeholder: t("students.filterLevel"), opts: LEVELS.map(l => ({ v: l, label: LEVEL_LABELS[l] })), allLabel: t("students.allLevels"), w: "w-36" },
             { key: "sexe", placeholder: t("students.filterGender"), opts: [{ v: "M", label: t("val.male") }, { v: "F", label: t("val.female") }], allLabel: t("students.allGenders"), w: "w-28" },
             { key: "statut", placeholder: t("students.filterStatus"), opts: [{ v: "nouveau", label: t("val.nouveau") }, { v: "redoublant", label: t("val.redoublant") }], allLabel: t("students.allStatuts"), w: "w-32" },
+            { key: "internat", placeholder: "نظام التمدرس", opts: [{ v: "داخلي", label: "داخلي" }, { v: "نصف داخلي", label: "نصف داخلي" }, { v: "خارجي", label: "خارجي" }], allLabel: "كل الأنظمة", w: "w-32" },
           ] as const).map(f => (
             <Select key={f.key} value={(filters as any)[f.key] || "__all__"} onValueChange={v => setFilter(f.key, v)}>
               <SelectTrigger className={`${f.w} transition-shadow focus:shadow-md`}><SelectValue placeholder={f.placeholder} /></SelectTrigger>

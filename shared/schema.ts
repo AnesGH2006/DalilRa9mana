@@ -104,6 +104,8 @@ export const studentsTable = pgTable("students", {
   niveau: niveauEnum("niveau").notNull(),
   classe: varchar("classe", { length: 10 }).notNull(),
   filiere: varchar("filiere", { length: 30 }),
+  /** نظام التمدرس: داخلي / نصف داخلي / خارجي */
+  internat: varchar("internat", { length: 20 }),
   sexe: sexeEnum("sexe").notNull(),
   statut: statutEnum("statut").notNull().default("nouveau"),
   resultat: resultatEnum("resultat"),

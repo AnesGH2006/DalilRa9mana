@@ -963,6 +963,57 @@ export default function AnalyticsPage() {
               </motion.div>
             )}
 
+            {/* ── Internat (نظام التمدرس) breakdown ── */}
+            {(stats.byInternat?.length ?? 0) > 0 && stats.byInternat.some(i => i.total > 0) && (
+              <motion.div variants={cardVariants} initial="initial" animate="animate"
+                className="md:col-span-2 xl:col-span-3">
+                <Card className="shadow-md border-0">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-teal-500" />
+                      نظام التمدرس — داخلي / نصف داخلي / خارجي
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {stats.byInternat.filter(i => i.total > 0).map((i, idx) => {
+                        const rate = successRatePercent(i);
+                        const colors = ["from-blue-500 to-indigo-600", "from-amber-500 to-orange-600", "from-emerald-500 to-teal-600", "from-slate-500 to-slate-600"];
+                        return (
+                          <motion.div key={i.internat}
+                            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.07 }}
+                            className="rounded-xl border bg-muted/20 p-4 space-y-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-bold text-foreground">{i.internat}</span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                rate === null ? "bg-muted text-muted-foreground"
+                                : rate >= 75 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                                : rate >= 50 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+                                : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
+                              }`}>{rate !== null ? `${rate}%` : "—"}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-center">
+                              <div><p className="text-lg font-extrabold text-foreground"><CountUp to={i.total} /></p><p className="text-[10px] text-muted-foreground">المجموع</p></div>
+                              <div><p className="text-lg font-extrabold text-blue-600"><CountUp to={i.boys} /></p><p className="text-[10px] text-muted-foreground">ذكور</p></div>
+                              <div><p className="text-lg font-extrabold text-pink-600"><CountUp to={i.girls} /></p><p className="text-[10px] text-muted-foreground">إناث</p></div>
+                            </div>
+                            <div className="flex justify-between text-[11px] text-muted-foreground border-t pt-2">
+                              <span>ناجح: <b className="text-emerald-600">{i.admis}</b></span>
+                              <span>مستدرك: <b className="text-amber-600">{i.mustarrak}</b></span>
+                              <span>راسب: <b className="text-red-500">{i.nonAdmis}</b></span>
+                              {i.averageGrade !== null && <span>معدل: <b className="text-foreground">{i.averageGrade}/20</b></span>}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
             {/* ── Per-class breakdown ── */}
             {(stats.byClass?.length ?? 0) > 0 && (
               <motion.div variants={cardVariants} initial="initial" animate="animate"

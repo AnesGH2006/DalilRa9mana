@@ -90,6 +90,7 @@ export const StudentSchema = zod.object({
     "science", "math", "technical", "management", "letters", "languages",
     "common_science", "common_literature",
   ]).nullable().optional(),
+  internat: zod.string().nullable().optional(),
   sexe: SexeEnum,
   statut: StatutEnum,
   resultat: ResultatEnum.nullable(),
@@ -124,6 +125,19 @@ export const LevelStatsSchema = zod.object({
   minAge: zod.number().nullable(),
   maxAge: zod.number().nullable(),
   ageDist: zod.array(zod.object({ age: zod.number(), count: zod.number() })),
+});
+
+export const InternatStatsSchema = zod.object({
+  internat: zod.string(),
+  total: zod.number(),
+  boys: zod.number(),
+  girls: zod.number(),
+  admis: zod.number(),
+  nonAdmis: zod.number(),
+  mustarrak: zod.number().default(0),
+  nouveau: zod.number(),
+  redoublant: zod.number(),
+  averageGrade: zod.number().nullable(),
 });
 
 export const ClassStatsSchema = zod.object({
@@ -163,6 +177,7 @@ export const DashboardStatsResponse = zod.object({
   unjustifiedHours: zod.number(),
   byLevel: zod.array(LevelStatsSchema),
   byClass: zod.array(ClassStatsSchema).default([]),
+  byInternat: zod.array(InternatStatsSchema).default([]),
 });
 
 export const GradeSchema = zod.object({
