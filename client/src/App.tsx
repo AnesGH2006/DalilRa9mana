@@ -11,7 +11,7 @@ import {
   User, BarChart2, CalendarOff, UserCheck, RefreshCw, AlertCircle,
   TrendingUp, Star, CreditCard, Upload, FileText, Archive,
   CircleArrowRight, MessageSquare, MessageCircle, CircleDot, Trophy, FileBarChart, Bot, Download, Send,
-  ScanLine, Shield, Calendar, CalendarDays, Shuffle,
+  ScanLine, Shield, Calendar, CalendarDays, Shuffle, MapPin, School,
 } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { SCHOOL_STAGE } from "@/lib/deployment";
@@ -1004,6 +1004,14 @@ function LoginScreen() {
   const { t } = useLanguage();
   const features = ["login.feature1", "login.feature2", "login.feature3", "login.feature4"] as const;
   const featureIcons = [Users, BarChart3, LayoutDashboard, GraduationCap];
+  const [publicStats, setPublicStats] = useState<{ schools: number; students: number; wilayas: number } | null>(null);
+
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}api/public/stats`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setPublicStats(d); })
+      .catch(() => {});
+  }, []);
 
   const authError = new URLSearchParams(window.location.search).get("auth_error");
   const errorMessage = authError ? (AUTH_ERROR_MESSAGES[authError] ?? "حدث خطأ غير متوقع أثناء تسجيل الدخول.") : null;
@@ -1072,11 +1080,45 @@ function LoginScreen() {
           {t("login.hero")}
         </motion.h1>
         <motion.p
-          className="text-lg text-muted-foreground mb-10"
+          className="text-lg text-muted-foreground mb-6"
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.18 }}
         >
           {t("login.subtitle")}
         </motion.p>
+
+        {/* Public stats — social proof */}
+        {publicStats && publicStats.schools > 0 && (
+          <motion.div
+            className="flex flex-wrap items-center justify-center gap-3 mb-8"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.22 }}
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold text-emerald-700 dark:text-emerald-300 backdrop-blur-md"
+              style={{
+                background: "rgba(236,253,245,0.75)",
+                border: "1px solid rgba(110,231,183,0.5)",
+                boxShadow: "0 4px 16px rgba(16,185,129,0.12)",
+              }}>
+              <School className="w-4 h-4" />
+              +{publicStats.schools} مؤسسة تستخدم المنصة
+            </div>
+            <div className="inline-flex items-center gap-4 px-4 py-2 rounded-full text-xs font-semibold text-muted-foreground backdrop-blur-md"
+              style={{
+                background: "rgba(255,255,255,0.55)",
+                border: "1px solid rgba(147,197,253,0.4)",
+              }}>
+              <span className="flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-blue-500" />
+                +{publicStats.students.toLocaleString("ar-DZ")} تلميذ
+              </span>
+              {publicStats.wilayas > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-violet-500" />
+                  {publicStats.wilayas} ولاية
+                </span>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* Feature cards */}
         <div className="grid grid-cols-2 gap-3 max-w-md mx-auto mb-10">
@@ -1130,6 +1172,9 @@ function LoginScreen() {
           </motion.div>
           <motion.p className="text-xs text-muted-foreground mt-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
             تسجيل الدخول عبر حساب Google • آمن ومشفر
+          </motion.p>
+          <motion.p className="text-[11px] text-muted-foreground/70 mt-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
+            باقات مرنة: ولي الأمر 500 دج/سنة • الأستاذ 1000 دج/سنة • المؤسسة من 1500 دج/سنة
           </motion.p>
         </motion.div>
       </motion.div>

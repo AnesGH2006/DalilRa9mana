@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, schoolInfoTable } from "../../shared/db.js";
+import { eq, count, sql } from "drizzle-orm";
+import { db, schoolInfoTable, studentsTable } from "../../shared/db.js";
 import { UpsertSchoolInfoBody, SchoolInfoSchema } from "../../shared/schemas.js";
 import { getSchoolStageForRequest } from "../config/school-stage.js";
 
@@ -29,6 +29,25 @@ router.get("/school", async (req, res): Promise<void> => {
     res.json(updated); return;
   }
   res.json(info);
+});
+
+// ── GET /api/public/stats ─────────────────────────────────────────────────────
+// Public counters shown on the login page (no auth required).
+router.get("/public/stats", async (_req, res): Promise<void> => {
+  try {
+    const [schools] = await db.select({ value: count() }).from(schoolInfoTable);
+    const [students] = await db.select({ value: count() }).from(studentsTable);
+    const [wilayas] = await db
+      .select({ value: sql<number>`count(distinct ${schoolInfoTable.wilaya})` })
+      .from(schoolInfoTable);
+    res.json({
+      schools: schools?.value ?? 0,
+      students: students?.value ?? 0,
+      wilayas: wilayas?.value ?? 0,
+    });
+  } catch {
+    res.json({ schools: 0, students: 0, wilayas: 0 });
+  }
 });
 
 // ── GET /api/public/school-by-code/:code ─────────────────────────────────────
