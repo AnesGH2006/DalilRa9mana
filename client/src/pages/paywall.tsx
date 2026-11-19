@@ -25,8 +25,8 @@ const COLORS = {
   free: "#64748b",
   parent: "#3b82f6",
   staff: "#10b981",
-  school: "#8b5cf6",
-  groups: "#f59e0b",
+  school: "#7c3aed",
+  groups: "#f97316",
 } as const;
 
 const SCHOOL_PLAN_LABEL: Record<string, string> = { basic: "الخطة القياسية", pro: "Pro" };
@@ -77,17 +77,17 @@ const FEATURES = {
   ],
 };
 
-const PERSONAS: Array<{ id: Persona; label: string; icon: string }> = [
-  { id: "school", label: "صاحب مؤسسة", icon: "🏫" },
-  { id: "staff", label: "أستاذ / مشرف", icon: "🧑‍🏫" },
-  { id: "parent", label: "ولي أمر", icon: "👪" },
+const PERSONAS: Array<{ id: Persona; label: string; icon: IconName }> = [
+  { id: "school", label: "صاحب مؤسسة", icon: "crown" },
+  { id: "staff", label: "أستاذ / مشرف", icon: "book" },
+  { id: "parent", label: "ولي أمر", icon: "users" },
 ];
 
-const TRUST = [
-  { icon: "🔒", text: "دفع آمن عبر Chargily" },
-  { icon: "🏦", text: "أو حوالة CCP: 0001538792" },
-  { icon: "⚡", text: "تفعيل بعد مراجعة الوصل" },
-  { icon: "🧾", text: "سنة كاملة بدون تجديد تلقائي" },
+const TRUST: Array<{ icon: IconName; text: string }> = [
+  { icon: "lock", text: "دفع آمن عبر Chargily" },
+  { icon: "bank", text: "أو حوالة CCP: 0001538792" },
+  { icon: "zap", text: "تفعيل بعد مراجعة الوصل" },
+  { icon: "receipt", text: "سنة كاملة بدون تجديد تلقائي" },
 ];
 
 const STEPS = [
@@ -104,74 +104,122 @@ const FAQ = [
   { q: "ما الفرق بين Basic و Pro؟", a: "Basic (2000 دج) يشمل كل الميزات ما عدا: الإحصاء الشامل، التقارير الرسمية للاختبارات، FET، والتقرير العام RGF. Pro (3000 دج) يشملها جميعاً." },
 ];
 
+/* Inline icons (no extra dependency). 24x24 stroke icons. */
+const ICONS = {
+  lock: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
+  star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
+  zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+  crown: <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zM5 20h14" />,
+  sparkles: <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />,
+  users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+  book: <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5zM20 17v4H6.5A2.5 2.5 0 0 1 4 18.5" />,
+  gift: <><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13M19 12v9H5v-9M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5" /></>,
+  building: <><rect x="4" y="2" width="16" height="20" rx="2" /><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01" /></>,
+  bank: <path d="M3 21h18M5 21V10M10 21V10M14 21V10M19 21V10M2 10l10-7 10 7z" />,
+  receipt: <path d="M4 2v20l3-2 2.5 2L12 20l2.5 2L17 20l3 2V2l-3 2-2.5-2L12 4 9.5 2 7 4zM8 9h8M8 13h8" />,
+  check: <polyline points="20 6 9 17 4 12" />,
+};
+type IconName = keyof typeof ICONS;
+
+function Icon({ name, size = 15 }: { name: IconName; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "0 0 auto" }}>
+      {ICONS[name]}
+    </svg>
+  );
+}
+
 const STYLE = `
-.pw-root { min-height: 100vh; background: radial-gradient(ellipse 90% 60% at 50% -10%, #1a2250 0%, #0b1020 60%); color: #e6e9f2; padding: 28px 16px 56px; font-family: inherit; }
+.pw-root { min-height: 100vh; color: #0f172a; padding: 44px 16px 72px; font-family: inherit;
+  background:
+    radial-gradient(ellipse 60% 42% at 0% 0%, #ede9fe 0%, rgba(237,233,254,0) 70%),
+    radial-gradient(ellipse 45% 35% at 100% 8%, #e0f2fe 0%, rgba(224,242,254,0) 70%),
+    #f8fafc; }
 .pw-inner { max-width: 1260px; margin: 0 auto; }
-.pw-hero { text-align: center; margin-bottom: 22px; }
-.pw-hero h1 { font-size: clamp(24px, 4vw, 38px); font-weight: 800; margin: 0 0 8px; letter-spacing: -0.5px; }
-.pw-hero p { color: #9aa6c4; margin: 0 auto; max-width: 620px; font-size: 15px; line-height: 1.7; }
-.pw-trust { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 10px; margin: 16px 0 6px; }
-.pw-trust span { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 999px; padding: 6px 13px; font-size: 12.5px; color: #cbd5e6; }
-.pw-stage { max-width: 620px; margin: 18px auto 0; padding: 16px; border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; background: rgba(255,255,255,0.04); text-align: right; }
-.pw-stage-title { margin: 0 0 5px; font-size: 15px; font-weight: 750; color: #f1f5f9; }
-.pw-stage-description, .pw-stage-status { margin: 0; color: #9aa6c4; font-size: 12.5px; line-height: 1.7; }
+
+/* Hero */
+.pw-hero { text-align: center; margin-bottom: 26px; }
+.pw-lock { display: inline-flex; align-items: center; gap: 8px; padding: 9px 20px; border-radius: 999px; background: #fff1e0; color: #c2410c; border: 1px solid #fed7aa; font-size: 14px; font-weight: 700; box-shadow: 0 8px 22px rgba(249,115,22,0.16); margin-bottom: 22px; }
+.pw-hero h1 { font-size: clamp(28px, 4.6vw, 46px); font-weight: 800; margin: 0 0 12px; letter-spacing: -0.5px; color: #0f172a; }
+.pw-hero p { color: #64748b; margin: 0 auto; max-width: 640px; font-size: 15.5px; line-height: 1.8; }
+.pw-trust { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 10px; margin: 20px 0 6px; }
+.pw-trust span { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid #e2e8f0; border-radius: 999px; padding: 7px 14px; font-size: 12.5px; color: #475569; box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
+.pw-trust svg { color: #7c3aed; }
+
+/* Institution stage */
+.pw-stage { max-width: 620px; margin: 22px auto 0; padding: 18px; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; text-align: right; box-shadow: 0 8px 24px rgba(15,23,42,0.05); }
+.pw-stage-title { margin: 0 0 5px; font-size: 15px; font-weight: 750; color: #0f172a; }
+.pw-stage-description, .pw-stage-status { margin: 0; color: #64748b; font-size: 12.5px; line-height: 1.7; }
 .pw-stage-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0 8px; }
-.pw-stage-option { padding: 11px 12px; border: 1px solid rgba(255,255,255,0.14); border-radius: 11px; background: rgba(255,255,255,0.04); color: #cbd5e6; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-.pw-stage-option[aria-pressed="true"] { border-color: #3b82f6; background: rgba(59,130,246,0.18); color: #fff; }
+.pw-stage-option { padding: 11px 12px; border: 1.5px solid #e2e8f0; border-radius: 12px; background: #f8fafc; color: #475569; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: border-color .15s, background .15s; }
+.pw-stage-option:hover:not(:disabled) { border-color: #c4b5fd; }
+.pw-stage-option[aria-pressed="true"] { border-color: #7c3aed; background: #f3efff; color: #5b21b6; }
 .pw-stage-option:disabled { cursor: wait; opacity: .6; }
-.pw-persona { display: flex; justify-content: center; margin: 22px 0 30px; }
-.pw-persona-inner { display: inline-flex; gap: 4px; padding: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; max-width: 100%; overflow-x: auto; }
-.pw-persona button { border: 0; background: transparent; color: #aab4cf; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
-.pw-persona button[aria-pressed="true"] { background: #3b82f6; color: #fff; box-shadow: 0 4px 14px rgba(59,130,246,0.35); }
-.pw-persona button:hover:not([aria-pressed="true"]) { background: rgba(255,255,255,0.07); color: #fff; }
-.pw-grid { display: grid; gap: 18px; grid-template-columns: 1fr; align-items: stretch; }
+
+/* Persona switch */
+.pw-persona { display: flex; justify-content: center; margin: 26px 0 40px; }
+.pw-persona-inner { display: inline-flex; gap: 4px; padding: 5px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; max-width: 100%; overflow-x: auto; box-shadow: 0 6px 18px rgba(15,23,42,0.06); }
+.pw-persona button { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #64748b; padding: 9px 16px; border-radius: 11px; font-size: 13.5px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
+.pw-persona button[aria-pressed="true"] { background: #7c3aed; color: #fff; box-shadow: 0 6px 16px rgba(124,58,237,0.32); }
+.pw-persona button:hover:not([aria-pressed="true"]) { background: #f1f5f9; color: #0f172a; }
+
+/* Cards */
+.pw-grid { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: stretch; }
 @media (min-width: 640px) { .pw-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 960px) { .pw-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (min-width: 1240px) { .pw-grid { grid-template-columns: repeat(5, 1fr); } }
-.pw-card { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 22px 20px 20px; border-radius: 22px; background: linear-gradient(180deg, rgba(22,30,64,0.95), rgba(13,19,42,0.95)); border: 1.5px solid var(--accent-soft); transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease; overflow: hidden; }
-.pw-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--accent); }
-.pw-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px var(--accent-glow); }
-.pw-card[data-active="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 16px 40px var(--accent-glow); }
-.pw-card[data-active="false"] { opacity: .78; }
+@media (min-width: 1240px) { .pw-grid { grid-template-columns: repeat(5, 1fr); gap: 18px; } }
+.pw-card { position: relative; display: flex; flex-direction: column; gap: 16px; padding: 30px 22px 22px; border-radius: 24px; background: #fff; border: 2px solid var(--accent-line); box-shadow: 0 12px 30px var(--accent-soft); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.pw-card:hover { transform: translateY(-4px); box-shadow: 0 18px 42px var(--accent-glow); }
+.pw-card[data-active="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 20px 48px var(--accent-glow); }
 @media (max-width: 1239px) { .pw-card[data-active="true"] { order: -1; } }
-.pw-tag { position: absolute; top: 12px; inset-inline-end: 12px; background: var(--accent); color: #06130d; border-radius: 999px; padding: 3px 11px; font-size: 11px; font-weight: 800; }
-.pw-badge { display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; background: var(--accent-soft); color: #fff; border: 1px solid var(--accent); border-radius: 12px; padding: 7px 12px; font-size: 13px; font-weight: 700; max-width: 100%; }
-.pw-price { font-size: 40px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
-.pw-unit { color: #9aa6c4; font-size: 13px; margin-inline-start: 4px; }
-.pw-sub { color: #9aa6c4; font-size: 13px; margin-top: 6px; }
-.pw-month { color: var(--accent); font-size: 12px; font-weight: 700; margin-top: 4px; }
-.pw-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; font-size: 13.5px; line-height: 1.5; }
-.pw-list li { display: flex; gap: 9px; align-items: flex-start; }
-.pw-check { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; background: var(--accent-soft); border: 1.5px solid var(--accent); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; margin-top: 2px; }
-.pw-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); display: grid; gap: 8px; }
-.pw-btn { border: 0; border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 700; cursor: pointer; color: #fff; background: linear-gradient(135deg, #059669, #10b981); transition: filter .15s, transform .1s; }
-.pw-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.pw-tag { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 5px; background: var(--accent); color: #fff; border-radius: 999px; padding: 4px 13px; font-size: 11.5px; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 12px var(--accent-glow); }
+.pw-badge { display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #000)); color: #fff; border-radius: 999px; padding: 8px 15px; font-size: 13.5px; font-weight: 800; max-width: 100%; box-shadow: 0 6px 14px var(--accent-glow); }
+.pw-price { font-size: 42px; font-weight: 800; line-height: 1; letter-spacing: -1px; color: #0f172a; unicode-bidi: isolate; }
+.pw-unit { color: #64748b; font-size: 13px; margin-inline-start: 6px; }
+.pw-sub { color: #64748b; font-size: 13px; margin-top: 8px; }
+.pw-month { color: color-mix(in srgb, var(--accent) 80%, #000); font-size: 12.5px; font-weight: 700; margin-top: 6px; }
+.pw-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 12px; font-size: 13.5px; line-height: 1.55; color: #334155; }
+.pw-list li { display: flex; gap: 10px; align-items: flex-start; }
+.pw-check { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--accent); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+.pw-foot { margin-top: auto; padding-top: 18px; border-top: 1px solid #eef2f7; display: grid; gap: 9px; }
+
+/* Buttons */
+.pw-btn { border: 0; border-radius: 14px; padding: 12px 14px; font-size: 14px; font-weight: 800; cursor: pointer; color: #fff; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 78%, #000)); box-shadow: 0 8px 18px var(--accent-glow); transition: filter .15s, transform .1s; }
+.pw-btn:hover:not(:disabled) { filter: brightness(1.07); }
 .pw-btn:active:not(:disabled) { transform: scale(0.98); }
-.pw-btn:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }
-.pw-btn-outline { background: transparent; border: 1.5px solid var(--accent); color: var(--accent); }
+.pw-btn:disabled { background: #e2e8f0; color: #94a3b8; box-shadow: none; cursor: not-allowed; }
+.pw-btn-outline { background: #fff; box-shadow: none; border: 1.5px solid var(--accent); color: color-mix(in srgb, var(--accent) 85%, #000); }
 .pw-btn-outline:hover:not(:disabled) { background: var(--accent-soft); filter: none; }
-.pw-trial { background: transparent; border: 1px solid #10b981; color: #6ee7b7; }
-.pw-trial:hover:not(:disabled) { background: rgba(16,185,129,0.12); filter: none; }
-.pw-note { color: #7f8aa8; font-size: 12px; text-align: center; }
-.pw-error { max-width: 760px; margin: 0 auto 18px; background: rgba(239,68,68,0.13); border: 1px solid #ef4444; border-radius: 12px; padding: 11px 15px; font-size: 14px; }
-.pw-section { margin-top: 38px; }
-.pw-section h2 { font-size: 18px; font-weight: 700; margin: 0 0 14px; }
-.pw-steps { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
-.pw-step { display: flex; gap: 12px; align-items: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 14px 16px; font-size: 14px; }
-.pw-step b { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; background: #3b82f6; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
-.pw-faq details { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 13px 16px; margin-bottom: 10px; }
-.pw-faq summary { cursor: pointer; font-weight: 600; font-size: 14.5px; }
-.pw-faq p { color: #9aa6c4; font-size: 13.5px; line-height: 1.8; margin: 10px 0 0; }
-.pw-skel { height: 440px; border-radius: 22px; background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.09), rgba(255,255,255,0.04)); background-size: 200% 100%; animation: pw-shimmer 1.4s infinite; }
+.pw-btn-outline:disabled { background: #f8fafc; border-color: #e2e8f0; color: #94a3b8; }
+.pw-trial { background: var(--accent-soft); box-shadow: none; border: 1px solid var(--accent-line); color: color-mix(in srgb, var(--accent) 75%, #000); }
+.pw-trial:hover:not(:disabled) { background: var(--accent-glow); filter: none; }
+.pw-note { color: #64748b; font-size: 12px; text-align: center; line-height: 1.6; }
+
+/* Messages */
+.pw-error { max-width: 760px; margin: 0 auto 20px; background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; border-radius: 14px; padding: 12px 16px; font-size: 14px; }
+.pw-ok { background: #f0fdf4; border-color: #86efac; color: #166534; }
+
+/* Sections */
+.pw-section { margin-top: 44px; }
+.pw-section h2 { font-size: 19px; font-weight: 800; margin: 0 0 16px; color: #0f172a; }
+.pw-steps { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.pw-step { display: flex; gap: 12px; align-items: center; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 16px; font-size: 14px; color: #334155; box-shadow: 0 4px 14px rgba(15,23,42,0.04); }
+.pw-step b { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; background: #7c3aed; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+.pw-faq details { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 18px; margin-bottom: 10px; box-shadow: 0 3px 10px rgba(15,23,42,0.03); }
+.pw-faq summary { cursor: pointer; font-weight: 700; font-size: 14.5px; color: #0f172a; }
+.pw-faq p { color: #64748b; font-size: 13.5px; line-height: 1.85; margin: 10px 0 0; }
+.pw-skel { height: 440px; border-radius: 24px; background: linear-gradient(90deg, #eef2f7, #f8fafc, #eef2f7); background-size: 200% 100%; animation: pw-shimmer 1.4s infinite; }
 @keyframes pw-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-.pw-link { color: #93c5fd; }
+.pw-link { color: #6d28d9; font-weight: 700; }
+.pw-root button:focus-visible, .pw-root summary:focus-visible, .pw-root a:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .pw-card, .pw-btn, .pw-skel { transition: none; animation: none; } }
 `;
 
 function accentVars(color: string): CSSProperties {
   return {
     ["--accent" as any]: color,
-    ["--accent-soft" as any]: `${color}2e`,
+    ["--accent-line" as any]: `${color}80`,
+    ["--accent-soft" as any]: `${color}1f`,
     ["--accent-glow" as any]: `${color}40`,
   };
 }
@@ -187,13 +235,13 @@ function Card(props: {
 }) {
   return (
     <section className="pw-card" data-active={props.active} style={accentVars(props.accent)}>
-      {props.tag && <span className="pw-tag">{props.tag}</span>}
+      {props.tag && <span className="pw-tag"><Icon name="sparkles" size={12} />{props.tag}</span>}
       <span className="pw-badge">{props.badge}</span>
       <div>{props.price}</div>
       <ul className="pw-list">
         {props.features.map(text => (
           <li key={text}>
-            <span className="pw-check" aria-hidden="true">✓</span>
+            <span className="pw-check" aria-hidden="true"><Icon name="check" size={11} /></span>
             <span>{text}</span>
           </li>
         ))}
@@ -386,14 +434,15 @@ export default function PaywallScreen() {
       <style>{STYLE}</style>
       <div className="pw-inner">
         <header className="pw-hero">
-          <h1>اختر الباقة المناسبة لك</h1>
+          <div className="pw-lock"><Icon name="lock" size={16} />الوصول مقيّد – يتطلب اشتراكاً</div>
+          <h1>اختر باقتك وابدأ الآن</h1>
           <p>
             {me?.trialAvailable
               ? "باقات واضحة لكل دور في المؤسسة. جرّب باقتي المؤسسة الأساسية والمتقدمة مجاناً لمدة 30 يوماً، أو ادفع مرة واحدة في السنة."
               : "باقات واضحة لكل دور في المؤسسة. ادفع مرة واحدة في السنة، وتُفعَّل ميزاتك فور تأكيد الدفع."}
           </p>
           <div className="pw-trust">
-            {TRUST.map(item => <span key={item.text}>{item.icon} {item.text}</span>)}
+            {TRUST.map(item => <span key={item.text}><Icon name={item.icon} size={14} />{item.text}</span>)}
           </div>
         </header>
 
@@ -446,14 +495,14 @@ export default function PaywallScreen() {
           <div className="pw-persona-inner" role="group" aria-label="اختر دورك">
             {PERSONAS.map(item => (
               <button key={item.id} type="button" aria-pressed={persona === item.id} onClick={() => setPersona(item.id)}>
-                {item.icon} {item.label}
+                <Icon name={item.icon} size={15} />{item.label}
               </button>
             ))}
           </div>
         </div>
 
         {error && <div className="pw-error" role="alert">{error}</div>}
-        {notice && <div className="pw-error" style={{ background: "rgba(16,185,129,0.14)", borderColor: "#10b981" }} role="status">{notice}</div>}
+        {notice && <div className="pw-error pw-ok" role="status">{notice}</div>}
 
         {loading ? (
           <div className="pw-grid">{[0, 1, 2, 3, 4].map(i => <div key={i} className="pw-skel" />)}</div>
@@ -462,11 +511,11 @@ export default function PaywallScreen() {
             <Card
               accent={COLORS.free}
               active={false}
-              badge="🆓 مجاني"
+              badge={<><Icon name="gift" />مجاني</>}
               price={<><div className="pw-price">0</div><div className="pw-sub">تجربة أساسية</div></>}
               features={FEATURES.free}
               footer={
-                <button type="button" className="pw-btn pw-btn-outline" style={accentVars("#cbd5e1")} disabled={busy || !canStartFree || !stageReady || stageSaving} onClick={() => void startFree()}>
+                <button type="button" className="pw-btn pw-btn-outline" disabled={busy || !canStartFree || !stageReady || stageSaving} onClick={() => void startFree()}>
                   {stageRequired && !stageReady ? "اختر المرحلة أولاً" : "ابدأ مجاناً"}
                 </button>
               }
@@ -476,7 +525,7 @@ export default function PaywallScreen() {
               accent={COLORS.parent}
               active={persona === "parent"}
               tag={persona === "parent" ? "مناسبة لك" : undefined}
-              badge="👪 ولي الأمر (Parent)"
+              badge={<><Icon name="users" />ولي الأمر (Parent)</>}
               price={
                 <>
                   <div><span className="pw-price">{parentPrice.toLocaleString("en-US")}</span><span className="pw-unit">دج / سنة</span></div>
@@ -500,7 +549,7 @@ export default function PaywallScreen() {
               accent={COLORS.staff}
               active={persona === "staff"}
               tag={persona === "staff" ? "مناسبة لك" : "الأكثر طلباً"}
-              badge="🧑‍🏫 الأستاذ / المستشار (Pro)"
+              badge={<><Icon name="zap" />الأستاذ / المستشار (Pro)</>}
               price={
                 <>
                   <div><span className="pw-price">{staffPrice.toLocaleString("en-US")}</span><span className="pw-unit">دج / سنة</span></div>
@@ -533,7 +582,7 @@ export default function PaywallScreen() {
               accent={COLORS.school}
               active={persona === "school"}
               tag={persona === "school" ? "مناسبة لك" : undefined}
-              badge={`🏫 المؤسسة · ${stage === "lycee" ? "الثانوية (Lycée)" : "المتوسطة (CEM)"}`}
+              badge={<><Icon name="crown" />المؤسسة · {stage === "lycee" ? "الثانوية (Lycée)" : "المتوسطة (CEM)"}</>}
               price={
                 <>
                   {schoolShown.map(([plan, amount]) => (
@@ -564,7 +613,7 @@ export default function PaywallScreen() {
                           disabled={!stageReady || stageSaving}
                           onClick={() => openCcp(option.plan)}
                         >
-                          🏦 دفع عبر CCP · {option.amountDzd.toLocaleString("en-US")} دج
+                          دفع عبر CCP · {option.amountDzd.toLocaleString("en-US")} دج
                         </button>
                         {me?.trialAvailable && (option.plan === "basic" || option.plan === "pro") && (
                           <button
@@ -588,10 +637,10 @@ export default function PaywallScreen() {
             <Card
               accent={COLORS.groups}
               active={false}
-              badge="🏢 مجموعات مدارس"
-              price={<><div className="pw-price" style={{ fontSize: 32 }}>تواصل</div><div className="pw-sub">للمجمعات المدرسية</div></>}
+              badge={<><Icon name="building" />مجموعات مدارس</>}
+              price={<><div className="pw-price" style={{ fontSize: 34 }}>تواصل</div><div className="pw-sub">للمجمعات المدرسية</div></>}
               features={FEATURES.groups}
-              footer={<button type="button" className="pw-btn pw-btn-outline" onClick={contactUs}>تواصل معنا</button>}
+              footer={<button type="button" className="pw-btn" onClick={contactUs}>تواصل معنا</button>}
             />
           </div>
         )}
@@ -603,14 +652,14 @@ export default function PaywallScreen() {
               {ccpDone.map(r => (
                 <div key={r.id} className="pw-step" style={{ justifyContent: "space-between" }}>
                   <span>
-                    <b>{r.plan === "pro" ? "Pro" : r.plan === "basic" ? "Basic" : r.plan}</b>
+                    <b style={{ background: "none", color: "#0f172a", width: "auto", height: "auto" }}>{r.plan === "pro" ? "Pro" : r.plan === "basic" ? "Basic" : r.plan}</b>
                     {" · "}{r.amountDzd.toLocaleString("en-US")} دج
                     {" · "}{new Date(r.createdAt).toLocaleDateString("ar-DZ")}
                   </span>
                   <span style={{
                     fontSize: 12, fontWeight: 700, borderRadius: 999, padding: "3px 10px",
-                    background: r.status === "approved" ? "rgba(16,185,129,.15)" : r.status === "rejected" ? "rgba(239,68,68,.15)" : "rgba(245,158,11,.15)",
-                    color: r.status === "approved" ? "#6ee7b7" : r.status === "rejected" ? "#fca5a5" : "#fcd34d",
+                    background: r.status === "approved" ? "#dcfce7" : r.status === "rejected" ? "#fee2e2" : "#fef3c7",
+                    color: r.status === "approved" ? "#15803d" : r.status === "rejected" ? "#b91c1c" : "#b45309",
                   }}>
                     {r.status === "approved" ? "مفعّلة" : r.status === "rejected" ? "مرفوضة" : "قيد المراجعة"}
                   </span>
@@ -643,20 +692,20 @@ export default function PaywallScreen() {
       {ccpOpen && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center",
-          background: "rgba(4,8,20,.72)", backdropFilter: "blur(4px)", padding: 16,
+          background: "rgba(15,23,42,.45)", backdropFilter: "blur(4px)", padding: 16,
         }} onClick={() => !ccpBusy && setCcpOpen(false)}>
           <div dir="rtl" onClick={e => e.stopPropagation()} style={{
-            width: "100%", maxWidth: 460, borderRadius: 20, padding: "26px 24px",
-            background: "linear-gradient(180deg,#16203f,#0d132a)", border: "1.5px solid rgba(255,255,255,.12)",
-            color: "#e6e9f2", boxShadow: "0 24px 60px rgba(0,0,0,.5)",
+            width: "100%", maxWidth: 460, borderRadius: 22, padding: "26px 24px",
+            background: "#fff", border: "1px solid #e2e8f0",
+            color: "#0f172a", boxShadow: "0 24px 60px rgba(15,23,42,.25)",
           }}>
             <h3 style={{ margin: "0 0 6px", fontSize: 19, fontWeight: 800 }}>الدفع عبر الحساب البريدي CCP</h3>
-            <p style={{ margin: "0 0 16px", color: "#9aa6c4", fontSize: 13.5, lineHeight: 1.7 }}>
-              حوّل المبلغ إلى CCP: <b style={{ color: "#fff", letterSpacing: 1 }}>{CCP_ACCOUNT}</b>،
+            <p style={{ margin: "0 0 16px", color: "#64748b", fontSize: 13.5, lineHeight: 1.7 }}>
+              حوّل المبلغ إلى CCP: <b style={{ color: "#6d28d9", letterSpacing: 1 }}>{CCP_ACCOUNT}</b>،
               ثم أرسل صورة الوصل مع وسيلة تواصل ليتم تفعيل الباقة بعد المراجعة.
             </p>
             <div style={{ display: "grid", gap: 12 }}>
-              <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
+              <label style={{ display: "grid", gap: 6, fontSize: 13, fontWeight: 600 }}>
                 <span>الباقة</span>
                 <select value={ccpPlan} onChange={e => setCcpPlan(e.target.value)} style={inputStyle}>
                   <option value="">اختر الباقة…</option>
@@ -667,27 +716,27 @@ export default function PaywallScreen() {
                   {parentOption && <option value="parent">ولي الأمر — {parentOption.amountDzd.toLocaleString("en-US")} دج/سنة</option>}
                 </select>
               </label>
-              <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
+              <label style={{ display: "grid", gap: 6, fontSize: 13, fontWeight: 600 }}>
                 <span>البريد الإلكتروني</span>
                 <input type="email" value={ccpEmail} onChange={e => setCcpEmail(e.target.value)} placeholder="you@example.com" style={inputStyle} />
               </label>
-              <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
+              <label style={{ display: "grid", gap: 6, fontSize: 13, fontWeight: 600 }}>
                 <span>أو حساب فيسبوك</span>
                 <input value={ccpFacebook} onChange={e => setCcpFacebook(e.target.value)} placeholder="facebook.com/yourname" style={inputStyle} />
               </label>
-              <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
+              <label style={{ display: "grid", gap: 6, fontSize: 13, fontWeight: 600 }}>
                 <span>صورة وصل الدفع (CCP)</span>
-                <input type="file" accept="image/*" onChange={e => setCcpReceipt(e.target.files?.[0] ?? null)} style={{ fontSize: 12.5, color: "#cbd5e6" }} />
+                <input type="file" accept="image/*" onChange={e => setCcpReceipt(e.target.files?.[0] ?? null)} style={{ fontSize: 12.5, color: "#475569" }} />
               </label>
             </div>
-            {error && <p style={{ color: "#fca5a5", fontSize: 13, margin: "12px 0 0" }}>{error}</p>}
+            {error && <p style={{ color: "#b91c1c", fontSize: 13, margin: "12px 0 0" }}>{error}</p>}
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <button type="button" onClick={() => void submitCcpRequest()} disabled={ccpBusy}
-                style={{ flex: 1, border: 0, borderRadius: 12, padding: "12px 14px", fontWeight: 700, fontSize: 14, cursor: ccpBusy ? "wait" : "pointer", background: "linear-gradient(135deg,#059669,#10b981)", color: "#fff" }}>
+                style={{ flex: 1, border: 0, borderRadius: 14, padding: "12px 14px", fontWeight: 800, fontSize: 14, cursor: ccpBusy ? "wait" : "pointer", background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", boxShadow: "0 8px 18px rgba(124,58,237,.3)" }}>
                 {ccpBusy ? "جارٍ الإرسال…" : "إرسال طلب الدفع"}
               </button>
               <button type="button" onClick={() => setCcpOpen(false)} disabled={ccpBusy}
-                style={{ border: "1.5px solid rgba(255,255,255,.2)", borderRadius: 12, padding: "12px 14px", fontWeight: 700, fontSize: 14, cursor: "pointer", background: "transparent", color: "#cbd5e6" }}>
+                style={{ border: "1.5px solid #cbd5e1", borderRadius: 14, padding: "12px 16px", fontWeight: 700, fontSize: 14, cursor: "pointer", background: "#fff", color: "#475569" }}>
                 إلغاء
               </button>
             </div>
@@ -699,6 +748,6 @@ export default function PaywallScreen() {
 }
 
 const inputStyle: CSSProperties = {
-  borderRadius: 10, border: "1.5px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.05)",
-  color: "#e6e9f2", padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", outline: "none",
+  borderRadius: 12, border: "1.5px solid #e2e8f0", background: "#f8fafc",
+  color: "#0f172a", padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", outline: "none",
 };
