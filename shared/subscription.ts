@@ -6,7 +6,7 @@ export const PAID_PLAN_PRICES_DZD = {
 } as const;
 
 /** Official CCP account for manual bank-transfer payments (receipt photo + contact review). */
-export const CCP_ACCOUNT = "0001538792";
+export const CCP_ACCOUNT = "0041430343";
 
 /**
  * Features reserved for the Pro (3000 DA) school plan.

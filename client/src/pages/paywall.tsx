@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import type { SchoolStage } from "@shared/school-stage";
 import { SCHOOL_STAGE } from "@/lib/deployment";
 import { useSchoolStage } from "@/hooks/use-school-stage";
+import { CCP_ACCOUNT } from "@shared/subscription";
 
 const BASE: string = (import.meta as any).env?.BASE_URL ?? "/";
 
@@ -18,8 +19,6 @@ type Me = {
 };
 type Persona = "school" | "staff" | "parent";
 type CcpRequest = { id: string; plan: string; amountDzd: number; status: string; reviewNote: string | null; createdAt: string; reviewedAt: string | null };
-
-const CCP_ACCOUNT = "0001538792";
 
 const COLORS = {
   free: "#64748b",
@@ -85,7 +84,7 @@ const PERSONAS: Array<{ id: Persona; label: string; icon: IconName }> = [
 
 const TRUST: Array<{ icon: IconName; text: string }> = [
   { icon: "lock", text: "دفع آمن عبر Chargily" },
-  { icon: "bank", text: "أو حوالة CCP: 0001538792" },
+  { icon: "bank", text: `أو حوالة CCP: ${CCP_ACCOUNT}` },
   { icon: "zap", text: "تفعيل بعد مراجعة الوصل" },
   { icon: "receipt", text: "سنة كاملة بدون تجديد تلقائي" },
 ];
@@ -97,7 +96,7 @@ const STEPS = [
 ];
 
 const FAQ = [
-  { q: "كيف أدفع عبر CCP؟", a: `حوّل المبلغ إلى الحساب البريدي 0001538792، ثم أرسل صورة الوصل مع بريدك الإلكتروني أو حسابك على فيسبوك من صفحة الدفع. سيفعّلها المشرف خلال مراجعة الطلب.` },
+  { q: "كيف أدفع عبر CCP؟", a: `حوّل المبلغ إلى الحساب البريدي ${CCP_ACCOUNT}، ثم أرسل صورة الوصل مع بريدك الإلكتروني أو حسابك على فيسبوك من صفحة الدفع. سيفعّلها المشرف خلال مراجعة الطلب.` },
   { q: "متى يتفعّل اشتراكي؟", a: "فور تأكيد الدفع عبر Chargily، أو خلال مراجعة طلب CCP (عادة خلال 24 ساعة)." },
   { q: "خُصم المبلغ ولم يتفعّل اشتراكي، ماذا أفعل؟", a: "لا تدفع مرة ثانية. انتظر بضع دقائق ثم حدّث الصفحة، وإن استمر الأمر فتواصل مع الدعم وأرسل رقم العملية الظاهر في عنوان صفحة العودة." },
   { q: "هل يُجدَّد الاشتراك تلقائياً؟", a: "لا. الاشتراك لسنة واحدة، ولن يُخصم منك أي مبلغ آخر دون أن تدفع بنفسك." },
@@ -539,6 +538,11 @@ export default function PaywallScreen() {
                   <button type="button" className="pw-btn" disabled={busy || !parentOption || !stageReady || stageSaving} onClick={() => parentOption && void pay(parentOption.amountDzd)}>
                     {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : parentOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
                   </button>
+                  {parentOption && (
+                    <button type="button" className="pw-btn pw-btn-outline" disabled={!stageReady || stageSaving} onClick={() => openCcp("parent")}>
+                      دفع عبر CCP · {parentOption.amountDzd.toLocaleString("en-US")} دج
+                    </button>
+                  )}
                   {!parentOption && <div className="pw-note">غير متاحة لحساب يدير مؤسسة. يشترك الولي بحسابه الشخصي.</div>}
                   <div className="pw-note">لديك رمز المدرسة؟ <a className="pw-link" href={`${BASE}parent-register`}>سجّل كولي أمر</a></div>
                 </>
@@ -563,6 +567,11 @@ export default function PaywallScreen() {
                   <button type="button" className="pw-btn" disabled={busy || !staffOption || !stageReady || stageSaving} onClick={() => staffOption && void pay(staffOption.amountDzd)}>
                     {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : staffOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
                   </button>
+                  {staffOption && (
+                    <button type="button" className="pw-btn pw-btn-outline" disabled={!stageReady || stageSaving} onClick={() => openCcp("staff")}>
+                      دفع عبر CCP · {staffOption.amountDzd.toLocaleString("en-US")} دج
+                    </button>
+                  )}
                   {me?.staffTrialAvailable && staffOption && (
                     <button
                       type="button"
@@ -652,7 +661,7 @@ export default function PaywallScreen() {
               {ccpDone.map(r => (
                 <div key={r.id} className="pw-step" style={{ justifyContent: "space-between" }}>
                   <span>
-                    <b style={{ background: "none", color: "#0f172a", width: "auto", height: "auto" }}>{r.plan === "pro" ? "Pro" : r.plan === "basic" ? "Basic" : r.plan}</b>
+                    <b style={{ background: "none", color: "#0f172a", width: "auto", height: "auto" }}>{r.plan === "pro" ? "Pro" : r.plan === "basic" ? "Basic" : r.plan === "staff" ? "الأستاذ/المشرف" : r.plan === "parent" ? "ولي الأمر" : r.plan}</b>
                     {" · "}{r.amountDzd.toLocaleString("en-US")} دج
                     {" · "}{new Date(r.createdAt).toLocaleDateString("ar-DZ")}
                   </span>

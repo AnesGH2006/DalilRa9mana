@@ -9,9 +9,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { School, User, Save, KeyRound, Sparkles } from "lucide-react";
 import { SCHOOL_STAGE } from "@/lib/deployment";
-import type { SchoolInfo } from "@shared/types";
+import type { AuthUser, SchoolInfo } from "@shared/types";
 
 const BASE = import.meta.env.BASE_URL;
+
+const PLAN_LABELS: Record<string, string> = {
+  free: "الباقة المجانية",
+  basic: "الأساسية (Basic)",
+  pro: "المتقدمة (Pro)",
+  staff: "الأستاذ / المشرف",
+  parent: "ولي الأمر",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  active: "فعّال",
+  pending: "قيد الانتظار",
+  suspended: "موقوف",
+};
+
+function subscriptionInfo(user: AuthUser | null | undefined) {
+  if (!user) return null;
+  const member = user.memberContext;
+  const plan = member?.schoolSubscriptionPlan ?? user.subscriptionPlan ?? "free";
+  const status = member ? (member.schoolSubscriptionStatus ?? "pending") : user.subscriptionStatus;
+  const expiresAt = member?.schoolSubscriptionExpiresAt ?? user.subscriptionExpiresAt ?? null;
+  const expires = expiresAt ? new Date(expiresAt).getTime() : null;
+  const daysLeft = expires ? Math.max(0, Math.ceil((expires - Date.now()) / 86400000)) : null;
+  const active = status === "active" && (expires === null || expires > Date.now());
+  return { plan, status, expiresAt, daysLeft, active, memberRole: member?.role };
+}
 
 const pageVariants = {
   initial: { opacity: 0, y: 16 },
@@ -228,23 +254,54 @@ export default function Settings() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {user && (
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50">
-                {user.profileImageUrl ? (
-                  <img src={user.profileImageUrl} className="w-12 h-12 rounded-full" alt="" />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-violet-500 flex items-center justify-center text-xl font-bold text-white">
-                    {(user.firstName?.[0] || user.email?.[0] || "?").toUpperCase()}
+            {user && (() => {
+              const sub = subscriptionInfo(user);
+              return (
+                <>
+                  <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50">
+                    {user.profileImageUrl ? (
+                      <img src={user.profileImageUrl} className="w-12 h-12 rounded-full" alt="" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-violet-500 flex items-center justify-center text-xl font-bold text-white">
+                        {(user.firstName?.[0] || user.email?.[0] || "?").toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-semibold">
+                        {user.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "—"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{user.email}</p>
+                    </div>
                   </div>
-                )}
-                <div>
-                  <p className="font-semibold">
-                    {user.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "—"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                </div>
-              </div>
-            )}
+                  {sub && (
+                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                      <div className="p-3 rounded-xl bg-muted/40">
+                        <p className="text-[11px] text-muted-foreground">نوع الاشتراك</p>
+                        <p className="text-sm font-bold">{PLAN_LABELS[sub.plan] ?? sub.plan}</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-muted/40">
+                        <p className="text-[11px] text-muted-foreground">الحالة</p>
+                        <p className={`text-sm font-bold ${sub.active ? "text-green-600" : "text-amber-600"}`}>
+                          {sub.active ? "فعّال" : STATUS_LABELS[sub.status] ?? sub.status}
+                        </p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-muted/40">
+                        <p className="text-[11px] text-muted-foreground">الأيام المتبقية</p>
+                        <p className="text-sm font-bold" dir="ltr">
+                          {sub.daysLeft === null ? "—" : sub.daysLeft > 0 ? `${sub.daysLeft} يوم` : "منتهي"}
+                        </p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-muted/40">
+                        <p className="text-[11px] text-muted-foreground">تاريخ الانتهاء</p>
+                        <p className="text-sm font-bold" dir="ltr">
+                          {sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString("ar-DZ") : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <p className="text-xs text-muted-foreground mt-3">
               تسجيل الدخول عبر Google. لتغيير البيانات الشخصية، قم بتعديل ملفك الشخصي على Google.
             </p>
