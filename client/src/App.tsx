@@ -873,6 +873,62 @@ function ComingSoon({ title }: { title: string }) {
 }
 
 // ── App layout ────────────────────────────────────────────────────────────────
+const GUIDE_SEEN_KEY = "dalil.guide_welcome_seen";
+
+function GuideWelcomeDialog() {
+  const [, navigate] = useLocation();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(GUIDE_SEEN_KEY)) setOpen(true);
+    } catch { /* storage unavailable */ }
+  }, []);
+
+  function close() {
+    try { localStorage.setItem(GUIDE_SEEN_KEY, "1"); } catch { /* ignore */ }
+    setOpen(false);
+  }
+
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      style={{ background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)" }}
+      role="dialog" aria-modal="true" aria-labelledby="guide-welcome-title"
+      onClick={close}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-md rounded-3xl bg-white p-7 text-center shadow-2xl"
+        dir="rtl"
+      >
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 text-white shadow-lg">
+          <BookOpen className="h-8 w-8" />
+        </div>
+        <h2 id="guide-welcome-title" className="text-xl font-extrabold text-slate-900">مرحباً بك في دليل الرقمنة</h2>
+        <p className="mt-2 text-sm leading-7 text-slate-600">
+          دليل الاستخدام يشرح كل خطوة: إعداد المؤسسة، إضافة التلاميذ، الدرجات، الغيابات، FET، الاختبارات، الإحصاء، والاشتراكات.
+        </p>
+        <div className="mt-6 flex flex-col gap-2.5">
+          <Button
+            className="w-full gap-2 bg-gradient-to-l from-violet-600 to-purple-600 font-bold hover:from-violet-700 hover:to-purple-700"
+            onClick={() => { close(); navigate("/guide"); }}
+          >
+            <BookOpen className="h-4 w-4" /> افتح دليل الاستخدام
+          </Button>
+          <Button variant="outline" className="w-full font-bold" onClick={close}>
+            فهمت، لن تظهر مجدداً
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function AppLayout() {
   const [loc, navigate] = useLocation();
   const { user } = useAuth();
@@ -988,6 +1044,7 @@ function AppLayout() {
             </AnimatePresence>
           )}
       </main>
+      <GuideWelcomeDialog />
     </div>
   );
 }
