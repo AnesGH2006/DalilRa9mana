@@ -129,6 +129,8 @@ export default function UploadGradesOcrPage() {
   const [filiere, setFiliere] = useState<LyceeBacFiliere | "">("");
   const [subject,   setSubject]   = useState("");
   const [gradeType, setGradeType] = useState("test");
+  const [exportTemplate, setExportTemplate] = useState<"generic" | "hajz">("hajz");
+  const [hajzAssessment, setHajzAssessment] = useState("test1");
 
   const [phase,    setPhase]    = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [rows,     setRows]     = useState<OcrRow[]>([]);
@@ -311,8 +313,11 @@ export default function UploadGradesOcrPage() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: mode,
-          meta: { subject, classe, niveau, annee, reportDate, trimestre, gradeType },
+          type: mode === "grades" && exportTemplate === "hajz" ? "grades_hajz" : mode,
+          meta: {
+            subject, classe, niveau, annee, reportDate, trimestre, gradeType,
+            assessment: mode === "grades" && exportTemplate === "hajz" ? hajzAssessment : undefined,
+          },
           rows: rows.map(r => ({
             studentName: effectiveName(r),
             grade: effectiveGrade(r),
@@ -336,7 +341,10 @@ export default function UploadGradesOcrPage() {
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement("a");
       a.href = url;
-      a.download = `ocr-${mode}-${reportDate || new Date().toISOString().slice(0, 10)}.xlsx`;
+      const isHajz = mode === "grades" && exportTemplate === "hajz";
+      a.download = isHajz
+        ? `hajz-niqat-${reportDate || new Date().toISOString().slice(0, 10)}.xlsx`
+        : `ocr-${mode}-${reportDate || new Date().toISOString().slice(0, 10)}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) {
@@ -826,6 +834,34 @@ export default function UploadGradesOcrPage() {
                   <RotateCcw className="w-3.5 h-3.5" />
                   صورة جديدة
                 </Button>
+                {mode === "grades" && (
+                  <>
+                    <Select value={exportTemplate} onValueChange={(v) => {
+                      const t = v as "generic" | "hajz";
+                      setExportTemplate(t);
+                      if (t === "hajz") {
+                        setHajzAssessment(gradeType === "continuous" ? "continuous" : gradeType === "exam" ? "exam" : "test1");
+                      }
+                    }}>
+                      <SelectTrigger className="h-8 w-[130px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hajz">حجز النقاط</SelectItem>
+                        <SelectItem value="generic">تصدير عام</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {exportTemplate === "hajz" && (
+                      <Select value={hajzAssessment} onValueChange={setHajzAssessment}>
+                        <SelectTrigger className="h-8 w-[130px] text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="continuous">التقييم المستمر</SelectItem>
+                          <SelectItem value="test1">الفرض الأول</SelectItem>
+                          <SelectItem value="test2">الفرض الثاني</SelectItem>
+                          <SelectItem value="exam">الاختبار</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </>
+                )}
                 <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
                   onClick={() => void exportToExcel()}>
                   <Download className="w-3.5 h-3.5" />

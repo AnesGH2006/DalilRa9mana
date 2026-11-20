@@ -9,8 +9,9 @@
 import { Router } from "express";
 import multer from "multer";
 import * as XLSX from "xlsx";
+import { and, eq } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
-import { db, ocrUploadsTable } from "../../shared/db.js";
+import { db, ocrUploadsTable, schoolInfoTable, studentsTable } from "../../shared/db.js";
 import { getUserGroqKey, getUserGeminiKey } from "../lib/groq-key.js";
 import { processOcr, type OcrEngine, type OcrType } from "../services/ocrService.js";
 import { canUseStaffFeature, requireStaffFeature, STAFF_PLAN_PRICE_DZD } from "../middlewares/staffAccess.js";
@@ -209,7 +210,119 @@ type ExportMeta = {
   reportDate?: string;
   trimestre?: string;
   gradeType?: string;
+  /** For grades_hajz: which assessment column this batch fills (continuous|test1|test2|exam|general) */
+  assessment?: string;
 };
+
+// ── Official "حجز النقاط" grade-book templates (mutawassit / thanawi) ─────────────────────
+type HajzMerge = { s: { c: number; r: number }; e: { c: number; r: number } };
+
+const HAJZ_HEADERS: Record<"moyen" | "lycee", string[]> = {
+  moyen: ["رقم التعريف", "اللقب", "الاسم", "تاريخ الميلاد", "التقييم المستمر", "الفرض", "الاختبار", "التقدير"],
+  lycee: ["رقم التعريف", "اللقب", "الاسم", "تاريخ الميلاد", "التقييم المستمر", "الفرض 1", "الفرض 2", "الاختبار", "التقدير"],
+};
+
+const TRIMESTRE_LABELS: Record<string, string> = { "1": "الأول", "2": "الثاني", "3": "الثالث" };
+
+const normName = (s: unknown): string =>
+  String(s ?? "")
+    .normalize("NFKC")
+    .replace(/[ً-ْٰـ]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const splitNomPrenom = (full: string): [string, string] => {
+  const parts = String(full ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return ["", parts[0] ?? ""];
+  return [parts.slice(0, -1).join(" "), parts[parts.length - 1]!];
+};
+
+function hajzGradeColumn(stage: "moyen" | "lycee", gt: string): number | null {
+  const g = gt.trim().toLowerCase();
+  if (["continuous", "تقويم", "تقويم مستمر", "تقييم مستمر", "تقييم"].includes(g)) return 4;
+  if (["test", "test1", "فرض", "فرض1", "الفرض الأول", "فرض أول"].includes(g)) return 5;
+  if (["test2", "فرض2", "فرض ثاني", "الفرض الثاني", "فرض ثان"].includes(g)) return stage === "lycee" ? 6 : 5;
+  if (["exam", "اختبار"].includes(g)) return stage === "lycee" ? 7 : 6;
+  return null;
+}
+
+function buildHajzSheet(
+  rows: Array<Record<string, unknown>>,
+  meta: ExportMeta,
+  students: Array<{ nomPrenom: string; dateNaissance: string | null; raqm: number | null }>,
+  school: { nom: string; wilaya: string } | null,
+  stage: "moyen" | "lycee",
+): { aoa: unknown[][]; merges: HajzMerge[] } {
+  const headers = HAJZ_HEADERS[stage];
+  const width = headers.length;
+  const estCol = width - 1; // التقدير / الملاحظة
+
+  const byStudent = new Map<string, { name: string; cells: Map<number, number>; notes: string[] }>();
+  for (const r of rows) {
+    const rawName = String(r.studentName ?? "").trim();
+    if (!rawName) continue;
+    const key = normName(rawName);
+    let rec = byStudent.get(key);
+    if (!rec) {
+      rec = { name: rawName, cells: new Map(), notes: [] };
+      byStudent.set(key, rec);
+    }
+    const g = Number(r.editedGrade ?? r.grade);
+    if (Number.isFinite(g)) {
+      const gt = String(r.gradeType ?? r.assessment ?? meta.assessment ?? meta.gradeType ?? "");
+      const col = hajzGradeColumn(stage, gt);
+      if (col !== null && !rec.cells.has(col)) rec.cells.set(col, g);
+    }
+    const n = String(r.note ?? r.editedNote ?? "").trim();
+    if (n && !rec.notes.includes(n)) rec.notes.push(n);
+  }
+
+  const studentMap = new Map<string, { nomPrenom: string; dateNaissance: string | null; raqm: number | null }>();
+  for (const s of students) {
+    const k = normName(s.nomPrenom);
+    if (k && !studentMap.has(k)) studentMap.set(k, s);
+  }
+
+  const anneeFmt = String(meta.annee ?? "").replace(/-/g, " / ");
+  const termLabel = TRIMESTRE_LABELS[String(meta.trimestre ?? "")] ?? String(meta.trimestre ?? "");
+  const stageLabel = stage === "lycee" ? "ثانوية" : "متوسطة";
+  const span = (c1: number, c2: number, r: number): HajzMerge => ({ s: { c: c1, r }, e: { c: c2, r } });
+  const merges: HajzMerge[] = [
+    span(0, width - 1, 0), span(0, width - 1, 1),
+    span(0, 3, 2), span(4, width - 1, 2),
+    span(0, 3, 3), span(4, width - 1, 3),
+    span(0, 3, 4), span(4, width - 1, 4),
+  ];
+
+  const emptyRow = Array.from({ length: width }, () => "");
+  const aoa: unknown[][] = [
+    ["الجمهورية الجزائرية الديمقراطية الشعبية", ...emptyRow.slice(1)],
+    ["وزارة التربية الوطنية", ...emptyRow.slice(1)],
+    (() => { const r = [...emptyRow]; r[0] = xlsxCell(`مديرية التربية لولاية: ${school?.wilaya ?? ""}`); r[4] = `السنة الدراسية: ${anneeFmt}`; return r; })(),
+    (() => { const r = [...emptyRow]; r[0] = xlsxCell(`المؤسسة: (${stageLabel}) ${school?.nom ?? ""}`); r[4] = `الفصل: ${termLabel}`; return r; })(),
+    (() => { const r = [...emptyRow]; r[0] = xlsxCell(`الفوج التربوي: ${meta.classe ?? ""}`); r[4] = xlsxCell(`المادة: ${meta.subject ?? ""}`); return r; })(),
+    emptyRow,
+    headers,
+  ];
+
+  for (const rec of byStudent.values()) {
+    const stu = studentMap.get(normName(rec.name));
+    const [nom, prenom] = splitNomPrenom(stu?.nomPrenom ?? rec.name);
+    const row: unknown[] = [...emptyRow];
+    row[0] = stu?.raqm ?? "";
+    row[1] = xlsxCell(nom);
+    row[2] = xlsxCell(prenom);
+    row[3] = xlsxCell(stu?.dateNaissance ?? "");
+    for (const [col, val] of rec.cells) row[col] = val;
+    row[estCol] = xlsxCell(rec.notes.join(" | "));
+    aoa.push(row);
+  }
+  return { aoa, merges };
+}
 
 function buildExportSheet(type: string, rows: Array<Record<string, unknown>>, meta: ExportMeta): { headers: string[]; data: unknown[][] } {
   const name = (r: Record<string, unknown>) => xlsxCell(r.studentName);
@@ -269,7 +382,7 @@ router.post(
     next();
   },
   requireStaffFeature("excel_export"),
-  (req, res): void => {
+  async (req, res): Promise<void> => {
     const body = req.body ?? {};
     const rows = Array.isArray(body.rows)
       ? (body.rows as Array<Record<string, unknown>>).slice(0, 2000)
@@ -277,17 +390,58 @@ router.post(
     const type = String(body.type ?? "grades");
     const meta = (body.meta ?? {}) as ExportMeta;
 
-    const { headers, data } = buildExportSheet(type, rows, meta);
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    let worksheet: XLSX.WorkSheet;
+    let sheetName = "OCR";
+
+    if (type === "grades_hajz") {
+      const scopeUserId = req.memberContext?.schoolUserId ?? req.user!.id;
+      const conds = [eq(studentsTable.userId, scopeUserId)];
+      if (meta.annee) conds.push(eq(studentsTable.annee, meta.annee));
+      if (meta.classe) conds.push(eq(studentsTable.classe, meta.classe));
+      if (meta.niveau) conds.push(eq(studentsTable.niveau, meta.niveau as never));
+      const [students, schoolRows] = await Promise.all([
+        db
+          .select({
+            nomPrenom: studentsTable.nomPrenom,
+            dateNaissance: studentsTable.dateNaissance,
+            raqm: studentsTable.raqm,
+          })
+          .from(studentsTable)
+          .where(and(...conds)),
+        db
+          .select({ nom: schoolInfoTable.nom, wilaya: schoolInfoTable.wilaya, stage: schoolInfoTable.stage })
+          .from(schoolInfoTable)
+          .where(eq(schoolInfoTable.userId, scopeUserId))
+          .limit(1),
+      ]);
+      const school = schoolRows[0] ?? null;
+      const stage: "moyen" | "lycee" =
+        school?.stage === "lycee" || school?.stage === "moyen"
+          ? (school.stage as "moyen" | "lycee")
+          : req.schoolStage === "lycee" ? "lycee" : "moyen";
+      const { aoa, merges } = buildHajzSheet(
+        rows, meta, students,
+        school ? { nom: school.nom, wilaya: school.wilaya } : null,
+        stage,
+      );
+      worksheet = XLSX.utils.aoa_to_sheet(aoa);
+      worksheet["!merges"] = merges as any;
+      worksheet["!cols"] = HAJZ_HEADERS[stage].map((_, i) => ({ wch: i <= 2 ? 20 : i === 3 ? 14 : 16 }));
+      sheetName = "حجز النقاط";
+    } else {
+      const { headers, data } = buildExportSheet(type, rows, meta);
+      worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+      worksheet["!cols"] = headers.map((_, i) => ({ wch: i === 1 || i === 2 ? 22 : i === headers.length - 1 ? 28 : 18 }));
+      worksheet["!autofilter"] = { ref: worksheet["!ref"] ?? "A1" };
+    }
+
     worksheet["!sheetViews"] = [{ rightToLeft: true } as any];
-    worksheet["!cols"] = headers.map((_, i) => ({ wch: i === 1 ? 34 : i === headers.length - 1 ? 24 : 16 }));
-    worksheet["!autofilter"] = { ref: worksheet["!ref"] ?? "A1" };
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "OCR");
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
-    const safeType = ["grades", "absences", "daily_register", "daily_attendance"].includes(type) ? type : "export";
+    const safeType = ["grades", "grades_hajz", "absences", "daily_register", "daily_attendance"].includes(type) ? type : "export";
     const date = meta.reportDate || new Date().toISOString().slice(0, 10);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="ocr-${safeType}-${date}.xlsx"`);
