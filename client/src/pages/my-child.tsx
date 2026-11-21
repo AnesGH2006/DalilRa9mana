@@ -369,6 +369,12 @@ export default function MyChildPage() {
   ];
   const displayName = loadedStudent.nomPrenom || "أحمد بن علي";
   const initials = displayName.split(" ").map(part => part[0]).slice(0, 2).join("");
+  const annualAppreciation = annualAvg === null ? null
+    : annualAvg >= 16 ? { label: "ممتاز", cls: "text-emerald-300 border-emerald-400/30 bg-emerald-400/10" }
+    : annualAvg >= 14 ? { label: "جيد جداً", cls: "text-teal-300 border-teal-400/30 bg-teal-400/10" }
+    : annualAvg >= 12 ? { label: "حسن", cls: "text-cyan-300 border-cyan-400/30 bg-cyan-400/10" }
+    : annualAvg >= 10 ? { label: "مقبول", cls: "text-amber-300 border-amber-400/30 bg-amber-400/10" }
+    : { label: "ضعيف", cls: "text-red-300 border-red-400/30 bg-red-400/10" };
   const schoolName = data.school?.nom || "المؤسسة التعليمية";
   const absenceRecords = absences.filter(absence => absence.justifiedHours > 0 || absence.unjustifiedHours > 0);
   const dailyAbsences = data.dailyAbsences ?? [];
@@ -488,10 +494,28 @@ export default function MyChildPage() {
                 <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-[30px] border border-cyan-300/20 bg-gradient-to-br from-cyan-400/20 to-blue-500/20 text-4xl font-bold text-cyan-200 shadow-2xl shadow-cyan-500/10">{initials || "أح"}</div>
               </div>
               <div className="relative mt-8 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 sm:grid-cols-4">
-                <div><p className="text-[11px] text-slate-500">نسبة الحضور التقديرية</p><p className="mt-1 text-xl font-bold text-white">{attendanceRate.toFixed(1)}% <span className="text-xs font-medium text-slate-500">حسب الساعات</span></p></div>
-                <div><p className="text-[11px] text-slate-500">معدل السنة</p><p className="mt-1 text-xl font-bold text-white">{annualAvg !== null ? annualAvg.toFixed(2) : "—"}<span className="text-xs font-normal text-slate-500"> / 20</span></p></div>
-                <div><p className="text-[11px] text-slate-500">غيابات مبررة</p><p className="mt-1 text-xl font-bold text-emerald-300">{totalJustified}<span className="text-xs font-normal text-slate-500"> ساعة</span></p></div>
-                <div><p className="text-[11px] text-slate-500">تحتاج انتباهك</p><p className="mt-1 text-xl font-bold text-red-300">{totalUnjustified}<span className="text-xs font-normal text-slate-500"> ساعة</span></p></div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
+                  <p className="text-[11px] text-slate-500">نسبة الحضور التقديرية</p>
+                  <p className={`mt-1 text-xl font-bold ${attendanceRate >= 90 ? "text-emerald-300" : attendanceRate >= 75 ? "text-amber-300" : "text-red-300"}`}>{attendanceRate.toFixed(1)}%</p>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div className={`h-full rounded-full transition-all ${attendanceRate >= 90 ? "bg-emerald-400" : attendanceRate >= 75 ? "bg-amber-400" : "bg-red-400"}`} style={{ width: `${Math.min(100, Math.max(0, attendanceRate))}%` }} />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
+                  <p className="text-[11px] text-slate-500">معدل السنة</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <p className="text-xl font-bold text-white">{annualAvg !== null ? annualAvg.toFixed(2) : "—"}<span className="text-xs font-normal text-slate-500"> / 20</span></p>
+                    {annualAppreciation && <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${annualAppreciation.cls}`}>{annualAppreciation.label}</span>}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
+                  <p className="text-[11px] text-slate-500">غيابات مبررة</p>
+                  <p className="mt-1 text-xl font-bold text-emerald-300">{totalJustified}<span className="text-xs font-normal text-slate-500"> ساعة</span></p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
+                  <p className="text-[11px] text-slate-500">تحتاج انتباهك</p>
+                  <p className={`mt-1 text-xl font-bold ${totalUnjustified > 0 ? "text-red-300" : "text-slate-400"}`}>{totalUnjustified}<span className="text-xs font-normal text-slate-500"> ساعة</span></p>
+                </div>
               </div>
             </div>
             <div className="rounded-[28px] border border-red-400/20 bg-gradient-to-br from-[#2a1828] to-[#161b2b] p-6 shadow-xl shadow-red-950/10">

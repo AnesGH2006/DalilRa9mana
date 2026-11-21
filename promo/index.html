@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دليل الرقمنة — إعلان 60 ثانية</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; background:#0b1220; overflow:hidden; font-family:"Segoe UI",Tahoma,Arial,sans-serif; }
+  #stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+  #frame { position:relative; width:1920px; height:1080px; transform-origin:center; background:radial-gradient(1200px 800px at 80% -10%, #134e4a 0%, #0b1220 55%); overflow:hidden; }
+  .scene { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0; transform:translateY(40px) scale(.98); transition:opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1); pointer-events:none; padding:80px; }
+  .scene.active { opacity:1; transform:none; }
+  .kicker { font-size:26px; font-weight:700; color:#5eead4; letter-spacing:1px; margin-bottom:18px; }
+  h1.big { font-size:110px; font-weight:900; line-height:1.15; text-align:center; background:linear-gradient(90deg,#34d399,#22d3ee,#818cf8); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h2.sub { font-size:52px; font-weight:800; color:#e2e8f0; text-align:center; margin-top:26px; line-height:1.4; }
+  p.cap { font-size:38px; color:#94a3b8; text-align:center; margin-top:22px; max-width:1400px; line-height:1.7; }
+  .card { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:28px; backdrop-filter:blur(8px); box-shadow:0 30px 80px rgba(0,0,0,.45); }
+  .float { animation:floaty 5s ease-in-out infinite; }
+  @keyframes floaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+  .pop { animation:pop .6s cubic-bezier(.2,1.4,.3,1) both; }
+  @keyframes pop { from{transform:scale(.6);opacity:0} to{transform:scale(1);opacity:1} }
+  .grid-bg { position:absolute; inset:0; background-image:linear-gradient(rgba(94,234,212,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(94,234,212,.05) 1px,transparent 1px); background-size:80px 80px; }
+  /* logo */
+  .logo-badge { width:190px; height:190px; border-radius:48px; background:linear-gradient(135deg,#10b981,#0ea5e9); display:flex; align-items:center; justify-content:center; font-size:96px; box-shadow:0 30px 90px rgba(16,185,129,.45); }
+  /* phone mockup */
+  .phone { width:430px; height:840px; border-radius:52px; border:14px solid #1e293b; background:#0f172a; overflow:hidden; position:relative; box-shadow:0 40px 100px rgba(0,0,0,.6); }
+  .phone .notch { position:absolute; top:14px; left:50%; transform:translateX(-50%); width:150px; height:26px; background:#1e293b; border-radius:20px; z-index:2; }
+  .phone .screen { position:absolute; inset:0; padding:60px 22px 22px; display:flex; flex-direction:column; gap:14px; }
+  .ph-row { background:rgba(255,255,255,.07); border-radius:18px; padding:16px; display:flex; align-items:center; gap:12px; }
+  .ph-dot { width:12px; height:12px; border-radius:50%; }
+  .ph-bar { height:12px; border-radius:8px; background:rgba(255,255,255,.18); flex:1; }
+  .ph-title { font-size:20px; font-weight:800; color:#e2e8f0; }
+  /* stats */
+  .stat { text-align:center; padding:34px 20px; min-width:280px; }
+  .stat .num { font-size:84px; font-weight:900; background:linear-gradient(90deg,#34d399,#22d3ee); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .stat .lbl { font-size:26px; color:#cbd5e1; margin-top:8px; font-weight:700; }
+  /* feature chips */
+  .feat { display:flex; align-items:center; gap:18px; padding:22px 30px; border-radius:22px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); }
+  .feat .ic { width:64px; height:64px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:32px; flex-shrink:0; }
+  .feat .t { font-size:34px; font-weight:800; color:#e2e8f0; }
+  .feat .d { font-size:22px; color:#94a3b8; margin-top:4px; }
+  /* checklist */
+  .check { display:flex; align-items:center; gap:16px; font-size:32px; color:#e2e8f0; font-weight:700; padding:14px 0; }
+  .check .ok { width:38px; height:38px; border-radius:50%; background:#10b981; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  /* price cards */
+  .price { padding:36px 44px; text-align:center; min-width:300px; }
+  .price .amt { font-size:64px; font-weight:900; color:#34d399; }
+  .price .unit { font-size:24px; color:#94a3b8; }
+  .price .name { font-size:30px; font-weight:800; color:#e2e8f0; margin-top:10px; }
+  .price.popular { border:2px solid #10b981; box-shadow:0 0 60px rgba(16,185,129,.25); }
+  .badge-pop { position:absolute; top:-18px; right:50%; transform:translateX(50%); background:#10b981; color:#fff; font-size:18px; font-weight:800; padding:6px 20px; border-radius:999px; }
+  /* progress */
+  #progress { position:absolute; bottom:0; left:0; height:8px; background:linear-gradient(90deg,#10b981,#22d3ee); width:0%; transition:width .5s linear; z-index:50; }
+  #counter { position:absolute; bottom:22px; left:28px; font-size:20px; color:rgba(255,255,255,.5); z-index:50; font-weight:600; direction:ltr; }
+  #replay { position:absolute; bottom:18px; right:28px; z-index:60; display:none; background:#10b981; color:#fff; border:none; border-radius:14px; padding:12px 30px; font-size:22px; font-weight:800; cursor:pointer; font-family:inherit; }
+  #replay:hover { background:#059669; }
+  .big-emoji { font-size:120px; }
+  .row { display:flex; gap:34px; align-items:center; }
+  .col { display:flex; flex-direction:column; align-items:center; gap:26px; }
+  .doc { width:220px; height:290px; border-radius:18px; background:#f8fafc; padding:22px; position:relative; box-shadow:0 20px 50px rgba(0,0,0,.4); }
+  .doc::before { content:""; position:absolute; top:0; right:0; left:0; height:14px; background:linear-gradient(90deg,#ef4444,#f59e0b,#10b981,#3b82f6,#8b5cf6); border-radius:18px 18px 0 0; }
+  .doc .ln { height:10px; border-radius:6px; background:#cbd5e1; margin-top:16px; }
+  .doc .ln.s { width:60%; }
+  .doc .stamp { position:absolute; bottom:26px; left:26px; right:26px; height:44px; border:3px solid #10b981; border-radius:10px; color:#10b981; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:18px; transform:rotate(-6deg); }
+</style>
+</head>
+<body>
+<div id="stage"><div id="frame">
+  <div class="grid-bg"></div>
+
+  <!-- S1: Logo intro (0-5s) -->
+  <div class="scene" data-dur="5">
+    <div class="col">
+      <div class="logo-badge pop">🎓</div>
+      <h1 class="big" style="margin-top:30px">دليل الرقمنة</h1>
+      <p class="cap" style="font-size:40px;color:#5eead4;font-weight:700">منصة إدارة المؤسسات التربوية الجزائرية</p>
+    </div>
+  </div>
+
+  <!-- S2: Problem (5-12s) -->
+  <div class="scene" data-dur="7">
+    <h2 class="sub">هل ما زلت تدير مدرستك بالأوراق؟</h2>
+    <div class="row" style="margin-top:50px">
+      <div class="check pop" style="animation-delay:.2s"><span class="ok">✕</span> كشوف الدرجات اليدوية</div>
+      <div class="check pop" style="animation-delay:.5s"><span class="ok" style="background:#ef4444">✕</span> حساب المعدلات يدوياً</div>
+      <div class="check pop" style="animation-delay:.8s"><span class="ok" style="background:#ef4444">✕</span> متابعة الغيابات ورقياً</div>
+    </div>
+  </div>
+
+  <!-- S3: Dashboard stats (12-24s) -->
+  <div class="scene" data-dur="12">
+    <h2 class="sub">لوحة تحكم شاملة في لمحة</h2>
+    <div class="row" style="margin-top:56px">
+      <div class="card stat pop" style="animation-delay:.1s"><div class="num">1,240</div><div class="lbl">تلميذ</div></div>
+      <div class="card stat pop" style="animation-delay:.3s"><div class="num">96%</div><div class="lbl">نسبة النجاح</div></div>
+      <div class="card stat pop" style="animation-delay:.5s"><div class="num">38</div><div class="lbl">أستاذ</div></div>
+      <div class="card stat pop" style="animation-delay:.7s"><div class="num">12</div><div class="lbl">قسماً</div></div>
+    </div>
+    <p class="cap">إجماليات، ذكور/إناث، معدلات، غيابات — كل شيء محسوب تلقائياً</p>
+  </div>
+
+  <!-- S4: OCR (24-34s) -->
+  <div class="scene" data-dur="10">
+    <div class="row">
+      <div class="col" style="align-items:flex-end">
+        <h2 class="sub" style="text-align:left">امسح بالكاميرا…<br>واستورد كل شيء</h2>
+        <p class="cap" style="text-align:left">درجات، غيابات، سجل يومي — بالذكاء الاصطناعي</p>
+        <div style="display:flex;gap:12px;margin-top:10px">
+          <span class="feat" style="padding:14px 22px"><span class="ic" style="width:44px;height:44px;font-size:22px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#6366f1)">📄</span><span class="t" style="font-size:24px">كشف الدرجات</span></span>
+          <span class="feat" style="padding:14px 22px"><span class="ic" style="width:44px;height:44px;font-size:22px;border-radius:12px;background:linear-gradient(135deg,#f43f5e,#fb7185)">🚫</span><span class="t" style="font-size:24px">كشف الغيابات</span></span>
+        </div>
+      </div>
+      <div class="phone float">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="ph-title">مسح OCR</div>
+          <div class="ph-row"><span class="ph-dot" style="background:#8b5cf6"></span><div class="ph-bar"></div><span style="font-size:14px;color:#a5b4fc">98%</span></div>
+          <div class="ph-row"><span class="ph-dot" style="background:#8b5cf6"></span><div class="ph-bar"></div><span style="font-size:14px;color:#a5b4fc">97%</span></div>
+          <div class="ph-row"><span class="ph-dot" style="background:#f43f5e"></span><div class="ph-bar"></div><span style="font-size:14px;color:#fda4af">غائب</span></div>
+          <div class="ph-row"><span class="ph-dot" style="background:#8b5cf6"></span><div class="ph-bar"></div><span style="font-size:14px;color:#a5b4fc">15/20</span></div>
+          <div style="margin-top:auto" class="card" style="padding:18px;text-align:center;background:linear-gradient(135deg,#10b981,#0ea5e9);border:none"><b style="color:#fff;font-size:22px">تصدير حجز النقاط</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- S5: Timetable + Exams (34-44s) -->
+  <div class="scene" data-dur="10">
+    <h2 class="sub">جداول FET حقيقية… وامتحانات بلا تعارض</h2>
+    <div class="row" style="margin-top:50px">
+      <div class="card" style="padding:34px 40px;min-width:480px">
+        <div style="font-size:24px;font-weight:800;color:#5eead4;margin-bottom:18px">🗓️ جدول القسم — السنة</div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-size:15px">
+          <div></div><div style="color:#64748b">الأحد</div><div style="color:#64748b">الاثنين</div><div style="color:#64748b">الثلاثاء</div><div style="color:#64748b">الأربعاء</div>
+          <div style="color:#64748b">ح1</div><div style="background:#134e4a;border-radius:8px;padding:8px;text-align:center;color:#99f6e4">رياضيات</div><div style="background:#1e3a8a;border-radius:8px;padding:8px;text-align:center;color:#bfdbfe">فيزياء</div><div style="background:#4a1d6b;border-radius:8px;padding:8px;text-align:center;color:#e9d5ff">عربية</div><div style="background:#7c2d12;border-radius:8px;padding:8px;text-align:center;color:#fed7aa">رياضة</div>
+          <div style="color:#64748b">ح2</div><div style="background:#1e3a8a;border-radius:8px;padding:8px;text-align:center;color:#bfdbfe">فيزياء</div><div style="background:#134e4a;border-radius:8px;padding:8px;text-align:center;color:#99f6e4">رياضيات</div><div style="background:#7c2d12;border-radius:8px;padding:8px;text-align:center;color:#fed7aa">رياضة</div><div style="background:#4a1d6b;border-radius:8px;padding:8px;text-align:center;color:#e9d5ff">عربية</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="feat"><span class="ic" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">🛡️</span><div><div class="t">جدول الحراسة</div><div class="d">توزيع عادل بلا تعارض</div></div></div>
+        <div class="feat"><span class="ic" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">🪑</span><div><div class="t">تفويج التلاميذ</div><div class="d">قاعات وأرقام تنظيمية</div></div></div>
+        <div class="feat"><span class="ic" style="background:linear-gradient(135deg,#10b981,#22d3ee)">📊</span><div><div class="t">RGF رسمي</div><div class="d">تصدير Excel وHTML</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- S6: Parent app (44-52s) -->
+  <div class="scene" data-dur="8">
+    <div class="row">
+      <div class="phone float">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="ph-title">متابعة الأبناء 👨‍👩‍👧</div>
+          <div class="ph-row" style="flex-direction:column;align-items:flex-start;gap:6px"><b style="color:#e2e8f0">أحمد بن علي</b><span style="font-size:14px;color:#94a3b8">1AS — القسم 3</span></div>
+          <div class="ph-row"><span style="font-size:20px">📊</span><div style="flex:1"><div class="ph-bar" style="width:80%"></div></div><b style="color:#34d399">14.5/20</b></div>
+          <div class="ph-row"><span style="font-size:20px">⏰</span><div style="flex:1;font-size:16px;color:#cbd5e1">ينتهي الدرس 10:30</div></div>
+          <div class="ph-row" style="border-right:4px solid #f59e0b"><span style="font-size:20px">🔔</span><div style="flex:1;font-size:16px;color:#cbd5e1">غياب اليوم — رياضيات</div></div>
+          <div class="ph-row"><span style="font-size:20px">🗓️</span><div style="flex:1;font-size:16px;color:#cbd5e1">الفرض الأول: الخميس</div></div>
+        </div>
+      </div>
+      <div class="col" style="align-items:flex-start">
+        <h2 class="sub" style="text-align:right">ولي الأمر يتابع من جيبه</h2>
+        <p class="cap" style="text-align:right">النقاط، الجداول، أوقات الانتهاء، التنبيهات الفورية</p>
+        <div class="feat"><span class="ic" style="background:linear-gradient(135deg,#10b981,#34d399)">📱</span><div><div class="t">تطبيق ولي الأمر</div><div class="d">500 دج/سنة فقط</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- S7: Pricing + CTA (52-60s) -->
+  <div class="scene" data-dur="8">
+    <h2 class="sub">أسعار بسيطة… لكل مؤسسة</h2>
+    <div class="row" style="margin-top:44px">
+      <div class="card price pop" style="animation-delay:.1s"><div class="amt">500</div><div class="unit">دج/سنة</div><div class="name">ولي الأمر</div></div>
+      <div class="card price pop" style="animation-delay:.25s"><div class="amt">1,000</div><div class="unit">دج/سنة</div><div class="name">الأستاذ — شهر مجاني</div></div>
+      <div class="card price popular pop" style="animation-delay:.4s;position:relative"><span class="badge-pop">الأكثر طلباً</span><div class="amt">2,000</div><div class="unit">دج/سنة</div><div class="name">المؤسسة — الأساسية</div></div>
+      <div class="card price pop" style="animation-delay:.55s"><div class="amt">3,000</div><div class="unit">دج/سنة</div><div class="name">البرو — كل شيء</div></div>
+    </div>
+    <div style="margin-top:56px;text-align:center">
+      <div class="kicker" style="font-size:34px;color:#34d399">💳 ادفع عبر CCP أو البطاقة — فعّل خلال دقائق</div>
+      <h1 class="big" style="font-size:84px;margin-top:14px">دليل الرقمنة</h1>
+      <p class="cap" style="font-size:34px;color:#5eead4;font-weight:700">مدرستك… بين يديك. ابدأ اليوم.</p>
+    </div>
+  </div>
+
+  <div id="progress"></div>
+  <div id="counter">0:00 / 1:00</div>
+  <button id="replay">↻ إعادة المشاهدة</button>
+</div></div>
+
+<script>
+const scenes = [...document.querySelectorAll('.scene')];
+const progress = document.getElementById('progress');
+const counter = document.getElementById('counter');
+const replay = document.getElementById('replay');
+const frame = document.getElementById('frame');
+const TOTAL = 60;
+let timers = [];
+
+function fit() {
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  frame.style.transform = `scale(${s})`;
+}
+addEventListener('resize', fit); fit();
+
+function fmt(t){ return `0:${String(Math.floor(t)).padStart(2,'0')}`; }
+
+function play() {
+  timers.forEach(clearTimeout); timers = [];
+  scenes.forEach(s => s.classList.remove('active'));
+  replay.style.display = 'none';
+  let t = 0;
+  scenes.forEach((s, i) => {
+    timers.push(setTimeout(() => s.classList.add('active'), t*1000));
+    t += parseFloat(s.dataset.dur);
+  });
+  const start = performance.now();
+  const tick = () => {
+    const el = (performance.now()-start)/1000;
+    progress.style.width = Math.min(100, el/TOTAL*100) + '%';
+    counter.textContent = fmt(Math.min(el,TOTAL)) + ' / 1:00';
+    if (el < TOTAL) requestAnimationFrame(tick);
+    else { scenes.forEach(s => s.classList.add('active')); replay.style.display = 'block'; }
+  };
+  requestAnimationFrame(tick);
+}
+replay.onclick = play;
+play();
+</script>
+</body>
+</html>
