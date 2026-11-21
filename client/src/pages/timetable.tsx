@@ -947,13 +947,17 @@ export default function TimetablePage() {
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
       {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30 shrink-0">
-          <Calendar className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-xl font-extrabold">جدول الأوقات وتنظيم الأساتذة</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">بناء الجداول الزمنية، توزيع الأساتذة والقاعات، كشف التعارضات</p>
+      <motion.div
+        initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-l from-cyan-500/10 via-blue-600/5 to-transparent p-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30 shrink-0">
+            <Calendar className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">جدول الأوقات وتنظيم الأساتذة</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">بناء الجداول الزمنية، توزيع الأساتذة والقاعات، كشف التعارضات</p>
+          </div>
         </div>
         <div className="ms-auto flex items-center gap-2">
           <a href="/fet-rgf" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-background text-xs font-semibold hover:bg-muted">
@@ -964,7 +968,7 @@ export default function TimetablePage() {
             {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-      </div>
+      </motion.div>
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-muted/50 rounded-xl w-fit">

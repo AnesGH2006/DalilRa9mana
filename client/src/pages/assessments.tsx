@@ -143,10 +143,16 @@ export default function AssessmentsPage() {
   return (
     <div className="min-h-full bg-dot-grid p-4 md:p-8" dir="rtl">
       <div className="mx-auto max-w-7xl space-y-6">
-        <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black text-foreground">الفروض والاختبارات</h1>
-            <p className="text-muted-foreground">رزنامة الفروض والاختبارات تظهر للوالدين في صفحة متابعة الأبناء</p>
+        <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-l from-amber-500/10 via-orange-500/5 to-transparent p-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0">
+              <CalendarDays className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">الفروض والاختبارات</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">رزنامة الفروض والاختبارات تظهر للوالدين في صفحة متابعة الأبناء</p>
+            </div>
           </div>
           <Select value={annee} onValueChange={setAnnee}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
