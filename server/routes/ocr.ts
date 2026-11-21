@@ -225,6 +225,15 @@ const HAJZ_HEADERS: Record<"moyen" | "lycee", string[]> = {
 
 const TRIMESTRE_LABELS: Record<string, string> = { "1": "الأول", "2": "الثاني", "3": "الثالث" };
 
+// Appreciation mark — same thresholds as the pedagogy center's remarkFor()
+function hajzAppreciation(avg: number): string {
+  if (avg >= 16) return "ممتاز";
+  if (avg >= 14) return "جيد جداً";
+  if (avg >= 12) return "حسن";
+  if (avg >= 10) return "مقبول";
+  return "ضعيف";
+}
+
 const normName = (s: unknown): string =>
   String(s ?? "")
     .normalize("NFKC")
@@ -328,11 +337,19 @@ function buildHajzSheet(
       gradeSum += val;
       gradeCount += 1;
     }
-    // المتابعة البيداغوجية: generate the appreciation remark with the same rules as the pedagogy center
-    const remark = gradeCount > 0
-      ? remarkFor(gradeSum / gradeCount, stu ? (attendanceRate.get(stu.id) ?? 100) : 100, 3, "ar")
-      : "";
-    const appreciation = [remark, rec.notes.join(" | ")].filter(Boolean).join(" — ");
+    // المتابعة البيداغوجية: appreciation mark + remark with the same rules as the pedagogy center
+    let remarkText = "";
+    if (gradeCount > 0) {
+      const avg = gradeSum / gradeCount;
+      const label = hajzAppreciation(avg);
+      remarkText = remarkFor(avg, stu ? (attendanceRate.get(stu.id) ?? 100) : 100, 3, "ar") as string;
+      const prefix = `${label}، `;
+      if (typeof remarkText === "string" && remarkText.startsWith(prefix)) {
+        remarkText = remarkText.slice(prefix.length);
+      }
+      remarkText = `${label} — ${remarkText}`;
+    }
+    const appreciation = [remarkText, rec.notes.join(" | ")].filter(Boolean).join(" — ");
     row[estCol] = xlsxCell(appreciation);
     aoa.push(row);
   }
