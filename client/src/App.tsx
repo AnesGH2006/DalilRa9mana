@@ -1077,17 +1077,17 @@ function LoginScreen() {
   const { t } = useLanguage();
   const features = ["login.feature1", "login.feature2", "login.feature3", "login.feature4"] as const;
   const featureIcons = [Users, BarChart3, LayoutDashboard, GraduationCap];
-  const reviews = [
-    { name: "الأستاذة سارة بوعلام", role: "مديرة مؤسسة متوسطة", place: "وهران", text: "وفّرنا ساعات من العمل اليدوي — استيراد الفET والدرجات صار في دقائق، والأولياء يتابعون أبنائهم مباشرة.", rating: 5 },
-    { name: "الأستاذ رشيد حمداني", role: "أستاذ رياضيات — متوسطة", place: "قسنطينة", text: "ميزة المسح الضوئي للدرجات ممتازة، والتصدير وفق نموذج حجز النقاط الرسمي يوفر علينا تجهيز الكشوفات.", rating: 5 },
-    { name: "الأم ياسمين مرابط", role: "ولي أمر", place: "باتنة", text: "أتابع علامات ابنتي وغياباتها من هاتفي في أي وقت — لا حاجة للاتصال بالمدرسة لكل استفسار.", rating: 5 },
-  ];
   const [publicStats, setPublicStats] = useState<{ schools: number; students: number; wilayas: number } | null>(null);
+  const [publicReviews, setPublicReviews] = useState<Array<{ id: string; rating: number; comment: string; name: string; audience: string; wilaya: string | null }>>([]);
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}api/public/stats`)
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (d) setPublicStats(d); })
+      .catch(() => {});
+    fetch(`${import.meta.env.BASE_URL}api/reviews`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.reviews) setPublicReviews(d.reviews.slice(0, 3)); })
       .catch(() => {});
   }, []);
 
@@ -1235,7 +1235,8 @@ function LoginScreen() {
           })}
         </div>
 
-        {/* Reviews — social proof */}
+        {/* Reviews — real user testimonials, moderated by admin */}
+        {publicReviews.length > 0 && (
         <div className="max-w-3xl mx-auto mb-10">
           <motion.p
             className="text-xs font-bold text-muted-foreground/80 mb-3 text-center"
@@ -1244,7 +1245,7 @@ function LoginScreen() {
             ماذا يقول مستخدمو المنصة؟
           </motion.p>
           <div className="grid gap-3 sm:grid-cols-3">
-            {reviews.map((review, i) => (
+            {publicReviews.map((review, i) => (
               <motion.figure
                 key={review.name}
                 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
@@ -1262,21 +1263,22 @@ function LoginScreen() {
                   ))}
                 </div>
                 <blockquote className="text-[13px] leading-relaxed text-foreground/80 flex-1">
-                  "{review.text}"
+                  "{review.comment}"
                 </blockquote>
                 <figcaption className="mt-3 flex items-center gap-2.5 border-t border-slate-200/60 dark:border-white/10 pt-3">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                    {review.name.split(" ").slice(-1)[0][0]}
+                    {review.name.split(" ").slice(-1)[0]?.[0] ?? "؟"}
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-foreground truncate">{review.name}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">{review.role} · {review.place}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{review.audience}{review.wilaya ? ` · ${review.wilaya}` : ""}</p>
                   </div>
                 </figcaption>
               </motion.figure>
             ))}
           </div>
         </div>
+        )}
 
         {/* CTA */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}>

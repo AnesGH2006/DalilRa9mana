@@ -703,3 +703,26 @@ export const studentDocumentsTable = pgTable("student_documents", {
 }, (table) => [index("IDX_student_documents_student").on(table.studentId, table.createdAt)]);
 
 export type StudentDocument = typeof studentDocumentsTable.$inferSelect;
+
+/**
+ * Public reviews of the platform. One review per user, submitted after the
+ * account is at least 30 days old, moderated by an admin before it appears
+ * on the login page.
+ */
+export const reviewsTable = pgTable("reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(),
+  comment: text("comment").notNull(),
+  /** Who the reviewer is: مدرسة / أستاذ / ولي أمر */
+  audience: varchar("audience", { length: 40 }).notNull().default("school"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+  uniqueIndex("UQ_reviews_user").on(table.userId),
+  index("IDX_reviews_status").on(table.status, table.createdAt),
+]);
+
+export type Review = typeof reviewsTable.$inferSelect;
+export type InsertReview = typeof reviewsTable.$inferInsert;

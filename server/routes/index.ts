@@ -37,6 +37,7 @@ import { memberPermissionMiddleware } from "../middlewares/memberPermissions.js"
 import smsRouter from "./sms.js";
 import whatsappRouter from "./whatsapp.js";
 import parentLinkRouter from "./Parent-link.js";
+import reviewsRouter from "./reviews.js";
 const router: IRouter = Router();
 
 router.use(memberPermissionMiddleware);
@@ -47,6 +48,8 @@ router.use(paymentsRouter);
 router.use(schoolStageRouter);
 // Parents must be able to find a school and link their account before purchasing a plan.
 router.use(parentLinkRouter);
+// Public reviews list must be reachable from the login page (no paid plan required).
+router.use(reviewsRouter);
 router.use(requirePaidPlan);
   router.use(smsRouter);
   router.use(whatsappRouter);

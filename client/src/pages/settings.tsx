@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { School, User, Save, KeyRound, Sparkles } from "lucide-react";
+import { ReviewForm } from "@/components/review-form";
 import { SCHOOL_STAGE } from "@/lib/deployment";
 import type { AuthUser, SchoolInfo } from "@shared/types";
 
@@ -307,6 +308,11 @@ export default function Settings() {
             </p>
           </CardContent>
         </Card>
+      </motion.div>
+
+      {/* Platform review — available to accounts older than 30 days */}
+      <motion.div initial={{ opacity: 0, y: 20, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.3 }}>
+        <ReviewForm />
       </motion.div>
     </motion.div>
   );

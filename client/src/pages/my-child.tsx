@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { getSubjectsForLevel, calcWeightedAvg } from "@shared/subjects";
 import { TIMETABLE_BREAKS, TIMETABLE_DAY_ROWS } from "@shared/timetable-curriculum";
+import { ReviewForm } from "@/components/review-form";
 import type { Niveau } from "@shared/types";
 
 const BASE = import.meta.env.BASE_URL;
@@ -800,6 +801,10 @@ export default function MyChildPage() {
                   ))}
             </div>
           </section>
+
+          <div className="dark">
+            <ReviewForm />
+          </div>
         </main>
       </div>
     </div>

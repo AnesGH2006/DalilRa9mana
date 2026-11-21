@@ -404,6 +404,22 @@ async function probeDb(attempt = 1): Promise<void> {
     await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_payment_requests_user" ON payment_requests(user_id, created_at)`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_payment_requests_status" ON payment_requests(status)`);
 
+    // Public platform reviews (one per user, moderated before display).
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        rating integer NOT NULL,
+        comment text NOT NULL,
+        audience varchar(40) NOT NULL DEFAULT 'school',
+        status varchar(20) NOT NULL DEFAULT 'pending',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_reviews_user" ON reviews(user_id)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_reviews_status" ON reviews(status, created_at)`);
+
     // Repair names imported from combined Excel name columns before the parser fix.
     await db.execute(sql`UPDATE students SET nom_prenom = regexp_replace(nom_prenom, '^(.+)\\s+\\1$', '\\1') WHERE nom_prenom ~ '^(.+)\\s+\\1$'`);
     logger.info("Database connection verified");

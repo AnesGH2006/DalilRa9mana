@@ -104,6 +104,100 @@ function CcpRequestsCard() {
   );
 }
 
+// ── Platform Reviews Moderation ───────────────────────────────────────────────
+interface AdminReview {
+  id: string; rating: number; comment: string; audience: string; audienceLabel: string;
+  status: string; createdAt: string; name: string; email: string | null; wilaya: string | null;
+}
+
+function ReviewsCard() {
+  const [reviews, setReviews] = useState<AdminReview[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = async () => {
+    try {
+      const res = await fetch(`${BASE}api/reviews/admin`, { credentials: "include" });
+      if (res.ok) {
+        const data = (await res.json()) as { reviews?: AdminReview[] };
+        setReviews(data.reviews ?? []);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+  useEffect(() => { void load(); }, []);
+
+  const setStatus = async (id: string, status: "approved" | "rejected" | "pending") => {
+    setBusy(id);
+    try {
+      const res = await fetch(`${BASE}api/reviews/admin/${id}/status`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) await load();
+    } finally { setBusy(null); }
+  };
+
+  const remove = async (id: string) => {
+    if (!window.confirm("حذف هذا التقييم نهائياً؟")) return;
+    setBusy(id);
+    try {
+      const res = await fetch(`${BASE}api/reviews/admin/${id}`, { method: "DELETE", credentials: "include" });
+      if (res.ok) await load();
+    } finally { setBusy(null); }
+  };
+
+  const pendingCount = reviews.filter(r => r.status === "pending").length;
+
+  return (
+    <Card className="border-0 shadow-md overflow-hidden md:col-span-2">
+      <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-4">
+        <h2 className="text-white font-bold text-sm">آراء المستخدمين على المنصة</h2>
+        <p className="text-white/65 text-xs">{pendingCount > 0 ? `${pendingCount} تقييم بانتظار المراجعة — ` : ""}الموافق عليها تظهر في صفحة تسجيل الدخول</p>
+      </div>
+      <CardContent className="pt-4 pb-4 space-y-3">
+        {loading ? (
+          <p className="text-xs text-muted-foreground text-center py-3">جارٍ التحميل…</p>
+        ) : reviews.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-3">لا توجد تقييمات بعد — يمكن للمستخدمين التقييم بعد شهر من إنشاء حسابهم</p>
+        ) : (
+          reviews.map(r => (
+            <div key={r.id} className="rounded-xl border p-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0.5" dir="ltr">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span key={i} className={`text-sm ${i < r.rating ? "text-amber-500" : "text-muted-foreground/30"}`}>★</span>
+                    ))}
+                  </div>
+                  <span className="text-xs font-bold">{r.name}</span>
+                  <span className="text-[10px] text-muted-foreground">{r.audienceLabel}{r.wilaya ? ` · ${r.wilaya}` : ""}</span>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === "approved" ? "bg-emerald-100 text-emerald-700" : r.status === "rejected" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                  {r.status === "approved" ? "منشور" : r.status === "rejected" ? "مرفوض" : "معلّق"}
+                </span>
+              </div>
+              <p className="text-sm text-foreground/85">"{r.comment}"</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[10px] text-muted-foreground">{new Date(r.createdAt).toLocaleString("ar-DZ")}</p>
+                <div className="flex gap-2">
+                  {r.status !== "approved" && (
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" disabled={busy === r.id} onClick={() => void setStatus(r.id, "approved")}>نشر</Button>
+                  )}
+                  {r.status !== "rejected" && (
+                    <Button size="sm" variant="outline" className="text-red-600 border-red-200" disabled={busy === r.id} onClick={() => void setStatus(r.id, "rejected")}>رفض</Button>
+                  )}
+                  <Button size="sm" variant="ghost" className="text-muted-foreground" disabled={busy === r.id} onClick={() => void remove(r.id)}>حذف</Button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Bulk Import Card ──────────────────────────────────────────────────────────
 const YEARS = ["2023-2024", "2024-2025", "2025-2026", "2026-2027"];
 
@@ -298,6 +392,7 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <BulkImportCard />
         <CcpRequestsCard />
+        <ReviewsCard />
         <Card className="border-0 shadow-md overflow-hidden">
           <div className="bg-gradient-to-br from-rose-500 to-red-700 p-4">
             <div className="flex items-center gap-2 mb-1">
