@@ -17,9 +17,9 @@ import { logger } from "../lib/logger.js";
 
 const router = Router();
 
-type RemarkLanguage = "ar" | "fr" | "both";
+export type RemarkLanguage = "ar" | "fr" | "both";
 
-function remarkFor(average: number, attendanceRate: number, behaviorScore: number, language: RemarkLanguage) {
+export function remarkFor(average: number, attendanceRate: number, behaviorScore: number, language: RemarkLanguage) {
   const attendanceWarning = attendanceRate < 90;
   const behaviorWarning = behaviorScore <= 2;
   let ar: string;

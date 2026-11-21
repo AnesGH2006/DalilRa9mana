@@ -929,6 +929,21 @@ function GuideWelcomeDialog() {
   );
 }
 
+function GuideHelpButton() {
+  const [, navigate] = useLocation();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate("/guide")}
+      title="دليل الاستخدام"
+      aria-label="دليل الاستخدام"
+      className="fixed bottom-6 start-6 z-40 w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 flex items-center justify-center hover:scale-105 transition-transform"
+    >
+      <BookOpen className="w-5 h-5" />
+    </button>
+  );
+}
+
 function AppLayout() {
   const [loc, navigate] = useLocation();
   const { user } = useAuth();
@@ -1044,6 +1059,7 @@ function AppLayout() {
             </AnimatePresence>
           )}
       </main>
+      {!isParent && <GuideHelpButton />}
       <GuideWelcomeDialog />
     </div>
   );

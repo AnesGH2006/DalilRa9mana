@@ -11,7 +11,8 @@ import multer from "multer";
 import * as XLSX from "xlsx";
 import { and, eq } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
-import { db, ocrUploadsTable, schoolInfoTable, studentsTable } from "../../shared/db.js";
+import { db, ocrUploadsTable, schoolInfoTable, studentDailyAttendanceTable, studentsTable } from "../../shared/db.js";
+import { remarkFor } from "./pedagogy.js";
 import { getUserGroqKey, getUserGeminiKey } from "../lib/groq-key.js";
 import { processOcr, type OcrEngine, type OcrType } from "../services/ocrService.js";
 import { canUseStaffFeature, requireStaffFeature, STAFF_PLAN_PRICE_DZD } from "../middlewares/staffAccess.js";
@@ -250,12 +251,15 @@ function hajzGradeColumn(stage: "moyen" | "lycee", gt: string): number | null {
   return null;
 }
 
+type HajzStudent = { id: string; nomPrenom: string; dateNaissance: string | null; raqm: number | null };
+
 function buildHajzSheet(
   rows: Array<Record<string, unknown>>,
   meta: ExportMeta,
-  students: Array<{ nomPrenom: string; dateNaissance: string | null; raqm: number | null }>,
+  students: HajzStudent[],
   school: { nom: string; wilaya: string } | null,
   stage: "moyen" | "lycee",
+  attendanceRate: Map<string, number>,
 ): { aoa: unknown[][]; merges: HajzMerge[] } {
   const headers = HAJZ_HEADERS[stage];
   const width = headers.length;
@@ -281,7 +285,7 @@ function buildHajzSheet(
     if (n && !rec.notes.includes(n)) rec.notes.push(n);
   }
 
-  const studentMap = new Map<string, { nomPrenom: string; dateNaissance: string | null; raqm: number | null }>();
+  const studentMap = new Map<string, HajzStudent>();
   for (const s of students) {
     const k = normName(s.nomPrenom);
     if (k && !studentMap.has(k)) studentMap.set(k, s);
@@ -317,8 +321,19 @@ function buildHajzSheet(
     row[1] = xlsxCell(nom);
     row[2] = xlsxCell(prenom);
     row[3] = xlsxCell(stu?.dateNaissance ?? "");
-    for (const [col, val] of rec.cells) row[col] = val;
-    row[estCol] = xlsxCell(rec.notes.join(" | "));
+    let gradeSum = 0;
+    let gradeCount = 0;
+    for (const [col, val] of rec.cells) {
+      row[col] = val;
+      gradeSum += val;
+      gradeCount += 1;
+    }
+    // المتابعة البيداغوجية: generate the appreciation remark with the same rules as the pedagogy center
+    const remark = gradeCount > 0
+      ? remarkFor(gradeSum / gradeCount, stu ? (attendanceRate.get(stu.id) ?? 100) : 100, 3, "ar")
+      : "";
+    const appreciation = [remark, rec.notes.join(" | ")].filter(Boolean).join(" — ");
+    row[estCol] = xlsxCell(appreciation);
     aoa.push(row);
   }
   return { aoa, merges };
@@ -399,9 +414,10 @@ router.post(
       if (meta.annee) conds.push(eq(studentsTable.annee, meta.annee));
       if (meta.classe) conds.push(eq(studentsTable.classe, meta.classe));
       if (meta.niveau) conds.push(eq(studentsTable.niveau, meta.niveau as never));
-      const [students, schoolRows] = await Promise.all([
+      const [students, schoolRows, attendanceRows] = await Promise.all([
         db
           .select({
+            id: studentsTable.id,
             nomPrenom: studentsTable.nomPrenom,
             dateNaissance: studentsTable.dateNaissance,
             raqm: studentsTable.raqm,
@@ -413,7 +429,32 @@ router.post(
           .from(schoolInfoTable)
           .where(eq(schoolInfoTable.userId, scopeUserId))
           .limit(1),
+        db
+          .select({
+            studentId: studentDailyAttendanceTable.studentId,
+            isAbsent: studentDailyAttendanceTable.isAbsent,
+            status: studentDailyAttendanceTable.status,
+          })
+          .from(studentDailyAttendanceTable)
+          .where(and(
+            eq(studentDailyAttendanceTable.userId, scopeUserId),
+            ...(meta.annee ? [eq(studentDailyAttendanceTable.annee, meta.annee)] : []),
+          )),
       ]);
+
+      // Attendance rate per student (unexcused absences lower the rate), matching pedagogy rules
+      const attStats = new Map<string, { total: number; unexcused: number }>();
+      for (const a of attendanceRows) {
+        const st = attStats.get(a.studentId) ?? { total: 0, unexcused: 0 };
+        st.total += 1;
+        const justified = /مبرر|مبررة|معذور|justifi|excuse|غ\/م/i.test(a.status ?? "");
+        if (a.isAbsent && !justified) st.unexcused += 1;
+        attStats.set(a.studentId, st);
+      }
+      const attendanceRate = new Map<string, number>();
+      for (const [sid, st] of attStats) {
+        attendanceRate.set(sid, st.total > 0 ? Math.round(((st.total - st.unexcused) / st.total) * 1000) / 10 : 100);
+      }
       const school = schoolRows[0] ?? null;
       const stage: "moyen" | "lycee" =
         school?.stage === "lycee" || school?.stage === "moyen"
@@ -423,6 +464,7 @@ router.post(
         rows, meta, students,
         school ? { nom: school.nom, wilaya: school.wilaya } : null,
         stage,
+        attendanceRate,
       );
       worksheet = XLSX.utils.aoa_to_sheet(aoa);
       worksheet["!merges"] = merges as any;
