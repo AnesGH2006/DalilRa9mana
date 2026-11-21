@@ -62,8 +62,8 @@ export interface SubstitutionResult {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** Number of teaching periods per day in an Algerian middle school timetable */
-const PERIODS_PER_DAY = 6;
+/** Number of teaching periods per day in an Algerian middle school timetable (middle school never exceeds 7) */
+const PERIODS_PER_DAY = 7;
 /** School week spans Sunday–Thursday (5 days) */
 const SCHOOL_DAYS = 5;
 const TOTAL_WEEKLY_PERIODS = PERIODS_PER_DAY * SCHOOL_DAYS;

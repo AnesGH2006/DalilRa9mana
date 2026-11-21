@@ -19,6 +19,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { getSubjectsForLevel, calcWeightedAvg } from "@shared/subjects";
+import { TIMETABLE_BREAKS, TIMETABLE_DAY_ROWS } from "@shared/timetable-curriculum";
 import type { Niveau } from "@shared/types";
 
 const BASE = import.meta.env.BASE_URL;
@@ -590,7 +591,23 @@ export default function MyChildPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {schedulePeriodNumbers.map(periodNumber => {
+                      {TIMETABLE_DAY_ROWS.map(row => {
+                        if (row.kind === "break") {
+                          const brk = TIMETABLE_BREAKS[row.breakIndex];
+                          return (
+                            <tr key={`break-${row.breakIndex}`} className="align-top">
+                              <td className="border-b border-white/10 px-3 py-2">
+                                <div className="text-[11px] font-bold text-amber-300">{brk.label}</div>
+                                <div className="mt-1 text-[10px] text-slate-500">{brk.start} — {brk.end}</div>
+                              </td>
+                              <td colSpan={schedule.days.length} className="border-b border-s border-white/10 px-2 py-2 text-center text-[10px] font-semibold text-amber-200/70">
+                                {brk.label} · {brk.start} — {brk.end}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        const periodNumber = row.period;
+                        if (!schedulePeriodNumbers.includes(periodNumber)) return null;
                         const meta = schedulePeriodMeta.get(periodNumber);
                         return (
                           <tr key={periodNumber} className="align-top">

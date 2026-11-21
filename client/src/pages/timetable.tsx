@@ -18,7 +18,9 @@ import {
   LYCEE_PROGRAMS,
   LYCEE_SUBJECTS,
   MOYEN_SUBJECTS,
+  TIMETABLE_BREAKS,
   TIMETABLE_DAY_LABELS,
+  TIMETABLE_DAY_ROWS,
   TIMETABLE_PERIODS,
 } from "@shared/timetable-curriculum";
 
@@ -200,8 +202,8 @@ function TimetableGeneratorPanel({ classes, subjects, roomIds, rooms, teachers, 
     }
   }, [programs, activeProgramId]);
 
-  const [periods, setPeriods] = useState(6);
-  const [maxDaily, setMaxDaily] = useState(6);
+  const [periods, setPeriods] = useState(7);
+  const [maxDaily, setMaxDaily] = useState(7);
   const [selectedDays, setSelectedDays] = useState([0, 1, 2, 3, 4]);
   const [blocked, setBlocked] = useState("");
   const [spread, setSpread] = useState(true);
@@ -862,8 +864,8 @@ export default function TimetablePage() {
           replace: true,
           rules: {
             workingDays: [0, 1, 2, 3, 4],
-            periodsPerDay: 6,
-            maxDailyPeriodsPerClass: 6,
+            periodsPerDay: 7,
+            maxDailyPeriodsPerClass: 7,
             avoidConsecutiveSameSubject: true,
             preferHeavySubjectsEarly: true,
             avoidConsecutiveHeavySubjects: true,
@@ -1107,7 +1109,24 @@ export default function TimetablePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {PERIODS.map((p, pi) => (
+                    {TIMETABLE_DAY_ROWS.map(row => {
+                      if (row.kind === "break") {
+                        const brk = TIMETABLE_BREAKS[row.breakIndex];
+                        return (
+                          <tr key={`break-${row.breakIndex}`} className="border-b">
+                            <td className="px-3 py-1 bg-amber-50/70 dark:bg-amber-950/30 border-e">
+                              <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400">{brk.label}</div>
+                              <div className="text-[9px] text-muted-foreground/60">{brk.start} - {brk.end}</div>
+                            </td>
+                            <td colSpan={DAYS_AR.length} className="px-2 py-1.5 text-center text-[10px] font-semibold tracking-wide text-amber-600/80 dark:text-amber-400/80 bg-amber-50/40 dark:bg-amber-950/10">
+                              {brk.label} · {brk.start} - {brk.end}
+                            </td>
+                          </tr>
+                        );
+                      }
+                      const pi = row.period;
+                      const p = PERIODS[pi];
+                      return (
                       <tr key={pi} className="border-b last:border-0">
                         <td className="px-3 py-1.5 bg-muted/20 border-e">
                           <div className="text-xs font-bold text-muted-foreground">{p.label}</div>
@@ -1191,7 +1210,8 @@ export default function TimetablePage() {
                           );
                         })}
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -1860,7 +1880,24 @@ function PrintPanel({ classes, annee, teachers, rooms, slots, activeClasse, onCl
             </tr>
           </thead>
           <tbody>
-            {PERIODS.map((p, pi) => (
+            {TIMETABLE_DAY_ROWS.map(row => {
+              if (row.kind === "break") {
+                const brk = TIMETABLE_BREAKS[row.breakIndex];
+                return (
+                  <tr key={`break-${row.breakIndex}`} className="border-b">
+                    <td className="px-3 py-1.5 bg-amber-50 border-e text-center">
+                      <div className="text-[10px] font-bold text-amber-700">{brk.label}</div>
+                      <div className="text-[9px] text-muted-foreground">{brk.start} - {brk.end}</div>
+                    </td>
+                    <td colSpan={DAYS_AR.length} className="px-2 py-1.5 text-center text-[10px] font-semibold text-amber-700 bg-amber-50/60">
+                      {brk.label} · {brk.start} - {brk.end}
+                    </td>
+                  </tr>
+                );
+              }
+              const pi = row.period;
+              const p = PERIODS[pi];
+              return (
               <tr key={pi} className="border-b last:border-0">
                 <td className="px-3 py-2 bg-muted/20 border-e text-center">
                   <div className="text-xs font-bold">{p.label}</div>
@@ -1888,7 +1925,8 @@ function PrintPanel({ classes, annee, teachers, rooms, slots, activeClasse, onCl
                   );
                 })}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -59,7 +59,6 @@ export interface TimetableGenerationResult {
 }
 
 const SCHOOL_DAYS = 5;
-const PERIODS_PER_DAY = 6;
 const DEFAULT_HEAVY_SUBJECTS = [
   "الرياضيات", "رياضيات", "math", "الفيزياء", "العلوم الفيزيائية", "physics",
   "العلوم الطبيعية", "علوم الطبيعة والحياة", "science", "اللغة العربية", "العربية",
