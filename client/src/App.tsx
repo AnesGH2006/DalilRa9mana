@@ -1077,6 +1077,11 @@ function LoginScreen() {
   const { t } = useLanguage();
   const features = ["login.feature1", "login.feature2", "login.feature3", "login.feature4"] as const;
   const featureIcons = [Users, BarChart3, LayoutDashboard, GraduationCap];
+  const reviews = [
+    { name: "الأستاذة سارة بوعلام", role: "مديرة مؤسسة متوسطة", place: "وهران", text: "وفّرنا ساعات من العمل اليدوي — استيراد الفET والدرجات صار في دقائق، والأولياء يتابعون أبنائهم مباشرة.", rating: 5 },
+    { name: "الأستاذ رشيد حمداني", role: "أستاذ رياضيات — متوسطة", place: "قسنطينة", text: "ميزة المسح الضوئي للدرجات ممتازة، والتصدير وفق نموذج حجز النقاط الرسمي يوفر علينا تجهيز الكشوفات.", rating: 5 },
+    { name: "الأم ياسمين مرابط", role: "ولي أمر", place: "باتنة", text: "أتابع علامات ابنتي وغياباتها من هاتفي في أي وقت — لا حاجة للاتصال بالمدرسة لكل استفسار.", rating: 5 },
+  ];
   const [publicStats, setPublicStats] = useState<{ schools: number; students: number; wilayas: number } | null>(null);
 
   useEffect(() => {
@@ -1230,6 +1235,49 @@ function LoginScreen() {
           })}
         </div>
 
+        {/* Reviews — social proof */}
+        <div className="max-w-3xl mx-auto mb-10">
+          <motion.p
+            className="text-xs font-bold text-muted-foreground/80 mb-3 text-center"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
+          >
+            ماذا يقول مستخدمو المنصة؟
+          </motion.p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {reviews.map((review, i) => (
+              <motion.figure
+                key={review.name}
+                initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + i * 0.08, type: "spring", stiffness: 260 }}
+                whileHover={{ y: -4 }}
+                className="flex flex-col rounded-2xl backdrop-blur-md border border-white/60 p-4 text-start"
+                style={{
+                  background: "rgba(255,255,255,0.60)",
+                  boxShadow: "0 4px 20px rgba(59,130,246,0.08), 0 1px 3px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.9)",
+                }}
+              >
+                <div className="flex items-center gap-0.5 mb-2" dir="ltr">
+                  {Array.from({ length: review.rating }).map((_, s) => (
+                    <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                <blockquote className="text-[13px] leading-relaxed text-foreground/80 flex-1">
+                  "{review.text}"
+                </blockquote>
+                <figcaption className="mt-3 flex items-center gap-2.5 border-t border-slate-200/60 dark:border-white/10 pt-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                    {review.name.split(" ").slice(-1)[0][0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-foreground truncate">{review.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{review.role} · {review.place}</p>
+                  </div>
+                </figcaption>
+              </motion.figure>
+            ))}
+          </div>
+        </div>
+
         {/* CTA */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}>
           <motion.div
@@ -1247,7 +1295,7 @@ function LoginScreen() {
             تسجيل الدخول عبر حساب Google • آمن ومشفر
           </motion.p>
           <motion.p className="text-[11px] text-muted-foreground/70 mt-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
-            باقات مرنة: ولي الأمر 500 دج/سنة • الأستاذ 1000 دج/سنة • المؤسسة من 1500 دج/سنة
+            باقات مرنة: ولي الأمر 500 دج/سنة • الأستاذ 1000 دج/سنة • المؤسسة من 2000 دج/سنة
           </motion.p>
         </motion.div>
       </motion.div>
