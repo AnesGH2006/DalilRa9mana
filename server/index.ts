@@ -420,6 +420,15 @@ async function probeDb(attempt = 1): Promise<void> {
     await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_reviews_user" ON reviews(user_id)`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_reviews_status" ON reviews(status, created_at)`);
 
+    // Global site settings (admin feature flags).
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS site_settings (
+        key varchar(100) PRIMARY KEY,
+        value text NOT NULL DEFAULT '',
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
     // Repair names imported from combined Excel name columns before the parser fix.
     await db.execute(sql`UPDATE students SET nom_prenom = regexp_replace(nom_prenom, '^(.+)\\s+\\1$', '\\1') WHERE nom_prenom ~ '^(.+)\\s+\\1$'`);
     logger.info("Database connection verified");

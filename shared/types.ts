@@ -135,6 +135,9 @@ export interface DashboardStats {
   boysAvgGrade: number | null;
   girlsAvgGrade: number | null;
   gradesBySubject: { subject: string; average: number; count: number; passed: number }[];
+  gradesByTrimester: { trimestre: number; average: number; count: number }[];
+  topAbsentStudents: { id: string; nomPrenom: string; niveau: string; classe: string; justifiedHours: number; unjustifiedHours: number; totalHours: number }[];
+  internatByLevel: { internat: string; niveau: string; total: number; boys: number; girls: number; admis: number; nonAdmis: number; mustarrak: number; averageGrade: number | null }[];
   justifiedHours: number;
   unjustifiedHours: number;
   byLevel: LevelStats[];

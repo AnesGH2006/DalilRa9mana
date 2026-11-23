@@ -717,6 +717,66 @@ router.get("/stats", async (req, res): Promise<void> => {
     const boysAvgGrade = average(gradeScores.filter(g => g.sexe === "M").map(g => g.score));
     const girlsAvgGrade = average(gradeScores.filter(g => g.sexe === "F").map(g => g.score));
 
+    // Average grade per trimester (1/2/3)
+    const gradesByTrimester = [1, 2, 3].map(trimestre => {
+      const rows = gradeRows.filter(gr => gr.trimestre === trimestre)
+        .map(gr => Number(gr.score)).filter(Number.isFinite);
+      return { trimestre, average: average(rows) ?? 0, count: rows.length };
+    }).filter(t => t.count > 0);
+
+    // Top absent students by total recorded hours
+    const absenceByStudent = new Map<string, { justified: number; unjustified: number }>();
+    for (const ab of absenceRows) {
+      const cur = absenceByStudent.get(ab.studentId) ?? { justified: 0, unjustified: 0 };
+      cur.justified += ab.justifiedHours;
+      cur.unjustified += ab.unjustifiedHours;
+      absenceByStudent.set(ab.studentId, cur);
+    }
+    const studentById = new Map(all.map(s => [s.id, s] as const));
+    const topAbsentStudents = [...absenceByStudent.entries()]
+      .map(([id, hours]) => {
+        const s = studentById.get(id);
+        if (!s) return null;
+        return {
+          id: s.id,
+          nomPrenom: s.nomPrenom,
+          niveau: s.niveau,
+          classe: s.classe,
+          justifiedHours: hours.justified,
+          unjustifiedHours: hours.unjustified,
+          totalHours: hours.justified + hours.unjustified,
+        };
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null && s.totalHours > 0)
+      .sort((a, b) => b.totalHours - a.totalHours)
+      .slice(0, 10);
+
+    // نظام التمدرس × المستوى matrix
+    const internatLevelGroups = new Map<string, typeof all>();
+    for (const s of all) {
+      const key = `${s.internat || "غير محدد"}|${s.niveau}`;
+      const arr = internatLevelGroups.get(key) ?? [];
+      arr.push(s);
+      internatLevelGroups.set(key, arr);
+    }
+    const internatByLevel = [...internatLevelGroups.entries()].map(([key, g]) => {
+      const [internat, niveau] = key.split("|") as [string, SchoolLevel];
+      const ids = new Set(g.map(s => s.id));
+      const gGrades = gradeRows.filter(gr => ids.has(gr.studentId))
+        .map(gr => Number(gr.score)).filter(Number.isFinite);
+      return {
+        internat,
+        niveau,
+        total: g.length,
+        boys: g.filter(s => s.sexe === "M").length,
+        girls: g.filter(s => s.sexe === "F").length,
+        admis: g.filter(s => s.resultat === "admis").length,
+        nonAdmis: g.filter(s => s.resultat === "non_admis").length,
+        mustarrak: g.filter(s => s.resultat === "mustarrak").length,
+        averageGrade: average(gGrades),
+      };
+    }).filter(i => i.total > 0);
+
     res.json(DashboardStatsResponse.parse({
       total: all.length,
       boys: all.filter(s => s.sexe === "M").length,
@@ -731,6 +791,9 @@ router.get("/stats", async (req, res): Promise<void> => {
       boysAvgGrade,
       girlsAvgGrade,
       gradesBySubject,
+      gradesByTrimester,
+      topAbsentStudents,
+      internatByLevel,
       justifiedHours: absenceRows.reduce((sum, absence) => sum + absence.justifiedHours, 0),
       unjustifiedHours: absenceRows.reduce((sum, absence) => sum + absence.unjustifiedHours, 0),
       byLevel,

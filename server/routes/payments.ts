@@ -12,6 +12,7 @@ import { activateFreePlan, activatePaidPlanTrial, completeDemoPayment, createDem
 import {
   hasOwnStaffSubscription,
 } from "../middlewares/staffAccess.js";
+import { isFreeTrialEnabled, setSiteSetting, TRIAL_ENABLED_KEY } from "../services/siteSettings.js";
 
 const router = Router();
 
@@ -108,7 +109,9 @@ router.get("/payments/me", async (req, res): Promise<void> => {
     && String(member.schoolSubscriptionStatus) === "active"
     && (!schoolExpires || schoolExpires > Date.now())
     && (member.schoolSubscriptionPlan === "basic" || member.schoolSubscriptionPlan === "pro");
-  const staffTrialAvailable = !trial?.startedAt
+  const trialEnabled = await isFreeTrialEnabled();
+  const staffTrialAvailable = trialEnabled
+    && !trial?.startedAt
     && !ownPlanIsActive(req)
     && !schoolPlanActive
     && user.role !== "admin"
@@ -121,11 +124,13 @@ router.get("/payments/me", async (req, res): Promise<void> => {
     status: String(user.subscriptionStatus),
     expiresAt: expires && !Number.isNaN(expires.getTime()) ? expires.toISOString() : null,
     active: ownPlanIsActive(req),
-    trialAvailable: role === "owner"
+    trialAvailable: trialEnabled
+      && role === "owner"
       && user.role !== "admin"
       && !member
       && !trial?.startedAt
       && !ownPlanIsActive(req),
+    trialEnabled,
     staffTrialAvailable,
     trialStartedAt: trial?.startedAt?.toISOString() ?? null,
     options,
@@ -140,6 +145,10 @@ router.get("/payments/me", async (req, res): Promise<void> => {
 
 router.post("/payments/trial", async (req, res): Promise<void> => {
   if (!requireAuth(req, res)) return;
+  if (!(await isFreeTrialEnabled())) {
+    res.status(403).json({ error: "التجربة المجانية متوقفة حالياً" });
+    return;
+  }
   const member = req.memberContext;
   const isStaffMember = member?.role === "teacher" || member?.role === "supervisor";
   if (req.user!.role === "admin" || (member && !isStaffMember)) {
@@ -190,6 +199,22 @@ router.post("/payments/trial", async (req, res): Promise<void> => {
   } catch (error) {
     res.status(409).json({ error: error instanceof Error ? error.message : "تعذر تفعيل التجربة المجانية" });
   }
+});
+
+// ─── Admin: global free-trial toggle ──────────────────────────────────────────
+
+// GET /api/payments/admin/trial-setting — current free-trial flag.
+router.get("/payments/admin/trial-setting", async (req, res): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ trialEnabled: await isFreeTrialEnabled() });
+});
+
+// POST /api/payments/admin/trial-setting — { enabled: boolean }
+router.post("/payments/admin/trial-setting", async (req, res): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+  const enabled = req.body?.enabled === true || req.body?.enabled === "true";
+  await setSiteSetting(TRIAL_ENABLED_KEY, enabled ? "true" : "false");
+  res.json({ success: true, trialEnabled: enabled });
 });
 
 router.post("/payments/activation-codes/batches", async (req, res): Promise<void> => {

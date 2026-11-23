@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { School, User, Save, KeyRound, Sparkles } from "lucide-react";
+import { School, User, Save, KeyRound, Sparkles, ArrowLeftRight } from "lucide-react";
 import { ReviewForm } from "@/components/review-form";
+import { useSchoolStage } from "@/hooks/use-school-stage";
 import { SCHOOL_STAGE } from "@/lib/deployment";
 import type { AuthUser, SchoolInfo } from "@shared/types";
 
@@ -67,6 +68,9 @@ export default function Settings() {
 
   const [form, setForm] = useState({ nom: "", wilaya: "", commune: "", annee: "2026-2027", directeur: "", phone: "", supportPhone: "" });
 
+  const { stage, stageConfigured, stageLoading, stageSaving, stageError, chooseStage } = useSchoolStage();
+  const isSchoolOwner = Boolean(user && !user.memberContext && user.role !== "admin");
+
   const fetchSchool = useCallback(async () => {
     const res = await fetch(`${BASE}api/school`, { credentials: "include" });
     if (res.ok) {
@@ -112,6 +116,18 @@ export default function Settings() {
         variant: "destructive",
       });
     } finally { setSaving(false); }
+  };
+
+  const handleStageSwitch = async (next: "moyen" | "lycee") => {
+    if (next === stage && stageConfigured) return;
+    const ok = await chooseStage(next);
+    if (ok) {
+      toast({ title: next === "lycee" ? "تم التحويل إلى ثانوية" : "تم التحويل إلى متوسطة" });
+      // Stage affects levels/filters app-wide — reload for a clean state.
+      setTimeout(() => window.location.reload(), 900);
+    } else {
+      toast({ title: stageError || "تعذر تغيير المرحلة", variant: "destructive" });
+    }
   };
 
   const schoolFields = [
@@ -242,6 +258,58 @@ export default function Settings() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* School stage switcher — owners only */}
+      {isSchoolOwner && (
+        <motion.div initial={{ opacity: 0, y: 20, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.15 }}>
+          <Card className="shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center">
+                  <ArrowLeftRight className="w-4 h-4 text-white" />
+                </div>
+                مرحلة المؤسسة
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                حوّل بين <b>متوسطة (CEM)</b> — المستويات 1AM إلى 4AM — و<b>ثانوي (Lycée)</b> — المستويات 1AS إلى 3AS.
+                {stageConfigured && stage && <> المرحلة الحالية: <b>{stage === "lycee" ? "ثانوي" : "متوسطة"}</b>.</>}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { key: "moyen" as const, label: "متوسطة", sub: "CEM · 1AM–4AM" },
+                  { key: "lycee" as const, label: "ثانوي", sub: "Lycée · 1AS–3AS" },
+                ]).map(opt => {
+                  const active = stageConfigured && stage === opt.key;
+                  return (
+                    <motion.button
+                      key={opt.key}
+                      type="button"
+                      whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                      disabled={stageLoading || stageSaving}
+                      onClick={() => void handleStageSwitch(opt.key)}
+                      className={`rounded-xl border-2 p-4 text-center transition-colors ${
+                        active
+                          ? "border-teal-500 bg-teal-50 dark:bg-teal-950/40"
+                          : "border-border hover:border-teal-400/60 bg-muted/30"
+                      } ${stageSaving || stageLoading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      <p className={`font-extrabold ${active ? "text-teal-600 dark:text-teal-400" : "text-foreground"}`}>{opt.label}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5" dir="ltr">{opt.sub}</p>
+                      {active && <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 mt-1">✓ المرحلة الحالية</p>}
+                    </motion.button>
+                  );
+                })}
+              </div>
+              {stageSaving && <p className="text-xs text-muted-foreground text-center">جارٍ حفظ المرحلة…</p>}
+              <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+                لا يمكن تغيير المرحلة بعد إضافة التلاميذ — يجب أن يكون التبديل قبل استيراد قائمة التلاميذ.
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Account card */}
       <motion.div initial={{ opacity: 0, y: 20, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.2 }}>

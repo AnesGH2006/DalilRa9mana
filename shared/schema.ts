@@ -726,3 +726,15 @@ export const reviewsTable = pgTable("reviews", {
 
 export type Review = typeof reviewsTable.$inferSelect;
 export type InsertReview = typeof reviewsTable.$inferInsert;
+
+/**
+ * Global site-wide settings (key/value). Used for admin-controlled feature
+ * flags such as disabling the free trial for all users.
+ */
+export const siteSettingsTable = pgTable("site_settings", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: text("value").notNull().default(""),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type SiteSetting = typeof siteSettingsTable.$inferSelect;

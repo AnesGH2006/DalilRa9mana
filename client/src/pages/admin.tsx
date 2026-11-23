@@ -198,6 +198,70 @@ function ReviewsCard() {
   );
 }
 
+// ── Free Trial Toggle ─────────────────────────────────────────────────────────
+function TrialToggleCard() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(`${BASE}api/payments/admin/trial-setting`, { credentials: "include" });
+        if (res.ok) {
+          const data = (await res.json()) as { trialEnabled?: boolean };
+          setEnabled(data.trialEnabled !== false);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const toggle = async () => {
+    if (enabled === null) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`${BASE}api/payments/admin/trial-setting`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !enabled }),
+      });
+      if (res.ok) setEnabled(!enabled);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Card className="border-0 shadow-md overflow-hidden">
+      <div className={`p-4 ${enabled === false ? "bg-gradient-to-br from-slate-500 to-slate-700" : "bg-gradient-to-br from-violet-500 to-purple-700"}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <Clock className="w-5 h-5 text-white/80" />
+          <h2 className="text-white font-bold text-sm">التجربة المجانية</h2>
+        </div>
+        <p className="text-white/65 text-xs">
+          {enabled === null ? "جارٍ التحميل…" : enabled ? "مفعّلة — يمكن للمستخدمين الجدد تجربة الباقات لمدة 30 يوماً" : "موقوفة — لن تظهر التجربة المجانية لأي مستخدم جديد"}
+        </p>
+      </div>
+      <CardContent className="pt-4 pb-4 space-y-3">
+        <div className={`flex items-center justify-between rounded-xl border px-3 py-2.5 ${enabled === false ? "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30" : "border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30"}`}>
+          <span className={`text-xs font-bold ${enabled === false ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+            الحالة: {enabled === null ? "…" : enabled ? "مفعّلة" : "موقوفة"}
+          </span>
+          <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enabled === false ? "bg-slate-300" : "bg-emerald-500"}`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabled === false ? "translate-x-1" : "translate-x-6"}`} />
+          </span>
+        </div>
+        <Button
+          className={`w-full rounded-xl font-bold ${enabled === false ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"}`}
+          disabled={busy || enabled === null}
+          onClick={() => void toggle()}
+        >
+          {busy ? "جارٍ الحفظ…" : enabled === false ? "تفعيل التجربة المجانية" : "إيقاف التجربة المجانية"}
+        </Button>
+        <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+          عند الإيقاف تختفي أزرار «تجربة مجانية» من صفحة الباقات والاشتراك، ويُرفض أي طلب تفعيل من الخادم.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Bulk Import Card ──────────────────────────────────────────────────────────
 const YEARS = ["2023-2024", "2024-2025", "2025-2026", "2026-2027"];
 
@@ -393,6 +457,7 @@ export default function AdminPage() {
         <BulkImportCard />
         <CcpRequestsCard />
         <ReviewsCard />
+        <TrialToggleCard />
         <Card className="border-0 shadow-md overflow-hidden">
           <div className="bg-gradient-to-br from-rose-500 to-red-700 p-4">
             <div className="flex items-center gap-2 mb-1">

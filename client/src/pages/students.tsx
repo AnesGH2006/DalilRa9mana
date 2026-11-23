@@ -687,7 +687,7 @@ export default function Students() {
             {(activeFilters > 0 || filters.q) && (
               <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
                 <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground h-9"
-                  onClick={() => setFilters({ q: "", niveau: "", classe: "", sexe: "", statut: "", annee: "" })}>
+                  onClick={() => setFilters({ q: "", niveau: "", classe: "", sexe: "", statut: "", internat: "", annee: "" })}>
                   <X className="w-3.5 h-3.5" /> Reset
                 </Button>
               </motion.div>
