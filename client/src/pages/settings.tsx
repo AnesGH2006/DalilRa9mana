@@ -7,10 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { School, User, Save, KeyRound, Sparkles, ArrowLeftRight } from "lucide-react";
 import { ReviewForm } from "@/components/review-form";
 import { useSchoolStage } from "@/hooks/use-school-stage";
 import { SCHOOL_STAGE } from "@/lib/deployment";
+import { GEMINI_OCR_MODELS, DEFAULT_GEMINI_OCR_MODEL } from "@shared/ai-models";
 import type { AuthUser, SchoolInfo } from "@shared/types";
 
 const BASE = import.meta.env.BASE_URL;
@@ -65,6 +67,8 @@ export default function Settings() {
   const [geminiKey, setGeminiKey] = useState("");
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [savingGeminiKey, setSavingGeminiKey] = useState(false);
+  const [geminiModel, setGeminiModel] = useState(DEFAULT_GEMINI_OCR_MODEL);
+  const [savingGeminiModel, setSavingGeminiModel] = useState(false);
 
   const [form, setForm] = useState({ nom: "", wilaya: "", commune: "", annee: "2026-2027", directeur: "", phone: "", supportPhone: "" });
 
@@ -91,6 +95,9 @@ export default function Settings() {
           setHasGeminiKey(Boolean(data.hasGeminiApiKey));
         }
       });
+    fetch(`${BASE}api/assistant/gemini-model`, { credentials: "include" })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data?.model) setGeminiModel(data.model); });
   }, [user]);
 
   const handleSave = async () => {
@@ -172,6 +179,21 @@ export default function Settings() {
     finally { setSavingGeminiKey(false); }
   };
 
+  const saveGeminiModel = async (model: string) => {
+    setSavingGeminiModel(true);
+    try {
+      const res = await fetch(`${BASE}api/assistant/gemini-model`, {
+        method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "تعذر حفظ النموذج");
+      setGeminiModel(model);
+      toast({ title: "تم حفظ نموذج OCR" });
+    } catch (error) { toast({ title: error instanceof Error ? error.message : "تعذر حفظ النموذج", variant: "destructive" }); }
+    finally { setSavingGeminiModel(false); }
+  };
+
   const canManageKeys = !user?.memberContext
     && (user?.role === "admin" || (user?.subscriptionPlan !== "free" && user?.subscriptionStatus === "active"));
 
@@ -216,6 +238,32 @@ export default function Settings() {
               <Button onClick={saveGeminiKey} disabled={savingGeminiKey || !geminiKey.trim()} className="gap-2 w-full">
                 <Sparkles className="w-4 h-4" /> {savingGeminiKey ? "جارٍ الحفظ..." : "حفظ مفتاح Gemini"}
               </Button>
+              <div className="pt-2 border-t space-y-1.5">
+                <Label className="text-xs">نموذج OCR (Gemini Vision)</Label>
+                <Select
+                  value={geminiModel}
+                  onValueChange={v => { void saveGeminiModel(v); }}
+                  disabled={savingGeminiModel || user?.role !== "admin"}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GEMINI_OCR_MODELS.map(m => (
+                      <SelectItem key={m.id} value={m.id}>
+                        <span className="flex flex-col">
+                          <span className="font-semibold">{m.label}</span>
+                          <span className="text-[10px] text-muted-foreground">{m.hint}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {user?.role !== "admin" && (
+                  <p className="text-[10px] text-muted-foreground">تغيير النموذج متاح للمشرف فقط — يُطبَّق على كل المستخدمين.</p>
+                )}
+                {savingGeminiModel && <p className="text-[10px] text-muted-foreground">جارٍ الحفظ…</p>}
+              </div>
             </CardContent>
           </Card>
         </div>

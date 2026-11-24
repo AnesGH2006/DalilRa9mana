@@ -16,6 +16,7 @@
 import sharp from "sharp";
 import Tesseract from "tesseract.js";
 import { logger } from "../lib/logger.js";
+import { getGeminiOcrModel } from "./siteSettings.js";
 
 
 export type OcrEngine = "gemini" | "vision" | "tesseract" | "auto";
@@ -103,7 +104,8 @@ export async function prepareImage(buffer: Buffer): Promise<{ data: string; mime
 
 // ── Gemini Vision ─────────────────────────────────────────────────────────────
 
-const GEMINI_MODEL = "gemini-3.8-flash";
+// Model is resolved per-request from the admin-configurable site setting
+// (see server/services/siteSettings.ts → getGeminiOcrModel).
 
 async function callGeminiVision(
   imageB64: string,
@@ -113,6 +115,7 @@ async function callGeminiVision(
   retries = 3,
 ): Promise<string> {
   if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+  const geminiModel = await getGeminiOcrModel();
 
   let lastError: Error | null = null;
 
@@ -137,7 +140,7 @@ async function callGeminiVision(
       });
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

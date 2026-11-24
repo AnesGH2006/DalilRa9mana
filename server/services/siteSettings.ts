@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, siteSettingsTable } from "../../shared/db.js";
+import { DEFAULT_GEMINI_OCR_MODEL, isGeminiOcrModel } from "../../shared/ai-models.js";
 
 /**
  * Global site settings stored in the `site_settings` table.
@@ -38,8 +39,19 @@ export async function setSiteSetting(key: string, value: string): Promise<void> 
 }
 
 export const TRIAL_ENABLED_KEY = "free_trial_enabled";
+export const GEMINI_OCR_MODEL_KEY = "gemini_ocr_model";
 
 export async function isFreeTrialEnabled(): Promise<boolean> {
   const value = await getSiteSetting(TRIAL_ENABLED_KEY, "true");
   return value !== "false";
+}
+
+/**
+ * Gemini model used for all OCR vision calls. Admin-selectable via
+ * /api/assistant/gemini-model; falls back to the shared default when unset
+ * or when the stored value is not in the allowlist.
+ */
+export async function getGeminiOcrModel(): Promise<string> {
+  const value = await getSiteSetting(GEMINI_OCR_MODEL_KEY, DEFAULT_GEMINI_OCR_MODEL);
+  return isGeminiOcrModel(value) ? value : DEFAULT_GEMINI_OCR_MODEL;
 }

@@ -4,6 +4,8 @@ import { db, schoolInfoTable, usersTable } from "../../shared/db.js";
 import { encryptGroqKey, encryptGeminiKey, getUserGroqKey } from "../lib/groq-key.js";
 import { runReActAgent } from "../lib/react-agent.js";
 import { getSchoolStageForRequest } from "../config/school-stage.js";
+import { setSiteSetting, GEMINI_OCR_MODEL_KEY, getGeminiOcrModel } from "../services/siteSettings.js";
+import { GEMINI_OCR_MODELS, isGeminiOcrModel } from "../../shared/ai-models.js";
 
 const router = Router();
 const canUseAssistant = (req: Request) => !req.memberContext && (req.user?.role === "admin" || req.user?.subscriptionStatus === "active");
@@ -117,6 +119,22 @@ router.put("/assistant/settings", async (req, res) => {
 
   await db.update(usersTable).set(updates).where(eq(usersTable.id, req.user.id));
   res.json(response);
+});
+
+// GET /api/assistant/gemini-model — current OCR model + allowed options.
+router.get("/assistant/gemini-model", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated() || !req.user) { res.status(401).json({ error: "غير مصرح" }); return; }
+  res.json({ model: await getGeminiOcrModel(), models: GEMINI_OCR_MODELS });
+});
+
+// PUT /api/assistant/gemini-model — admin only; { model: "<id>" }.
+router.put("/assistant/gemini-model", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated() || !req.user) { res.status(401).json({ error: "غير مصرح" }); return; }
+  if (req.user.role !== "admin") { res.status(403).json({ error: "تغيير نموذج OCR متاح للمشرف فقط" }); return; }
+  const model = String(req.body?.model ?? "");
+  if (!isGeminiOcrModel(model)) { res.status(400).json({ error: "نموذج غير معروف" }); return; }
+  await setSiteSetting(GEMINI_OCR_MODEL_KEY, model);
+  res.json({ success: true, model });
 });
 
 export default router;

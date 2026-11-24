@@ -4,6 +4,7 @@
  */
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { logger } from "../lib/logger.js";
+import { getGeminiOcrModel } from "./siteSettings.js";
 import {
   ATTENDANCE_STATUSES,
   type AttendanceStatus,
@@ -11,7 +12,7 @@ import {
   type StudentGradeRecord,
 } from "../types/ocr.js";
 
-export const GEMINI_VISION_MODEL = "gemini-1.5-flash";
+export const GEMINI_VISION_MODEL = "gemini-1.5-flash"; // legacy fallback; runtime uses getGeminiOcrModel()
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/jpg"]);
 
@@ -223,8 +224,9 @@ export async function scanGradeSheetImage(
 
   const apiKey = resolveGeminiApiKey(options.userGeminiKey);
   const client = new GoogleGenerativeAI(apiKey);
+  const geminiModel = await getGeminiOcrModel();
   const model = client.getGenerativeModel({
-    model: GEMINI_VISION_MODEL,
+    model: geminiModel,
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0,
@@ -247,7 +249,7 @@ export async function scanGradeSheetImage(
     logger.error({ err }, "Gemini vision OCR request failed");
     const detail = err instanceof Error ? err.message : "Unknown Vision API error";
     throw new VisionOcrServiceError(
-      `Gemini Vision API failed (${GEMINI_VISION_MODEL}): ${detail}`,
+      `Gemini Vision API failed (${geminiModel}): ${detail}`,
       "VISION_API_FAILED",
       err,
     );
