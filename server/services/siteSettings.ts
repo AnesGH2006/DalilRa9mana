@@ -40,6 +40,7 @@ export async function setSiteSetting(key: string, value: string): Promise<void> 
 
 export const TRIAL_ENABLED_KEY = "free_trial_enabled";
 export const GEMINI_OCR_MODEL_KEY = "gemini_ocr_model";
+export const CHARGILY_ENABLED_KEY = "chargily_enabled";
 
 export async function isFreeTrialEnabled(): Promise<boolean> {
   const value = await getSiteSetting(TRIAL_ENABLED_KEY, "true");
@@ -54,4 +55,14 @@ export async function isFreeTrialEnabled(): Promise<boolean> {
 export async function getGeminiOcrModel(): Promise<string> {
   const value = await getSiteSetting(GEMINI_OCR_MODEL_KEY, DEFAULT_GEMINI_OCR_MODEL);
   return isGeminiOcrModel(value) ? value : DEFAULT_GEMINI_OCR_MODEL;
+}
+
+/**
+ * Chargily card payments. Disabled by default — manual CCP payment is the
+ * primary channel. Admin can re-enable via /api/payments/admin/chargily-setting.
+ * The webhook stays active so payments already in-flight still settle.
+ */
+export async function isChargilyEnabled(): Promise<boolean> {
+  const value = await getSiteSetting(CHARGILY_ENABLED_KEY, "false");
+  return value === "true";
 }

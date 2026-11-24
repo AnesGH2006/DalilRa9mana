@@ -12,7 +12,7 @@ import { activateFreePlan, activatePaidPlanTrial, completeDemoPayment, createDem
 import {
   hasOwnStaffSubscription,
 } from "../middlewares/staffAccess.js";
-import { isFreeTrialEnabled, setSiteSetting, TRIAL_ENABLED_KEY } from "../services/siteSettings.js";
+import { isFreeTrialEnabled, isChargilyEnabled, setSiteSetting, TRIAL_ENABLED_KEY, CHARGILY_ENABLED_KEY } from "../services/siteSettings.js";
 
 const router = Router();
 
@@ -110,6 +110,7 @@ router.get("/payments/me", async (req, res): Promise<void> => {
     && (!schoolExpires || schoolExpires > Date.now())
     && (member.schoolSubscriptionPlan === "basic" || member.schoolSubscriptionPlan === "pro");
   const trialEnabled = await isFreeTrialEnabled();
+  const chargilyEnabled = await isChargilyEnabled();
   const staffTrialAvailable = trialEnabled
     && !trial?.startedAt
     && !ownPlanIsActive(req)
@@ -131,6 +132,7 @@ router.get("/payments/me", async (req, res): Promise<void> => {
       && !trial?.startedAt
       && !ownPlanIsActive(req),
     trialEnabled,
+    chargilyEnabled,
     staffTrialAvailable,
     trialStartedAt: trial?.startedAt?.toISOString() ?? null,
     options,
@@ -217,6 +219,20 @@ router.post("/payments/admin/trial-setting", async (req, res): Promise<void> => 
   res.json({ success: true, trialEnabled: enabled });
 });
 
+// GET /api/payments/admin/chargily-setting — current Chargily flag.
+router.get("/payments/admin/chargily-setting", async (req, res): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ chargilyEnabled: await isChargilyEnabled() });
+});
+
+// POST /api/payments/admin/chargily-setting — { enabled: boolean }
+router.post("/payments/admin/chargily-setting", async (req, res): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+  const enabled = req.body?.enabled === true || req.body?.enabled === "true";
+  await setSiteSetting(CHARGILY_ENABLED_KEY, enabled ? "true" : "false");
+  res.json({ success: true, chargilyEnabled: enabled });
+});
+
 router.post("/payments/activation-codes/batches", async (req, res): Promise<void> => {
   if (!requireAdmin(req, res)) return;
   const count = Number(req.body?.count);
@@ -299,6 +315,10 @@ router.post("/payments/demo/complete", async (req, res): Promise<void> => {
 
 router.post("/payments/chargily/checkout", async (req, res): Promise<void> => {
   if (!requireAuth(req, res)) return;
+  if (!(await isChargilyEnabled())) {
+    res.status(403).json({ error: "الدفع الإلكتروني معطّل حالياً — استخدم الدفع عبر CCP" });
+    return;
+  }
   const amountDzd = Number(req.body?.amountDzd ?? 1000);
 
   // Each kind of account may only buy its own plan.

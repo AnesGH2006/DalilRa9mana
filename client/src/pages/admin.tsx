@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Shield, CheckCircle2, XCircle, Clock, RefreshCw, Search, FileSpreadsheet, Upload, Users, UserCheck, AlertCircle, Loader2 } from "lucide-react";
+import { Shield, CheckCircle2, XCircle, Clock, RefreshCw, Search, FileSpreadsheet, Upload, Users, UserCheck, AlertCircle, Loader2, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -262,6 +262,70 @@ function TrialToggleCard() {
   );
 }
 
+// ── Chargily Payments Toggle ──────────────────────────────────────────────────
+function ChargilyToggleCard() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(`${BASE}api/payments/admin/chargily-setting`, { credentials: "include" });
+        if (res.ok) {
+          const data = (await res.json()) as { chargilyEnabled?: boolean };
+          setEnabled(data.chargilyEnabled === true);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const toggle = async () => {
+    if (enabled === null) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`${BASE}api/payments/admin/chargily-setting`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !enabled }),
+      });
+      if (res.ok) setEnabled(!enabled);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Card className="border-0 shadow-md overflow-hidden">
+      <div className={`p-4 ${enabled === true ? "bg-gradient-to-br from-sky-500 to-blue-700" : "bg-gradient-to-br from-slate-500 to-slate-700"}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <CreditCard className="w-5 h-5 text-white/80" />
+          <h2 className="text-white font-bold text-sm">الدفع عبر Chargily</h2>
+        </div>
+        <p className="text-white/65 text-xs">
+          {enabled === null ? "جارٍ التحميل…" : enabled ? "مفعّل — الدفع بالبطاقة عبر Chargily متاح" : "موقوف — الدفع متاح عبر CCP فقط"}
+        </p>
+      </div>
+      <CardContent className="pt-4 pb-4 space-y-3">
+        <div className={`flex items-center justify-between rounded-xl border px-3 py-2.5 ${enabled === true ? "border-sky-200 bg-sky-50 dark:border-sky-900/50 dark:bg-sky-950/30" : "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30"}`}>
+          <span className={`text-xs font-bold ${enabled === true ? "text-sky-600 dark:text-sky-400" : "text-red-600 dark:text-red-400"}`}>
+            الحالة: {enabled === null ? "…" : enabled ? "مفعّل" : "موقوف"}
+          </span>
+          <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enabled === true ? "bg-sky-500" : "bg-slate-300"}`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabled === true ? "translate-x-6" : "translate-x-1"}`} />
+          </span>
+        </div>
+        <Button
+          className={`w-full rounded-xl font-bold ${enabled === true ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
+          disabled={busy || enabled === null}
+          onClick={() => void toggle()}
+        >
+          {busy ? "جارٍ الحفظ…" : enabled === true ? "إيقاف Chargily" : "تفعيل Chargily"}
+        </Button>
+        <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+          عند الإيقاف تختفي أزرار «الدفع عبر Chargily» ويبقى الدفع اليدوي عبر CCP فقط. الويبهوك يبقى فعّالاً للمدفوعات الجارية.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Bulk Import Card ──────────────────────────────────────────────────────────
 const YEARS = ["2023-2024", "2024-2025", "2025-2026", "2026-2027"];
 
@@ -458,6 +522,7 @@ export default function AdminPage() {
         <CcpRequestsCard />
         <ReviewsCard />
         <TrialToggleCard />
+        <ChargilyToggleCard />
         <Card className="border-0 shadow-md overflow-hidden">
           <div className="bg-gradient-to-br from-rose-500 to-red-700 p-4">
             <div className="flex items-center gap-2 mb-1">

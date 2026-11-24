@@ -32,6 +32,7 @@ export default function SubscriptionPage() {
     active: boolean;
     trialAvailable: boolean;
     staffTrialAvailable?: boolean;
+    chargilyEnabled?: boolean;
     expiresAt: string | null;
     prices?: { staff: number; parent: number };
     options?: { plan: string; amountDzd: number }[];
@@ -123,6 +124,9 @@ export default function SubscriptionPage() {
   const parentPrice = paymentInfo?.prices?.parent ?? PARENT_PLAN_PRICE_DZD;
   const staffOption = paymentInfo?.options?.find(option => option.plan === STAFF_PLAN);
   const parentOption = paymentInfo?.options?.find(option => option.plan === PARENT_PLAN);
+  const chargilyOff = paymentInfo?.chargilyEnabled === false;
+  const isPaidCheckout = (key: string, price: string) =>
+    price !== "0" && key !== "institution" && key !== "free";
 
   const plans = [
     {
@@ -430,7 +434,7 @@ export default function SubscriptionPage() {
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}>
                   <Button
                     variant={plan.ctaVariant}
-                    disabled={plan.current || checkoutBusy === plan.key || stageSaving || stageLoading || (stageRequired && !stageReady)}
+                    disabled={plan.current || checkoutBusy === plan.key || stageSaving || stageLoading || (stageRequired && !stageReady) || (chargilyOff && isPaidCheckout(plan.key, plan.price))}
                     onClick={() => {
                       if (plan.current) return;
                       if (plan.key === "basic") return startCheckout(plan.key, PAID_PLAN_PRICES_DZD.basic);
@@ -455,9 +459,14 @@ export default function SubscriptionPage() {
                                   : ""
                     }`}
                   >
-                    {plan.current ? `✓ ${plan.cta}` : stageRequired && !stageReady ? "اختر المرحلة أولاً" : checkoutBusy === plan.key ? "جارٍ التحضير…" : plan.cta}
+                    {plan.current ? `✓ ${plan.cta}` : stageRequired && !stageReady ? "اختر المرحلة أولاً" : chargilyOff && isPaidCheckout(plan.key, plan.price) ? "الدفع عبر CCP فقط" : checkoutBusy === plan.key ? "جارٍ التحضير…" : plan.cta}
                   </Button>
                 </motion.div>
+                {chargilyOff && isPaidCheckout(plan.key, plan.price) && !plan.current && (
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    الدفع الإلكتروني معطّل — اشترك عبر <a href="/paywall" className="font-bold text-violet-600 underline">صفحة الباقات</a> بخيار «دفع عبر CCP».
+                  </p>
+                )}
                 {(plan.key === "basic" || plan.key === "pro") && paymentInfo?.trialAvailable && !plan.current && (
                   <Button
                     variant="outline"

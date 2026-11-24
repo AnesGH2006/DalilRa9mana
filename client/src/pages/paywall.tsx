@@ -15,6 +15,7 @@ type Me = {
   options: Option[];
   trialAvailable: boolean;
   staffTrialAvailable?: boolean;
+  chargilyEnabled?: boolean;
   prices: { school: Record<string, number>; staff: number; parent: number };
 };
 type Persona = "school" | "staff" | "parent";
@@ -425,6 +426,7 @@ export default function PaywallScreen() {
   const canStartFree = me?.role === "owner";
   const stageRequired = me?.role === "owner";
   const stageReady = !stageRequired || stageConfigured;
+  const chargilyOn = me?.chargilyEnabled !== false;
   const parentPrice = me?.prices.parent ?? 500;
   const staffPrice = me?.prices.staff ?? 1000;
 
@@ -535,11 +537,13 @@ export default function PaywallScreen() {
               features={FEATURES.parent}
               footer={
                 <>
-                  <button type="button" className="pw-btn" disabled={busy || !parentOption || !stageReady || stageSaving} onClick={() => parentOption && void pay(parentOption.amountDzd)}>
-                    {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : parentOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
-                  </button>
+                  {chargilyOn && (
+                    <button type="button" className="pw-btn" disabled={busy || !parentOption || !stageReady || stageSaving} onClick={() => parentOption && void pay(parentOption.amountDzd)}>
+                      {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : parentOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
+                    </button>
+                  )}
                   {parentOption && (
-                    <button type="button" className="pw-btn pw-btn-outline" disabled={!stageReady || stageSaving} onClick={() => openCcp("parent")}>
+                    <button type="button" className={chargilyOn ? "pw-btn pw-btn-outline" : "pw-btn"} disabled={!stageReady || stageSaving} onClick={() => openCcp("parent")}>
                       دفع عبر CCP · {parentOption.amountDzd.toLocaleString("en-US")} دج
                     </button>
                   )}
@@ -564,11 +568,13 @@ export default function PaywallScreen() {
               features={FEATURES.staff}
               footer={
                 <>
-                  <button type="button" className="pw-btn" disabled={busy || !staffOption || !stageReady || stageSaving} onClick={() => staffOption && void pay(staffOption.amountDzd)}>
-                    {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : staffOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
-                  </button>
+                  {chargilyOn && (
+                    <button type="button" className="pw-btn" disabled={busy || !staffOption || !stageReady || stageSaving} onClick={() => staffOption && void pay(staffOption.amountDzd)}>
+                      {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : staffOption ? "الدفع عبر Chargily" : "غير متاحة لهذا الحساب"}
+                    </button>
+                  )}
                   {staffOption && (
-                    <button type="button" className="pw-btn pw-btn-outline" disabled={!stageReady || stageSaving} onClick={() => openCcp("staff")}>
+                    <button type="button" className={chargilyOn ? "pw-btn pw-btn-outline" : "pw-btn"} disabled={!stageReady || stageSaving} onClick={() => openCcp("staff")}>
                       دفع عبر CCP · {staffOption.amountDzd.toLocaleString("en-US")} دج
                     </button>
                   )}
@@ -613,12 +619,14 @@ export default function PaywallScreen() {
                     </div>
                     {schoolOptions.map(option => (
                       <div key={option.plan} style={{ display: "grid", gap: 8 }}>
-                        <button type="button" className="pw-btn" disabled={busy || trialBusy !== null || !stageReady || stageSaving} onClick={() => void pay(option.amountDzd)}>
-                          {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : `الدفع عبر Chargily${schoolOptions.length > 1 ? ` · ${option.amountDzd.toLocaleString("en-US")} دج` : ""}`}
-                        </button>
+                        {chargilyOn && (
+                          <button type="button" className="pw-btn" disabled={busy || trialBusy !== null || !stageReady || stageSaving} onClick={() => void pay(option.amountDzd)}>
+                            {stageRequired && !stageReady ? "اختر المرحلة أولاً" : busy ? "جارٍ التحويل…" : `الدفع عبر Chargily${schoolOptions.length > 1 ? ` · ${option.amountDzd.toLocaleString("en-US")} دج` : ""}`}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className="pw-btn pw-btn-outline"
+                          className={chargilyOn ? "pw-btn pw-btn-outline" : "pw-btn"}
                           disabled={!stageReady || stageSaving}
                           onClick={() => openCcp(option.plan)}
                         >
