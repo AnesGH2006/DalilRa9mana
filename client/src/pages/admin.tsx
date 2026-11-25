@@ -199,7 +199,7 @@ function ReviewsCard() {
 }
 
 // ── Free Trial Toggle ─────────────────────────────────────────────────────────
-function TrialToggleCard({ onGrantBulk, granting }: { onGrantBulk: () => void; granting: boolean }) {
+function TrialToggleCard({ onGrantBulk, granting, onRevoke, revoking }: { onGrantBulk: () => void; granting: boolean; onRevoke: () => void; revoking: boolean }) {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -267,6 +267,17 @@ function TrialToggleCard({ onGrantBulk, granting }: { onGrantBulk: () => void; g
         </Button>
         <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
           يمنح 30 يوماً مجاناً لكل حساب ليس لديه اشتراك مدفوع فعّال — مفيد للحسابات القديمة.
+        </p>
+        <Button
+          variant="outline"
+          className="w-full rounded-xl font-bold border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+          disabled={revoking}
+          onClick={onRevoke}
+        >
+          {revoking ? "جارٍ الإنهاء…" : "إنهاء كل التجارب الجارية فوراً"}
+        </Button>
+        <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+          يُنهي تجارب الحسابات القديمة فوراً ويرجعها للباقة المجانية — لا يمس المشتركين المدفوعين.
         </p>
       </CardContent>
     </Card>
@@ -503,6 +514,24 @@ export default function AdminPage() {
     } finally { setUpdating(null); }
   };
 
+  const revokeTrials = async () => {
+    if (!window.confirm("إنهاء كل التجارب المجانية الجارية فوراً وإرجاع أصحابها للباقة المجانية؟ لن يتأثر المشتركون المدفوعون.")) return;
+    setUpdating("__revoke__");
+    try {
+      const res = await fetch(`${BASE}api/admin/revoke-trials`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast({ title: "تم إنهاء التجارب", description: `${data.revoked ?? 0} حساب رجع للباقة المجانية` });
+        await fetchUsers();
+      } else {
+        toast({ title: "تعذر إنهاء التجارب", description: data.error ?? "", variant: "destructive" });
+      }
+    } finally { setUpdating(null); }
+  };
+
   if (user?.role !== "admin") {
     return (
       <div className="flex items-center justify-center h-full min-h-[50vh] text-center p-8">
@@ -569,7 +598,7 @@ export default function AdminPage() {
         <BulkImportCard />
         <CcpRequestsCard />
         <ReviewsCard />
-        <TrialToggleCard onGrantBulk={() => void grantTrialBulk()} granting={updating === "__bulk__"} />
+        <TrialToggleCard onGrantBulk={() => void grantTrialBulk()} granting={updating === "__bulk__"} onRevoke={() => void revokeTrials()} revoking={updating === "__revoke__"} />
         <ChargilyToggleCard />
         <Card className="border-0 shadow-md overflow-hidden">
           <div className="bg-gradient-to-br from-rose-500 to-red-700 p-4">

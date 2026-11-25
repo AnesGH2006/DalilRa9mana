@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, schoolInfoTable, schoolMembersTable, usersTable } from "../../shared/db.js";
+import { db, paymentRequestsTable, paymentsTable, schoolInfoTable, schoolMembersTable, usersTable } from "../../shared/db.js";
 import { eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { PARENT_PLAN, STAFF_PLAN } from "../middlewares/staffAccess.js";
 
@@ -268,6 +268,45 @@ router.post("/admin/grant-trial-bulk", async (req: Request, res: Response): Prom
   }
 
   res.json({ success: true, granted, skipped: users.length - granted, expiresAt: expiresAt.toISOString(), trialDays: TRIAL_DAYS });
+});
+
+// POST /api/admin/revoke-trials — end every live free trial immediately (admin only).
+// Accounts with a successful payment (approved CCP request or paid transaction)
+// keep their paid plan; everyone else on a trial drops to the free plan.
+router.post("/admin/revoke-trials", async (req: Request, res: Response): Promise<void> => {
+  if (!isAdmin(req)) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const users = await db.select().from(usersTable).where(ne(usersTable.role, "admin"));
+  const [approvedRequests, paidPayments] = await Promise.all([
+    db.select({ userId: paymentRequestsTable.userId }).from(paymentRequestsTable).where(eq(paymentRequestsTable.status, "approved")),
+    db.select({ userId: paymentsTable.userId }).from(paymentsTable).where(eq(paymentsTable.status, "paid")),
+  ]);
+  const paidUserIds = new Set([...approvedRequests, ...paidPayments].map(row => row.userId));
+
+  const now = new Date();
+  const TRIAL_WINDOW_MS = 40 * 24 * 60 * 60 * 1000;
+  const targets = users.filter(u => {
+    if (!u.trialStartedAt || u.subscriptionStatus !== "active" || paidUserIds.has(u.id)) return false;
+    if (!["basic", "pro", STAFF_PLAN, PARENT_PLAN].includes(String(u.subscriptionPlan))) return false;
+    const exp = u.subscriptionExpiresAt ? new Date(u.subscriptionExpiresAt).getTime() : null;
+    if (exp === null || exp <= now.getTime()) return false;
+    // A trial grant always sets expiresAt ≈ trialStartedAt + 30d. Paid plans
+    // (1 year) or manual activations don't match this window, so they are safe
+    // even when no payment row exists (e.g. admin-granted paid access).
+    const trialStart = new Date(u.trialStartedAt).getTime();
+    return exp - trialStart > 0 && exp - trialStart <= TRIAL_WINDOW_MS;
+  });
+
+  for (const u of targets) {
+    await db.update(usersTable).set({
+      subscriptionStatus: "active",
+      subscriptionPlan: "free",
+      subscriptionExpiresAt: null,
+      updatedAt: now,
+    }).where(eq(usersTable.id, u.id));
+  }
+
+  res.json({ success: true, revoked: targets.length, skippedPaid: paidUserIds.size });
 });
 
 export default router;
