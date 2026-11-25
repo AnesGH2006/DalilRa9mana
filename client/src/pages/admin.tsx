@@ -199,7 +199,7 @@ function ReviewsCard() {
 }
 
 // ── Free Trial Toggle ─────────────────────────────────────────────────────────
-function TrialToggleCard() {
+function TrialToggleCard({ onGrantBulk, granting }: { onGrantBulk: () => void; granting: boolean }) {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -256,6 +256,17 @@ function TrialToggleCard() {
         </Button>
         <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
           عند الإيقاف تختفي أزرار «تجربة مجانية» من صفحة الباقات والاشتراك، ويُرفض أي طلب تفعيل من الخادم.
+        </p>
+        <Button
+          variant="outline"
+          className="w-full rounded-xl font-bold border-violet-200 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+          disabled={granting}
+          onClick={onGrantBulk}
+        >
+          {granting ? "جارٍ المنح…" : "منح شهر مجاني لكل الحسابات غير المشتركة"}
+        </Button>
+        <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+          يمنح 30 يوماً مجاناً لكل حساب ليس لديه اشتراك مدفوع فعّال — مفيد للحسابات القديمة.
         </p>
       </CardContent>
     </Card>
@@ -414,6 +425,7 @@ function BulkImportCard() {
 
 export default function AdminPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [staff, setStaff] = useState<AdminUser[]>([]);
   const [parents, setParents] = useState<AdminUser[]>([]);
@@ -451,6 +463,42 @@ export default function AdminPage() {
         setUsers(updateStatusInList);
         setStaff(updateStatusInList);
         setParents(updateStatusInList);
+      }
+    } finally { setUpdating(null); }
+  };
+
+  const grantTrial = async (id: string) => {
+    if (!window.confirm("منح هذا الحساب تجربة مجانية لمدة 30 يوماً؟")) return;
+    setUpdating(id);
+    try {
+      const res = await fetch(`${BASE}api/admin/users/${id}/grant-trial`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast({ title: "تم منح التجربة", description: `باقة ${data.plan ?? ""} لمدة ${data.trialDays ?? 30} يوماً` });
+        await fetchUsers();
+      } else {
+        toast({ title: "تعذر منح التجربة", description: data.error ?? "", variant: "destructive" });
+      }
+    } finally { setUpdating(null); }
+  };
+
+  const grantTrialBulk = async () => {
+    if (!window.confirm("منح تجربة مجانية لمدة 30 يوماً لكل الحسابات التي ليس لديها اشتراك مدفوع فعّال؟")) return;
+    setUpdating("__bulk__");
+    try {
+      const res = await fetch(`${BASE}api/admin/grant-trial-bulk`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast({ title: "تم منح التجارب", description: `${data.granted ?? 0} حساب حصل على شهر مجاني` });
+        await fetchUsers();
+      } else {
+        toast({ title: "تعذر منح التجارب", description: data.error ?? "", variant: "destructive" });
       }
     } finally { setUpdating(null); }
   };
@@ -521,7 +569,7 @@ export default function AdminPage() {
         <BulkImportCard />
         <CcpRequestsCard />
         <ReviewsCard />
-        <TrialToggleCard />
+        <TrialToggleCard onGrantBulk={() => void grantTrialBulk()} granting={updating === "__bulk__"} />
         <ChargilyToggleCard />
         <Card className="border-0 shadow-md overflow-hidden">
           <div className="bg-gradient-to-br from-rose-500 to-red-700 p-4">
@@ -617,6 +665,13 @@ export default function AdminPage() {
                       <span className={`text-xs font-semibold ${cfg.color}`}>{cfg.label}</span>
                     </div>
                     <div className="flex gap-1.5">
+                      <Button size="sm" variant="outline"
+                        className="h-7 text-xs text-violet-600 border-violet-200 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                        disabled={updating === u.id}
+                        onClick={() => grantTrial(u.id)}
+                        title="منح تجربة مجانية 30 يوماً">
+                        تجربة
+                      </Button>
                       {u.subscriptionStatus !== "active" && (
                         <Button size="sm" variant="outline"
                           className="h-7 text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"

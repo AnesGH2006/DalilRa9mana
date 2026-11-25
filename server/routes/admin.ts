@@ -1,7 +1,33 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, schoolInfoTable, schoolMembersTable, usersTable } from "../../shared/db.js";
-import { eq, inArray, isNotNull } from "drizzle-orm";
+import { eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { PARENT_PLAN, STAFF_PLAN } from "../middlewares/staffAccess.js";
+
+const TRIAL_DAYS = 30;
+const GRANTABLE_PLANS = ["basic", "pro", STAFF_PLAN, PARENT_PLAN] as const;
+type GrantablePlan = (typeof GRANTABLE_PLANS)[number];
+
+function trialExpiry(): Date {
+  return new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+}
+
+/** Pick a plan for a granted trial: requested plan, else keep their paid-type plan, else "pro". */
+function resolveGrantPlan(requested: unknown, current: string | null | undefined): GrantablePlan {
+  if (typeof requested === "string" && (GRANTABLE_PLANS as readonly string[]).includes(requested)) {
+    return requested as GrantablePlan;
+  }
+  if (current && (GRANTABLE_PLANS as readonly string[]).includes(current)) return current as GrantablePlan;
+  return "pro";
+}
+
+/** True when the user already has an unexpired paid plan — skip them in bulk grants. */
+function hasLivePaidPlan(user: { subscriptionStatus: string | null; subscriptionPlan: string | null; subscriptionExpiresAt: Date | null }): boolean {
+  if (user.subscriptionStatus !== "active") return false;
+  const plan = String(user.subscriptionPlan ?? "");
+  if (!["basic", "pro", STAFF_PLAN, PARENT_PLAN].includes(plan)) return false;
+  const exp = user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt).getTime() : null;
+  return exp === null || exp > Date.now();
+}
 
 const router: IRouter = Router();
 
@@ -191,6 +217,57 @@ router.post("/admin/activate", async (req: Request, res: Response): Promise<void
 
   if (!updated) { res.status(404).json({ error: "User not found" }); return; }
   res.json({ success: true, email: updated.email, subscriptionStatus: updated.subscriptionStatus, subscriptionExpiresAt: updated.subscriptionExpiresAt });
+});
+
+// POST /api/admin/users/:id/grant-trial — grant a free 30-day trial to any account (admin only).
+// Bypasses the once-per-account rule so old/expired users can be given a month.
+router.post("/admin/users/:id/grant-trial", async (req: Request, res: Response): Promise<void> => {
+  if (!isAdmin(req)) { res.status(403).json({ error: "Forbidden" }); return; }
+  const id = String(req.params["id"]);
+  const plan = resolveGrantPlan(req.body?.plan, undefined);
+
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!existing) { res.status(404).json({ error: "User not found" }); return; }
+  if (existing.role === "admin") { res.status(400).json({ error: "لا يمكن منح تجربة لحساب مشرف" }); return; }
+
+  const grantPlan = resolveGrantPlan(req.body?.plan, existing.subscriptionPlan);
+  const expiresAt = trialExpiry();
+  const [updated] = await db.update(usersTable).set({
+    subscriptionStatus: "active",
+    subscriptionPlan: grantPlan,
+    subscriptionExpiresAt: expiresAt,
+    trialStartedAt: new Date(),
+    updatedAt: new Date(),
+  }).where(eq(usersTable.id, id)).returning();
+
+  res.json({ success: true, userId: updated!.id, plan: grantPlan, expiresAt: expiresAt.toISOString(), trialDays: TRIAL_DAYS });
+});
+
+// POST /api/admin/grant-trial-bulk — grant a 30-day trial to every account without a live paid plan.
+router.post("/admin/grant-trial-bulk", async (req: Request, res: Response): Promise<void> => {
+  if (!isAdmin(req)) { res.status(403).json({ error: "Forbidden" }); return; }
+  const requestedPlan = typeof req.body?.plan === "string" ? req.body.plan : undefined;
+
+  const users = await db.select().from(usersTable).where(ne(usersTable.role, "admin"));
+  const eligible = users.filter(u => !hasLivePaidPlan(u));
+  if (eligible.length === 0) { res.json({ success: true, granted: 0, skipped: users.length }); return; }
+
+  const expiresAt = trialExpiry();
+  const now = new Date();
+  let granted = 0;
+  for (const u of eligible) {
+    const plan = resolveGrantPlan(requestedPlan, u.subscriptionPlan);
+    await db.update(usersTable).set({
+      subscriptionStatus: "active",
+      subscriptionPlan: plan,
+      subscriptionExpiresAt: expiresAt,
+      trialStartedAt: now,
+      updatedAt: now,
+    }).where(eq(usersTable.id, u.id));
+    granted++;
+  }
+
+  res.json({ success: true, granted, skipped: users.length - granted, expiresAt: expiresAt.toISOString(), trialDays: TRIAL_DAYS });
 });
 
 export default router;

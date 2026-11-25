@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  GraduationCap, BookOpen, Calendar, TrendingUp,
+  GraduationCap, Calendar, TrendingUp,
   User, Award, AlertCircle, LogOut, Bell, BellOff, Loader2,
   LayoutDashboard, ClipboardCheck, BarChart3, ChevronLeft, CircleAlert,
   CheckCircle2, Clock3, MoreHorizontal, ArrowUpLeft, Settings2, FileText,
@@ -113,13 +113,6 @@ function calcTrimAvg(grades: StudentData["grades"], trimestre: number, niveau: s
     if (g.trimestre === trimestre) scores[g.subject] = g.score;
   }
   return calcWeightedAvg(scores, subs);
-}
-
-function getGradeColor(score: number): string {
-  if (score >= 16) return "text-emerald-600 dark:text-emerald-400";
-  if (score >= 10) return "text-blue-600 dark:text-blue-400";
-  if (score >= 7)  return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
 }
 
 export default function MyChildPage() {
@@ -250,7 +243,7 @@ export default function MyChildPage() {
   const student = data?.student;
   const grades = data?.grades ?? [];
   const absences = data?.absences ?? [];
-  const { subs, trimesterGrades, t1Avg, t2Avg, t3Avg, annualAvg, totalJustified, totalUnjustified } = useMemo(() => {
+  const { annualAvg, totalJustified, totalUnjustified } = useMemo(() => {
     const subjects = student ? getSubjectsForLevel(student.niveau as Niveau, student.filiere ?? undefined) : [];
     const averages = student ? [
       data?.t1Avg ?? calcTrimAvg(grades, 1, student.niveau, student.filiere),
@@ -366,7 +359,6 @@ export default function MyChildPage() {
     { id: "schedule", label: "استعمال الزمن", icon: CalendarClock },
     { id: "assessments", label: "الفروض والاختبارات", icon: CalendarDays },
     { id: "attendance", label: "الغيابات", icon: ClipboardCheck },
-    { id: "grades", label: "الدرجات", icon: GraduationCap },
     { id: "notifications", label: "الإشعارات", icon: Bell },
   ];
   const displayName = loadedStudent.nomPrenom || "أحمد بن علي";
@@ -397,7 +389,6 @@ export default function MyChildPage() {
     const record = absences.find(absence => absence.trimestre === trimestre);
     return (record?.justifiedHours ?? 0) + (record?.unjustifiedHours ?? 0);
   });
-  const gradeTypeLabels: Record<string, string> = { general: "درجة", continuous: "تقويم مستمر", test: "فرض", exam: "اختبار" };
   const schedule = data?.schedule ?? null;
   const assessments = data?.assessments ?? [];
   const assessmentScores = grades.filter(grade => grade.gradeType === "test" || grade.gradeType === "exam");
@@ -747,14 +738,9 @@ export default function MyChildPage() {
             <div className="rounded-[26px] border border-white/10 bg-[#111a2c]/85 p-5 shadow-xl shadow-black/10 sm:p-6"><div className="flex items-start justify-between"><div><p className="text-xs text-slate-500">حسب الفصول الدراسية</p><h2 className="mt-1 text-xl font-bold text-white">ساعات الغياب</h2></div><div className="rounded-xl bg-emerald-400/10 p-2 text-emerald-300"><TrendingUp className="h-4 w-4" /></div></div><div className="mt-8 flex h-36 items-end gap-4 border-b border-white/10 px-3">{absenceByTrimester.map((hours, index) => <div key={index} className="group flex flex-1 flex-col items-center gap-2"><span className="text-[10px] text-slate-500 opacity-0 transition group-hover:opacity-100">{hours} س</span><div className="w-full max-w-10 rounded-t-md bg-gradient-to-t from-blue-500 to-cyan-300 opacity-80 transition group-hover:opacity-100" style={{ height: `${Math.max(hours * 8, 8)}%` }} /></div>)}</div><div className="mt-3 flex justify-between px-2 text-[10px] text-slate-600"><span>الفصل الأول</span><span>الفصل الثاني</span><span>الفصل الثالث</span></div><div className="mt-7 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-300"><Calendar className="h-4 w-4" /></div><div className="grid grid-cols-2 gap-5"><div><p className="text-xs text-slate-500">أيام الغياب اليومي</p><p className="text-sm font-bold text-white">{dailyAbsenceDays} يوم</p></div><div><p className="text-xs text-slate-500">الساعات المسجلة</p><p className="text-sm font-bold text-white">{totalAbsenceHours} ساعة</p></div></div></div></div>
           </section>
 
-          <section id="parent-grades" className="mt-5 scroll-mt-6 rounded-[26px] border border-white/10 bg-[#111a2c]/85 p-5 shadow-xl shadow-black/10 sm:p-6">
-            <div className="mb-6 flex items-center justify-between"><div><p className="text-xs text-slate-500">النتائج المسجلة</p><h2 className="mt-1 text-xl font-bold text-white">الدرجات حسب الفصل</h2></div><BookOpen className="h-5 w-5 text-blue-300" /></div>
-            {grades.length === 0 ? <p className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">لا توجد درجات مسجلة لهذا العام الدراسي.</p> : <div className="grid gap-4 md:grid-cols-3">{[1, 2, 3].map(trimestre => { const trimesterRows = grades.filter(grade => grade.trimestre === trimestre); return <div key={trimestre} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><div className="mb-4 flex items-center justify-between"><p className="text-sm font-bold text-white">{TRIMESTRE_LABELS[trimestre]}</p><span className="text-xs text-slate-500">{trimesterRows.length} درجات</span></div><div className="space-y-2">{trimesterRows.length === 0 ? <p className="text-xs text-slate-600">لا توجد درجات</p> : trimesterRows.map(grade => <div key={grade.id} className="flex items-center justify-between gap-3 text-xs"><div className="min-w-0"><p className="truncate text-slate-300">{grade.subject}</p><p className="text-[10px] text-slate-500">{gradeTypeLabels[grade.gradeType ?? "general"] ?? "درجة"}</p></div><span className={`font-bold ${getGradeColor(grade.score)}`}>{grade.score.toFixed(2)}</span></div>)}</div></div>; })}</div>}
-          </section>
-
           <section className="mt-5 grid gap-5 md:grid-cols-3">
             {[
-              { label: "المعدل الفصلي", value: t1Avg !== null ? t1Avg.toFixed(2) : "—", note: "الفصل الأول", icon: Award, color: "text-blue-300" },
+              { label: "المعدل العام", value: annualAvg !== null ? annualAvg.toFixed(2) : "—", note: "معدل السنة", icon: Award, color: "text-blue-300" },
               { label: "أيام الغياب المسجلة", value: `${dailyAbsenceDays} يوم`, note: `${totalAbsenceHours} ساعة مسجلة`, icon: Calendar, color: "text-cyan-300" },
               { label: "درجات مسجلة", value: String(grades.length), note: "من السجلات المتاحة", icon: BarChart3, color: "text-violet-300" },
             ].map(metric => <div key={metric.label} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#111a2c]/70 p-4"><div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 ${metric.color}`}><metric.icon className="h-5 w-5" /></div><div><p className="text-[11px] text-slate-500">{metric.label}</p><p className="text-lg font-bold text-white">{metric.value}</p><p className="text-[10px] text-slate-500">{metric.note}</p></div></div>)}
