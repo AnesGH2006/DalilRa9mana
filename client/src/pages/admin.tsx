@@ -202,11 +202,15 @@ function ReviewsCard() {
 interface UsageData {
   totalUsers: number;
   onlineNow: number;
+  sessionsActive?: number;
   activeToday: number;
   active7d: number;
   active30d: number;
   newUsers7d: number;
   newUsers30d: number;
+  pageViews30d?: number;
+  topPages?: { path: string; count: number }[];
+  onlineUsers?: { id: string; name: string; email: string | null; lastSeenAt: string }[];
   signupsByDay: { date: string; count: number }[];
   recentlyActive: { id: string; name: string; email: string | null; lastSeenAt: string }[];
 }
@@ -214,6 +218,7 @@ interface UsageData {
 function UsageCard() {
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showOnline, setShowOnline] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -245,19 +250,50 @@ function UsageCard() {
           <>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {[
-                { label: "متصل الآن", value: data.onlineNow, color: "text-emerald-600" },
-                { label: "نشط اليوم", value: data.activeToday, color: "text-sky-600" },
-                { label: "نشط 7 أيام", value: data.active7d, color: "text-blue-600" },
-                { label: "نشط 30 يوم", value: data.active30d, color: "text-indigo-600" },
-                { label: "جديد 7 أيام", value: data.newUsers7d, color: "text-violet-600" },
-                { label: "إجمالي", value: data.totalUsers, color: "text-foreground" },
+                { label: "متصل الآن", value: data.onlineNow, color: "text-emerald-600", key: "online" },
+                { label: "نشط اليوم", value: data.activeToday, color: "text-sky-600", key: "today" },
+                { label: "نشط 7 أيام", value: data.active7d, color: "text-blue-600", key: "7d" },
+                { label: "نشط 30 يوم", value: data.active30d, color: "text-indigo-600", key: "30d" },
+                { label: "جديد 7 أيام", value: data.newUsers7d, color: "text-violet-600", key: "new" },
+                { label: "إجمالي", value: data.totalUsers, color: "text-foreground", key: "total" },
               ].map(stat => (
-                <div key={stat.label} className="rounded-xl border bg-muted/30 px-2 py-2 text-center">
+                <button
+                  key={stat.key}
+                  type="button"
+                  onClick={() => stat.key === "online" && setShowOnline(v => !v)}
+                  className={`rounded-xl border px-2 py-2 text-center transition ${stat.key === "online" ? "cursor-pointer hover:border-emerald-400/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/20" : "cursor-default"} ${showOnline && stat.key === "online" ? "border-emerald-400/60 bg-emerald-50 dark:bg-emerald-950/20" : "bg-muted/30"}`}
+                >
                   <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-                </div>
+                  <p className="text-[10px] text-muted-foreground">{stat.label}{stat.key === "online" ? " ⌄" : ""}</p>
+                </button>
               ))}
             </div>
+
+            {showOnline && (
+              <div className="rounded-xl border border-emerald-400/30 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
+                <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mb-2">المتصلون الآن (آخر 15 دقيقة)</p>
+                {!data.onlineUsers || data.onlineUsers.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">لا يوجد متصلون حالياً.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                    {data.onlineUsers.map(u => (
+                      <div key={u.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/70 px-3 py-1.5 text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate">{u.name}</p>
+                            {u.email && <p className="text-[10px] text-muted-foreground truncate" dir="ltr">{u.email}</p>}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          {u.lastSeenAt ? new Date(u.lastSeenAt).toLocaleTimeString("ar-DZ", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <p className="text-[11px] font-bold text-muted-foreground mb-2 flex items-center gap-1"><UserPlus className="w-3.5 h-3.5" /> تسجيلات آخر 14 يوم</p>
@@ -272,6 +308,22 @@ function UsageCard() {
                 <span>{data.signupsByDay[0]?.date.slice(5)}</span>
                 <span>{data.signupsByDay[13]?.date.slice(5)}</span>
               </div>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold text-muted-foreground mb-2 flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> أكثر الصفحات استخداماً (آخر 30 يوم{data.pageViews30d ? ` · ${data.pageViews30d} مشاهدة` : ""})</p>
+              {!data.topPages || data.topPages.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">لا توجد مشاهدات مسجلة بعد — تبدأ بالتجمع مع استعمال المستخدمين.</p>
+              ) : (
+                <div className="space-y-1">
+                  {data.topPages.map(page => (
+                    <div key={page.path} className="flex items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-1.5 text-xs">
+                      <span className="font-mono font-semibold truncate" dir="ltr">{page.path}</span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground">{page.count} مشاهدة</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {data.recentlyActive.length > 0 && (

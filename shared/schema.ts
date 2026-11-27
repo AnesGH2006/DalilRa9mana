@@ -729,6 +729,23 @@ export type Review = typeof reviewsTable.$inferSelect;
 export type InsertReview = typeof reviewsTable.$inferInsert;
 
 /**
+ * Lightweight page-view tracking — one row per route visit (throttled
+ * client-side). Powers the admin "most used pages" activity view.
+ */
+export const pageViewsTable = pgTable("page_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  path: varchar("path", { length: 200 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("IDX_page_views_created").on(table.createdAt),
+  index("IDX_page_views_user_created").on(table.userId, table.createdAt),
+]);
+
+export type PageView = typeof pageViewsTable.$inferSelect;
+export type InsertPageView = typeof pageViewsTable.$inferInsert;
+
+/**
  * Global site-wide settings (key/value). Used for admin-controlled feature
  * flags such as disabling the free trial for all users.
  */

@@ -18,7 +18,7 @@ import { SCHOOL_STAGE } from "@/lib/deployment";
 import { QuickImportDialog } from "@/components/quick-import";
 import AiChatWidget from "@/components/ai-chat-widget";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Dashboard from "@/pages/dashboard";
 import Students from "@/pages/students";
 import Results from "@/pages/results";
@@ -1305,6 +1305,26 @@ function LoginScreen() {
   );
 }
 
+// Records page views for the admin activity dashboard (throttled server-side).
+function PageTracker() {
+  const { isAuthenticated } = useAuth();
+  const [loc] = useLocation();
+  const lastPath = useRef("");
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const path = loc.split("?")[0];
+    if (!path || path === lastPath.current) return;
+    lastPath.current = path;
+    fetch(`${import.meta.env.BASE_URL}api/track/page`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }).catch(() => { /* analytics is best-effort */ });
+  }, [loc, isAuthenticated]);
+  return null;
+}
+
 // ── Auth gate ─────────────────────────────────────────────────────────────────
 function AuthGate() {
   const { user, isAuthenticated, isLoading, loadError, retry } = useAuth();
@@ -1349,7 +1369,7 @@ function AuthGate() {
           ? <motion.div key="paywall-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><PaywallScreen /></motion.div>
         : !isSubscribed
           ? <motion.div key="paywall" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><PaywallScreen /></motion.div>
-          : <motion.div key="app" className="h-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}><AppLayout /></motion.div>
+          : <motion.div key="app" className="h-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}><PageTracker /><AppLayout /></motion.div>
       }
     </AnimatePresence>
   );

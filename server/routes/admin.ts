@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, paymentRequestsTable, paymentsTable, schoolInfoTable, schoolMembersTable, sessionsTable, usersTable } from "../../shared/db.js";
-import { eq, gt, inArray, isNotNull, ne } from "drizzle-orm";
+import { db, pageViewsTable, paymentRequestsTable, paymentsTable, schoolInfoTable, schoolMembersTable, sessionsTable, usersTable } from "../../shared/db.js";
+import { desc, eq, gt, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { PARENT_PLAN, STAFF_PLAN } from "../middlewares/staffAccess.js";
 
 const TRIAL_DAYS = 15;
@@ -317,7 +317,7 @@ router.get("/admin/usage", async (req: Request, res: Response): Promise<void> =>
   const DAY = 24 * 60 * 60 * 1000;
   const now = Date.now();
 
-  const [users, liveSessions] = await Promise.all([
+  const [users, liveSessions, topPageRows, pageViewCount] = await Promise.all([
     db.select({
       id: usersTable.id,
       email: usersTable.email,
@@ -328,17 +328,33 @@ router.get("/admin/usage", async (req: Request, res: Response): Promise<void> =>
       lastSeenAt: usersTable.lastSeenAt,
     }).from(usersTable),
     db.select({ sess: sessionsTable.sess }).from(sessionsTable).where(gt(sessionsTable.expire, new Date())),
+    db.select({
+      path: pageViewsTable.path,
+      count: sql<number>`count(*)::int`,
+    })
+      .from(pageViewsTable)
+      .where(gt(pageViewsTable.createdAt, new Date(now - 30 * DAY)))
+      .groupBy(pageViewsTable.path)
+      .orderBy(desc(sql`count(*)`))
+      .limit(10),
+    db.select({ count: sql<number>`count(*)::int` })
+      .from(pageViewsTable)
+      .where(gt(pageViewsTable.createdAt, new Date(now - 30 * DAY))),
   ]);
 
-  const onlineUserIds = new Set(
+  const sessionUserIds = new Set(
     liveSessions
       .map(row => (row.sess as { user?: { id?: string } } | null)?.user?.id)
       .filter((id): id is string => Boolean(id))
   );
 
   const nonAdmin = users.filter(u => u.role !== "admin");
-  const activeWithin = (ms: number) =>
-    nonAdmin.filter(u => u.lastSeenAt && now - new Date(u.lastSeenAt).getTime() <= ms).length;
+  const seenWithin = (ms: number) =>
+    nonAdmin.filter(u => u.lastSeenAt && now - new Date(u.lastSeenAt).getTime() <= ms);
+  // "Online now" = authenticated activity in the last 15 minutes (last_seen_at
+  // is throttled to one write per 5 min, so this is accurate to ~5 min).
+  const onlineNow = seenWithin(15 * 60 * 1000).length;
+  const activeWithin = (ms: number) => seenWithin(ms).length;
   const createdWithin = (ms: number) =>
     nonAdmin.filter(u => now - new Date(u.createdAt).getTime() <= ms).length;
 
@@ -356,6 +372,15 @@ router.get("/admin/usage", async (req: Request, res: Response): Promise<void> =>
     });
   }
 
+  const onlineUsers = seenWithin(15 * 60 * 1000)
+    .sort((a, b) => new Date(b.lastSeenAt!).getTime() - new Date(a.lastSeenAt!).getTime())
+    .map(u => ({
+      id: u.id,
+      name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || "مستخدم",
+      email: u.email,
+      lastSeenAt: u.lastSeenAt,
+    }));
+
   const recentlyActive = nonAdmin
     .filter(u => u.lastSeenAt)
     .sort((a, b) => new Date(b.lastSeenAt!).getTime() - new Date(a.lastSeenAt!).getTime())
@@ -369,12 +394,16 @@ router.get("/admin/usage", async (req: Request, res: Response): Promise<void> =>
 
   res.set("Cache-Control", "private, no-store").json({
     totalUsers: nonAdmin.length,
-    onlineNow: onlineUserIds.size,
+    onlineNow,
+    onlineUsers,
+    sessionsActive: sessionUserIds.size,
     activeToday: activeWithin(DAY),
     active7d: activeWithin(7 * DAY),
     active30d: activeWithin(30 * DAY),
     newUsers7d: createdWithin(7 * DAY),
     newUsers30d: createdWithin(30 * DAY),
+    pageViews30d: pageViewCount[0]?.count ?? 0,
+    topPages: topPageRows,
     signupsByDay,
     recentlyActive,
   });

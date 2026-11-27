@@ -430,6 +430,18 @@ async function probeDb(attempt = 1): Promise<void> {
       )
     `);
 
+    // Page-view tracking for the admin activity dashboard.
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS page_views (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar REFERENCES users(id) ON DELETE CASCADE,
+        path varchar(200) NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_page_views_created" ON page_views(created_at)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_page_views_user_created" ON page_views(user_id, created_at)`);
+
     // Repair names imported from combined Excel name columns before the parser fix.
     await db.execute(sql`UPDATE students SET nom_prenom = regexp_replace(nom_prenom, '^(.+)\\s+\\1$', '\\1') WHERE nom_prenom ~ '^(.+)\\s+\\1$'`);
     logger.info("Database connection verified");

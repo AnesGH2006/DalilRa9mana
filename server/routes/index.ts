@@ -38,6 +38,7 @@ import smsRouter from "./sms.js";
 import whatsappRouter from "./whatsapp.js";
 import parentLinkRouter from "./Parent-link.js";
 import reviewsRouter from "./reviews.js";
+import trackRouter from "./track.js";
 const router: IRouter = Router();
 
 router.use(memberPermissionMiddleware);
@@ -50,6 +51,8 @@ router.use(schoolStageRouter);
 router.use(parentLinkRouter);
 // Public reviews list must be reachable from the login page (no paid plan required).
 router.use(reviewsRouter);
+// Page-view tracking — any authenticated user, any plan.
+router.use(trackRouter);
 router.use(requirePaidPlan);
   router.use(smsRouter);
   router.use(whatsappRouter);
