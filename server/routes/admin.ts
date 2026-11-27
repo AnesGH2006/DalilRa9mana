@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, paymentRequestsTable, paymentsTable, schoolInfoTable, schoolMembersTable, usersTable } from "../../shared/db.js";
-import { eq, inArray, isNotNull, ne } from "drizzle-orm";
+import { db, paymentRequestsTable, paymentsTable, schoolInfoTable, schoolMembersTable, sessionsTable, usersTable } from "../../shared/db.js";
+import { eq, gt, inArray, isNotNull, ne } from "drizzle-orm";
 import { PARENT_PLAN, STAFF_PLAN } from "../middlewares/staffAccess.js";
 
 const TRIAL_DAYS = 15;
@@ -307,6 +307,77 @@ router.post("/admin/revoke-trials", async (req: Request, res: Response): Promise
   }
 
   res.json({ success: true, revoked: targets.length, skippedPaid: paidUserIds.size });
+});
+
+// GET /api/admin/usage — platform activity overview: is the site being used?
+// Combines users.last_seen_at (throttled per-request tracking) with live sessions.
+router.get("/admin/usage", async (req: Request, res: Response): Promise<void> => {
+  if (!isAdmin(req)) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const DAY = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  const [users, liveSessions] = await Promise.all([
+    db.select({
+      id: usersTable.id,
+      email: usersTable.email,
+      firstName: usersTable.firstName,
+      lastName: usersTable.lastName,
+      role: usersTable.role,
+      createdAt: usersTable.createdAt,
+      lastSeenAt: usersTable.lastSeenAt,
+    }).from(usersTable),
+    db.select({ sess: sessionsTable.sess }).from(sessionsTable).where(gt(sessionsTable.expire, new Date())),
+  ]);
+
+  const onlineUserIds = new Set(
+    liveSessions
+      .map(row => (row.sess as { user?: { id?: string } } | null)?.user?.id)
+      .filter((id): id is string => Boolean(id))
+  );
+
+  const nonAdmin = users.filter(u => u.role !== "admin");
+  const activeWithin = (ms: number) =>
+    nonAdmin.filter(u => u.lastSeenAt && now - new Date(u.lastSeenAt).getTime() <= ms).length;
+  const createdWithin = (ms: number) =>
+    nonAdmin.filter(u => now - new Date(u.createdAt).getTime() <= ms).length;
+
+  const signupsByDay: { date: string; count: number }[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const start = new Date(now - i * DAY);
+    start.setHours(0, 0, 0, 0);
+    const end = start.getTime() + DAY;
+    signupsByDay.push({
+      date: start.toISOString().slice(0, 10),
+      count: nonAdmin.filter(u => {
+        const c = new Date(u.createdAt).getTime();
+        return c >= start.getTime() && c < end;
+      }).length,
+    });
+  }
+
+  const recentlyActive = nonAdmin
+    .filter(u => u.lastSeenAt)
+    .sort((a, b) => new Date(b.lastSeenAt!).getTime() - new Date(a.lastSeenAt!).getTime())
+    .slice(0, 10)
+    .map(u => ({
+      id: u.id,
+      name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || "مستخدم",
+      email: u.email,
+      lastSeenAt: u.lastSeenAt,
+    }));
+
+  res.set("Cache-Control", "private, no-store").json({
+    totalUsers: nonAdmin.length,
+    onlineNow: onlineUserIds.size,
+    activeToday: activeWithin(DAY),
+    active7d: activeWithin(7 * DAY),
+    active30d: activeWithin(30 * DAY),
+    newUsers7d: createdWithin(7 * DAY),
+    newUsers30d: createdWithin(30 * DAY),
+    signupsByDay,
+    recentlyActive,
+  });
 });
 
 export default router;

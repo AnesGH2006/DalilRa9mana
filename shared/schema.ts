@@ -30,6 +30,8 @@ export const usersTable = pgTable("users", {
   geminiApiKey: varchar("gemini_api_key", { length: 500 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  /** Last authenticated request — powers the admin "site activity" view. */
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
 });
 
 export type UpsertUser = typeof usersTable.$inferInsert;
@@ -705,9 +707,8 @@ export const studentDocumentsTable = pgTable("student_documents", {
 export type StudentDocument = typeof studentDocumentsTable.$inferSelect;
 
 /**
- * Public reviews of the platform. One review per user, submitted after the
- * account is at least 30 days old, moderated by an admin before it appears
- * on the login page.
+ * Public reviews of the platform. One review per user, moderated by an admin
+ * before it appears on the login page.
  */
 export const reviewsTable = pgTable("reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -37,6 +37,7 @@ async function migrate() {
   await db.execute(sql`ALTER TABLE users ALTER COLUMN subscription_plan SET NOT NULL;`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at timestamptz;`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_at timestamptz;`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;`);
 
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS school_info (

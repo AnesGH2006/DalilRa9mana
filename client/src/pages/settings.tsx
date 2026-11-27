@@ -426,7 +426,7 @@ export default function Settings() {
         </Card>
       </motion.div>
 
-      {/* Platform review — available to accounts older than 30 days */}
+      {/* Platform review */}
       <motion.div initial={{ opacity: 0, y: 20, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.3 }}>
         <ReviewForm />
       </motion.div>

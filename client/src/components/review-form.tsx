@@ -185,11 +185,6 @@ export function ReviewForm() {
           </>
         )}
 
-        {!data.eligible && !review && (
-          <p className="text-xs text-muted-foreground">
-            يمكنك تقييم المنصة بعد مرور {data.minAgeDays} يوماً من إنشاء حسابك — تبقّى {data.daysUntilEligible} {data.daysUntilEligible === 1 ? "يوم" : "أيام"}.
-          </p>
-        )}
         {review?.status === "rejected" && (
           <p className="text-xs text-red-500">تم رفض تقييمك السابق — يمكنك تعديله وإرساله مجدداً.</p>
         )}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Shield, CheckCircle2, XCircle, Clock, RefreshCw, Search, FileSpreadsheet, Upload, Users, UserCheck, AlertCircle, Loader2, CreditCard } from "lucide-react";
+import { Shield, CheckCircle2, XCircle, Clock, RefreshCw, Search, FileSpreadsheet, Upload, Users, UserCheck, AlertCircle, Loader2, CreditCard, Activity, UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -192,6 +192,107 @@ function ReviewsCard() {
               </div>
             </div>
           ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Platform Activity ─────────────────────────────────────────────────────────
+interface UsageData {
+  totalUsers: number;
+  onlineNow: number;
+  activeToday: number;
+  active7d: number;
+  active30d: number;
+  newUsers7d: number;
+  newUsers30d: number;
+  signupsByDay: { date: string; count: number }[];
+  recentlyActive: { id: string; name: string; email: string | null; lastSeenAt: string }[];
+}
+
+function UsageCard() {
+  const [data, setData] = useState<UsageData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(`${BASE}api/admin/usage`, { credentials: "include" });
+        if (res.ok) setData(await res.json());
+      } catch { /* ignore */ }
+      setLoading(false);
+    })();
+  }, []);
+
+  const maxDay = Math.max(1, ...(data?.signupsByDay.map(d => d.count) ?? [1]));
+
+  return (
+    <Card className="border-0 shadow-md overflow-hidden md:col-span-2">
+      <div className="bg-gradient-to-br from-sky-500 to-blue-700 p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Activity className="w-5 h-5 text-white/80" />
+          <h2 className="text-white font-bold text-sm">نشاط المنصة</h2>
+        </div>
+        <p className="text-white/65 text-xs">هل الموقع مستعمل فعلاً؟ آخر دخول لكل مستخدم + المتصلون الآن</p>
+      </div>
+      <CardContent className="pt-4 pb-4 space-y-4">
+        {loading ? (
+          <div className="flex items-center justify-center py-6 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" /></div>
+        ) : !data ? (
+          <p className="text-xs text-muted-foreground text-center py-4">تعذر تحميل بيانات النشاط</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {[
+                { label: "متصل الآن", value: data.onlineNow, color: "text-emerald-600" },
+                { label: "نشط اليوم", value: data.activeToday, color: "text-sky-600" },
+                { label: "نشط 7 أيام", value: data.active7d, color: "text-blue-600" },
+                { label: "نشط 30 يوم", value: data.active30d, color: "text-indigo-600" },
+                { label: "جديد 7 أيام", value: data.newUsers7d, color: "text-violet-600" },
+                { label: "إجمالي", value: data.totalUsers, color: "text-foreground" },
+              ].map(stat => (
+                <div key={stat.label} className="rounded-xl border bg-muted/30 px-2 py-2 text-center">
+                  <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold text-muted-foreground mb-2 flex items-center gap-1"><UserPlus className="w-3.5 h-3.5" /> تسجيلات آخر 14 يوم</p>
+              <div className="flex items-end gap-1 h-16">
+                {data.signupsByDay.map(day => (
+                  <div key={day.date} className="flex-1 flex flex-col items-center gap-1 group" title={`${day.date}: ${day.count}`}>
+                    <div className="w-full rounded-t bg-gradient-to-t from-sky-500 to-blue-400 opacity-80 group-hover:opacity-100 transition-opacity" style={{ height: `${Math.max((day.count / maxDay) * 100, day.count > 0 ? 12 : 4)}%` }} />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between text-[9px] text-muted-foreground mt-1">
+                <span>{data.signupsByDay[0]?.date.slice(5)}</span>
+                <span>{data.signupsByDay[13]?.date.slice(5)}</span>
+              </div>
+            </div>
+
+            {data.recentlyActive.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold text-muted-foreground mb-2">آخر المستخدمين نشاطاً</p>
+                <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                  {data.recentlyActive.map(u => (
+                    <div key={u.id} className="flex items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-1.5 text-xs">
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{u.name}</p>
+                        {u.email && <p className="text-[10px] text-muted-foreground truncate" dir="ltr">{u.email}</p>}
+                      </div>
+                      <span className="shrink-0 text-[10px] text-muted-foreground">
+                        {u.lastSeenAt ? new Date(u.lastSeenAt).toLocaleString("ar-DZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
@@ -600,6 +701,7 @@ export default function AdminPage() {
         <ReviewsCard />
         <TrialToggleCard onGrantBulk={() => void grantTrialBulk()} granting={updating === "__bulk__"} onRevoke={() => void revokeTrials()} revoking={updating === "__revoke__"} />
         <ChargilyToggleCard />
+        <UsageCard />
         <Card className="border-0 shadow-md overflow-hidden">
           <div className="bg-gradient-to-br from-rose-500 to-red-700 p-4">
             <div className="flex items-center gap-2 mb-1">

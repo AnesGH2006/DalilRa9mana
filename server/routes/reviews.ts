@@ -3,7 +3,7 @@
  *
  * GET  /api/reviews          public list of approved reviews
  * GET  /api/reviews/me       eligibility + the caller's own review
- * POST /api/reviews          submit/update own review (account >= 30 days old)
+ * POST /api/reviews          submit/update own review
  * GET  /api/reviews/admin    all reviews incl. pending (admin)
  * POST /api/reviews/admin/:id/status  approve | reject (admin)
  * DELETE /api/reviews/admin/:id       remove (admin)
@@ -14,7 +14,6 @@ import { db, reviewsTable, schoolInfoTable, usersTable } from "../../shared/db.j
 
 const router = Router();
 
-const MIN_ACCOUNT_AGE_DAYS = 30;
 const ALLOWED_AUDIENCES = new Set(["school", "teacher", "parent"]);
 const AUDIENCE_LABELS: Record<string, string> = {
   school: "مدير مؤسسة",
@@ -35,7 +34,7 @@ async function reviewEligibility(userId: string): Promise<{ eligible: boolean; a
   const [user] = await db.select({ createdAt: usersTable.createdAt }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   const [review] = await db.select().from(reviewsTable).where(eq(reviewsTable.userId, userId)).limit(1);
   const accountAgeDays = user ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / 86400000) : 0;
-  return { eligible: accountAgeDays >= MIN_ACCOUNT_AGE_DAYS, accountAgeDays, review: review ?? null };
+  return { eligible: true, accountAgeDays, review: review ?? null };
 }
 
 // Public — approved reviews only, shown on the login page.
@@ -87,9 +86,9 @@ router.get("/reviews/me", async (req, res): Promise<void> => {
     const { eligible, accountAgeDays, review } = await reviewEligibility(req.user.id);
     res.set("Cache-Control", "private, no-store").json({
       eligible,
-      minAgeDays: MIN_ACCOUNT_AGE_DAYS,
+      minAgeDays: 0,
       accountAgeDays,
-      daysUntilEligible: Math.max(0, MIN_ACCOUNT_AGE_DAYS - accountAgeDays),
+      daysUntilEligible: 0,
       review: review ? {
         rating: review.rating,
         comment: review.comment,
@@ -126,11 +125,7 @@ router.post("/reviews", async (req, res): Promise<void> => {
   }
 
   try {
-    const { eligible, review } = await reviewEligibility(req.user.id);
-    if (!eligible) {
-      res.status(403).json({ error: `يمكنك تقييم المنصة بعد مرور ${MIN_ACCOUNT_AGE_DAYS} يوماً من إنشاء حسابك` });
-      return;
-    }
+    const { review } = await reviewEligibility(req.user.id);
 
     const values = {
       userId: req.user.id,

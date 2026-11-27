@@ -70,6 +70,15 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     : session.user;
   req.isAuthenticated = () => true;
 
+  // Throttled last-seen tracking — powers the admin "site activity" view.
+  const lastSeen = currentUser?.lastSeenAt ? new Date(currentUser.lastSeenAt).getTime() : 0;
+  if (!lastSeen || Date.now() - lastSeen > 5 * 60 * 1000) {
+    void db.update(usersTable)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(usersTable.id, session.user.id))
+      .catch(() => { /* best-effort analytics write */ });
+  }
+
   // Enrich with member context if this user is a teacher/parent sub-account
   try {
     const [member] = await db
