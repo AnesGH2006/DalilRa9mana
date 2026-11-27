@@ -381,7 +381,7 @@ export default function PaywallScreen() {
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "تعذر تفعيل التجربة المجانية");
-      setNotice(`تم تفعيل التجربة المجانية لمدة 30 يوماً. جارٍ نقلك إلى التطبيق…`);
+      setNotice(`تم تفعيل التجربة المجانية لمدة 15 يوماً. جارٍ نقلك إلى التطبيق…`);
       window.setTimeout(() => window.location.replace(BASE), 900);
     } catch (e: any) {
       setError(e?.message ?? "تعذر تفعيل التجربة المجانية");
@@ -439,7 +439,7 @@ export default function PaywallScreen() {
           <h1>اختر باقتك وابدأ الآن</h1>
           <p>
             {me?.trialAvailable
-              ? "باقات واضحة لكل دور في المؤسسة. جرّب باقتي المؤسسة الأساسية والمتقدمة مجاناً لمدة 30 يوماً، أو ادفع مرة واحدة في السنة."
+              ? "باقات واضحة لكل دور في المؤسسة. جرّب باقتي المؤسسة الأساسية والمتقدمة مجاناً لمدة 15 يوماً، أو ادفع مرة واحدة في السنة."
               : "باقات واضحة لكل دور في المؤسسة. ادفع مرة واحدة في السنة، وتُفعَّل ميزاتك فور تأكيد الدفع."}
           </p>
           <div className="pw-trust">

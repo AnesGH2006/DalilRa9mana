@@ -235,7 +235,7 @@ function TrialToggleCard({ onGrantBulk, granting, onRevoke, revoking }: { onGran
           <h2 className="text-white font-bold text-sm">التجربة المجانية</h2>
         </div>
         <p className="text-white/65 text-xs">
-          {enabled === null ? "جارٍ التحميل…" : enabled ? "مفعّلة — يمكن للمستخدمين الجدد تجربة الباقات لمدة 30 يوماً" : "موقوفة — لن تظهر التجربة المجانية لأي مستخدم جديد"}
+          {enabled === null ? "جارٍ التحميل…" : enabled ? "مفعّلة — يمكن للمستخدمين الجدد تجربة الباقات لمدة 15 يوماً" : "موقوفة — لن تظهر التجربة المجانية لأي مستخدم جديد"}
         </p>
       </div>
       <CardContent className="pt-4 pb-4 space-y-3">
@@ -266,7 +266,7 @@ function TrialToggleCard({ onGrantBulk, granting, onRevoke, revoking }: { onGran
           {granting ? "جارٍ المنح…" : "منح شهر مجاني لكل الحسابات غير المشتركة"}
         </Button>
         <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
-          يمنح 30 يوماً مجاناً لكل حساب ليس لديه اشتراك مدفوع فعّال — مفيد للحسابات القديمة.
+          يمنح 15 يوماً مجاناً لكل حساب ليس لديه اشتراك مدفوع فعّال — مفيد للحسابات القديمة.
         </p>
         <Button
           variant="outline"
@@ -479,7 +479,7 @@ export default function AdminPage() {
   };
 
   const grantTrial = async (id: string) => {
-    if (!window.confirm("منح هذا الحساب تجربة مجانية لمدة 30 يوماً؟")) return;
+    if (!window.confirm("منح هذا الحساب تجربة مجانية لمدة 15 يوماً؟")) return;
     setUpdating(id);
     try {
       const res = await fetch(`${BASE}api/admin/users/${id}/grant-trial`, {
@@ -488,7 +488,7 @@ export default function AdminPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast({ title: "تم منح التجربة", description: `باقة ${data.plan ?? ""} لمدة ${data.trialDays ?? 30} يوماً` });
+        toast({ title: "تم منح التجربة", description: `باقة ${data.plan ?? ""} لمدة ${data.trialDays ?? 15} يوماً` });
         await fetchUsers();
       } else {
         toast({ title: "تعذر منح التجربة", description: data.error ?? "", variant: "destructive" });
@@ -497,7 +497,7 @@ export default function AdminPage() {
   };
 
   const grantTrialBulk = async () => {
-    if (!window.confirm("منح تجربة مجانية لمدة 30 يوماً لكل الحسابات التي ليس لديها اشتراك مدفوع فعّال؟")) return;
+    if (!window.confirm("منح تجربة مجانية لمدة 15 يوماً لكل الحسابات التي ليس لديها اشتراك مدفوع فعّال؟")) return;
     setUpdating("__bulk__");
     try {
       const res = await fetch(`${BASE}api/admin/grant-trial-bulk`, {
@@ -698,7 +698,7 @@ export default function AdminPage() {
                         className="h-7 text-xs text-violet-600 border-violet-200 hover:bg-violet-50 dark:hover:bg-violet-950/30"
                         disabled={updating === u.id}
                         onClick={() => grantTrial(u.id)}
-                        title="منح تجربة مجانية 30 يوماً">
+                        title="منح تجربة مجانية 15 يوماً">
                         تجربة
                       </Button>
                       {u.subscriptionStatus !== "active" && (

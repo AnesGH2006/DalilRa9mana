@@ -4,7 +4,7 @@ import { db, paymentsTable, usersTable } from "../../shared/db.js";
 import { PAID_PLAN_PRICES_DZD } from "../../shared/subscription.js";
 
 const DEFAULT_AMOUNT_DZD = 1000;
-export const PAID_PLAN_TRIAL_DAYS = 30;
+export const PAID_PLAN_TRIAL_DAYS = 15;
 
 // إضافة جميع المبالغ المتاحة في بطاقات الواجهة
 const ALLOWED_AMOUNTS_DZD = new Set([

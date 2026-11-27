@@ -79,7 +79,7 @@ export default function SubscriptionPage() {
       const payload = await response.json() as { error?: string; expiresAt?: string };
       if (!response.ok) throw new Error(payload.error ?? "تعذر تفعيل التجربة المجانية");
       const planName = plan === "basic" ? "أساسي" : plan === "pro" ? "Pro" : "الأستاذ";
-      setTrialMessage(`تم تفعيل باقة ${planName} مجاناً لمدة 30 يوماً.`);
+      setTrialMessage(`تم تفعيل باقة ${planName} مجاناً لمدة 15 يوماً.`);
       await loadPaymentInfo();
     } catch (error) {
       setTrialError(error instanceof Error ? error.message : "تعذر تفعيل التجربة المجانية");
@@ -297,7 +297,7 @@ export default function SubscriptionPage() {
         </h1>
         <p className="text-muted-foreground text-base max-w-md mx-auto">كل باقة مصممة لاحتياجات مختلفة — من مؤسسة صغيرة إلى شبكة مؤسسات</p>
         <p className="mx-auto max-w-xl rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-          جرّب باقتي أساسي وPro مجاناً لمدة 30 يوماً، مرة واحدة لكل حساب وبدون إدخال بيانات الدفع.
+          جرّب باقتي أساسي وPro مجاناً لمدة 15 يوماً، مرة واحدة لكل حساب وبدون إدخال بيانات الدفع.
         </p>
 
         <motion.div
@@ -378,13 +378,13 @@ export default function SubscriptionPage() {
                 {(plan.key === "basic" || plan.key === "pro") && paymentInfo?.trialAvailable && !plan.current && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold text-white ring-1 ring-white/40">
                     <Calendar className="h-3 w-3" />
-                    تجربة مجانية 30 يوماً
+                    تجربة مجانية 15 يوماً
                   </span>
                 )}
                 {plan.key === STAFF_PLAN && paymentInfo?.staffTrialAvailable && !plan.current && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold text-white ring-1 ring-white/40">
                     <Calendar className="h-3 w-3" />
-                    تجربة مجانية 30 يوماً
+                    تجربة مجانية 15 يوماً
                   </span>
                 )}
 

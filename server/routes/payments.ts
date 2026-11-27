@@ -8,7 +8,7 @@ import { db, paymentsTable, paymentRequestsTable, schoolInfoTable, usersTable } 
 import { CCP_ACCOUNT, PAID_PLAN_PRICES_DZD, STAFF_PLAN, STAFF_PLAN_PRICE_DZD, PARENT_PLAN, PARENT_PLAN_PRICE_DZD } from "../../shared/subscription.js";
 import { isSchoolStage } from "../../shared/school-stage.js";
 import { generateActivationBatch, redeemActivationCode } from "../services/activationCodeService.js";
-import { activateFreePlan, activatePaidPlanTrial, completeDemoPayment, createDemoCheckout, createChargilyCheckout, settleChargilyPayment, verifyChargilySignature, verifyChargilyCheckout } from "../services/paymentService.js";
+import { activateFreePlan, activatePaidPlanTrial, completeDemoPayment, createDemoCheckout, createChargilyCheckout, settleChargilyPayment, verifyChargilySignature, verifyChargilyCheckout, PAID_PLAN_TRIAL_DAYS } from "../services/paymentService.js";
 import {
   hasOwnStaffSubscription,
 } from "../middlewares/staffAccess.js";
@@ -196,7 +196,7 @@ router.post("/payments/trial", async (req, res): Promise<void> => {
       success: true,
       plan,
       expiresAt: expiresAt.toISOString(),
-      trialDays: 30,
+      trialDays: PAID_PLAN_TRIAL_DAYS,
     });
   } catch (error) {
     res.status(409).json({ error: error instanceof Error ? error.message : "تعذر تفعيل التجربة المجانية" });

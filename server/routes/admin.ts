@@ -3,7 +3,7 @@ import { db, paymentRequestsTable, paymentsTable, schoolInfoTable, schoolMembers
 import { eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { PARENT_PLAN, STAFF_PLAN } from "../middlewares/staffAccess.js";
 
-const TRIAL_DAYS = 30;
+const TRIAL_DAYS = 15;
 const GRANTABLE_PLANS = ["basic", "pro", STAFF_PLAN, PARENT_PLAN] as const;
 type GrantablePlan = (typeof GRANTABLE_PLANS)[number];
 
@@ -219,7 +219,7 @@ router.post("/admin/activate", async (req: Request, res: Response): Promise<void
   res.json({ success: true, email: updated.email, subscriptionStatus: updated.subscriptionStatus, subscriptionExpiresAt: updated.subscriptionExpiresAt });
 });
 
-// POST /api/admin/users/:id/grant-trial — grant a free 30-day trial to any account (admin only).
+// POST /api/admin/users/:id/grant-trial — grant a free 15-day trial to any account (admin only).
 // Bypasses the once-per-account rule so old/expired users can be given a month.
 router.post("/admin/users/:id/grant-trial", async (req: Request, res: Response): Promise<void> => {
   if (!isAdmin(req)) { res.status(403).json({ error: "Forbidden" }); return; }
@@ -243,7 +243,7 @@ router.post("/admin/users/:id/grant-trial", async (req: Request, res: Response):
   res.json({ success: true, userId: updated!.id, plan: grantPlan, expiresAt: expiresAt.toISOString(), trialDays: TRIAL_DAYS });
 });
 
-// POST /api/admin/grant-trial-bulk — grant a 30-day trial to every account without a live paid plan.
+// POST /api/admin/grant-trial-bulk — grant a 15-day trial to every account without a live paid plan.
 router.post("/admin/grant-trial-bulk", async (req: Request, res: Response): Promise<void> => {
   if (!isAdmin(req)) { res.status(403).json({ error: "Forbidden" }); return; }
   const requestedPlan = typeof req.body?.plan === "string" ? req.body.plan : undefined;
